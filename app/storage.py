@@ -44,6 +44,10 @@ class SQLiteStore:
                     match_id TEXT PRIMARY KEY REFERENCES matches(id) ON DELETE CASCADE,
                     payload TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS match_flow (
+                    match_id TEXT PRIMARY KEY REFERENCES matches(id) ON DELETE CASCADE,
+                    payload TEXT NOT NULL
+                );
             """)
 
     @contextmanager
@@ -114,6 +118,15 @@ class SQLiteStore:
                 raise StoreConflict("Cannot replace team IDs while rosters exist")
             new_match = Match.model_validate({**config.model_dump(),
                                               "players": [p.model_dump() for p in old.players]})
+            flow_row = conn.execute(
+                "SELECT payload FROM match_flow WHERE match_id=?", (match_id,)
+            ).fetchone()
+            if flow_row and json.loads(flow_row[0]).get("operations"):
+                if (new_match.period != old.period
+                        or new_match.home.attack_direction != old.home.attack_direction
+                        or new_match.away.attack_direction != old.away.attack_direction
+                        or new_match.match_seconds < old.match_seconds):
+                    raise StoreConflict("Use match actions to advance period, directions and clock")
             old_state = self._get_state(conn, match_id)
             assert old_state is not None
             new_state = self._checked_bundle(old_state, match=new_match)
@@ -163,6 +176,12 @@ class SQLiteStore:
                 })
             except ValidationError as exc:
                 raise StoreConflict("Invalid roster: unknown team or duplicate player ID") from exc
+            flow_row = conn.execute(
+                "SELECT payload FROM match_flow WHERE match_id=?", (match_id,)
+            ).fetchone()
+            if (flow_row and json.loads(flow_row[0]).get("operations")
+                    and updated.players != match.players):
+                raise StoreConflict("Roster is locked after match actions; player identities must remain stable")
             existing = self._get_state(conn, match_id)
             assert existing is not None
             snapshot = self._checked_bundle(existing, match=updated)
