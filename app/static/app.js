@@ -129,6 +129,7 @@ function blankMatch() {
   $("roster-controls").hidden=true;
   $("match-flow-panel").hidden=true;
   $("corrections-panel").hidden=true;
+  $("sources-panel").hidden=true;
   currentFlow=null;
   formNotice("resolve-message","");
   formNotice("match-message","Nova partida: informe os dois clubes e salve.");
@@ -175,6 +176,7 @@ async function chooseMatch(id) {
   showRoster();
   await loadMatchFlow();
   await loadMatchCorrections();
+  await loadSavedSources();
   formNotice("match-message","Partida carregada do SQLite.");
 }
 async function refreshMatches(wanted=null) {
@@ -493,4 +495,92 @@ $("correction-form").addEventListener("submit",async event=>{
   }catch(error){
     formNotice("correction-message","Correção recusada: "+error.message,true);
   }
+});
+
+/* GN-032: metadata only; no playback, captured streams or embedded media. */
+let registeredSources = [];
+let editingSourceId = null;
+function resetSourceForm(){
+  editingSourceId=null;
+  $("source-form").reset();
+}
+function showSavedSources(){
+  const list=$("source-list");
+  list.replaceChildren();
+  if(!registeredSources.length){
+    const item=document.createElement("li");item.textContent="Nenhuma fonte cadastrada.";
+    list.append(item);return;
+  }
+  for(const source of registeredSources){
+    const item=document.createElement("li"),description=document.createElement("div");
+    const title=document.createElement("strong");
+    title.textContent=source.name+" · "+(source.kind==="radio"?"Rádio":"YouTube");
+    const detail=document.createElement("small");
+    detail.textContent=(source.enabled?"Habilitada":"Desabilitada")+
+      " · Não capturando · "+(source.url||"URL não informada");
+    description.append(title,detail);
+    const buttons=document.createElement("div");buttons.className="roster-actions";
+    const edit=document.createElement("button");
+    edit.type="button";edit.className="secondary";edit.textContent="Editar";
+    edit.addEventListener("click",()=>editSavedSource(source));
+    const toggle=document.createElement("button");
+    toggle.type="button";toggle.className="secondary";
+    toggle.textContent=source.enabled?"Desativar":"Ativar";
+    toggle.addEventListener("click",async()=>{
+      try{
+        await persistSavedSources(registeredSources.map(s=>
+          s.id===source.id?{...s,enabled:!s.enabled,status:"offline"}:s));
+        formNotice("source-message","Estado da fonte atualizado.");
+      }catch(error){formNotice("source-message",error.message,true);}
+    });
+    const remove=document.createElement("button");
+    remove.type="button";remove.className="secondary";remove.textContent="Excluir";
+    remove.addEventListener("click",async()=>{
+      if(!confirm("Excluir esta fonte? Histórico com referências pode impedir a exclusão."))return;
+      try{
+        await persistSavedSources(registeredSources.filter(s=>s.id!==source.id));
+        formNotice("source-message","Fonte excluída.");
+      }catch(error){formNotice("source-message",error.message,true);}
+    });
+    buttons.append(edit,toggle,remove);item.append(description,buttons);list.append(item);
+  }
+}
+async function loadSavedSources(){
+  if(!chosenMatch)return;
+  registeredSources=await configApi(
+    "/api/matches/"+encodeURIComponent(chosenMatch.id)+"/sources");
+  $("sources-panel").hidden=false;
+  resetSourceForm();
+  showSavedSources();
+}
+async function persistSavedSources(next){
+  if(!chosenMatch)throw new Error("Selecione uma partida.");
+  registeredSources=await configApi(
+    "/api/matches/"+encodeURIComponent(chosenMatch.id)+"/sources","PUT",next);
+  resetSourceForm();
+  showSavedSources();
+}
+function editSavedSource(source){
+  editingSourceId=source.id;
+  $("source-name").value=source.name;
+  $("source-kind").value=source.kind;
+  $("source-url").value=source.url||"";
+  $("source-enabled").checked=source.enabled;
+  formNotice("source-message","Editando "+source.name);
+}
+$("source-cancel").addEventListener("click",resetSourceForm);
+$("source-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(!chosenMatch)return;
+  const source={
+    id:editingSourceId||makeId("source"),name:configValue("source-name").trim(),
+    kind:configValue("source-kind"),url:configValue("source-url").trim()||null,
+    enabled:$("source-enabled").checked,status:"offline",
+  };
+  const next=registeredSources.filter(item=>item.id!==source.id);
+  next.push(source);
+  try{
+    await persistSavedSources(next);
+    formNotice("source-message","Fonte salva no SQLite; captura ainda indisponível.");
+  }catch(error){formNotice("source-message","Erro na fonte: "+error.message,true);}
 });
