@@ -10,8 +10,11 @@ import asyncio
 from contextlib import aclosing
 from datetime import datetime, timezone
 from dataclasses import dataclass
+import importlib.util
 import json
+from pathlib import Path
 import shutil
+import sys
 from typing import AsyncIterator
 
 from app.audio_capture import CaptureError, pcm_chunks
@@ -27,6 +30,26 @@ class ResolvedLiveAudio:
     headers: dict[str, str]
 
 
+def _extractor_command(binary: str) -> list[str]:
+    """Use the active virtualenv's yt-dlp, even if Scripts/ is not on PATH.
+
+    Explicit .py fixtures run through the same interpreter on Windows and Linux.
+    Other explicitly supplied binaries still use the ordinary executable lookup.
+    """
+    script = Path(binary)
+    if script.suffix.lower() == ".py" and script.is_file():
+        return [sys.executable, str(script.resolve())]
+    if binary == "yt-dlp" and importlib.util.find_spec("yt_dlp") is not None:
+        return [sys.executable, "-m", "yt_dlp"]
+    executable = shutil.which(binary)
+    if executable is None:
+        raise CaptureError(
+            "yt-dlp not found; install it into the active Python environment "
+            "(python -m pip install yt-dlp), or add its executable to PATH"
+        )
+    return [executable]
+
+
 async def resolve_live_audio(
     source: AudioSource, *, yt_dlp_binary: str = "yt-dlp", timeout: float = 35
 ) -> ResolvedLiveAudio:
@@ -36,11 +59,9 @@ async def resolve_live_audio(
         validate_source_urls([source])
     except StoreConflict as exc:
         raise CaptureError(str(exc)) from exc
-    executable = shutil.which(yt_dlp_binary)
-    if executable is None:
-        raise CaptureError("yt-dlp not found; install it and add it to PATH")
     command = [
-        executable, "--ignore-config", "--no-cache-dir", "--no-playlist", "--skip-download",
+        *_extractor_command(yt_dlp_binary),
+        "--ignore-config", "--no-cache-dir", "--no-playlist", "--skip-download",
         "--dump-single-json", "--no-warnings", "--", source.url,
     ]
     try:
