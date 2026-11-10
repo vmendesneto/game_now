@@ -104,3 +104,70 @@ def test_youtube_pcm_uses_resolved_audio_not_video(tmp_path,monkeypatch):
     assert parameters[0][0].kind=="radio"
     assert parameters[0][0].url.endswith("audio-high.m3u8")
     assert parameters[0][1]["http_headers"]=={"User-Agent":"GameNow-Test"}
+
+
+def fake_metadata_resolver(tmp_path, metadata):
+    """Local fake yt-dlp process with a controlled metadata response."""
+    binary = tmp_path / "metadata-yt-dlp"
+    data = json.dumps(metadata)
+    binary.write_text(
+        "#!/usr/bin/env python3\nimport sys\nsys.stdout.write(" +
+        repr(data) + ")\n",
+        encoding="utf-8",
+    )
+    binary.chmod(0o755)
+    return str(binary)
+
+
+@pytest.mark.parametrize("formats,needle", [
+    ({}, "valid formats list"),
+    ([{"url": "https://cdn.example.org/media", "vcodec": "none",
+       "acodec": "aac", "has_drm": True}], "audio-only"),
+    ([{"url": "https://cdn.example.org/video", "vcodec": "h264",
+       "acodec": "aac"}], "audio-only"),
+])
+def test_fail_closed_on_invalid_or_drm_only_formats(tmp_path, formats, needle):
+    binary = fake_metadata_resolver(
+        tmp_path, {"live_status": "is_live", "formats": formats},
+    )
+    with pytest.raises(CaptureError, match=needle):
+        asyncio.run(youtube_capture.resolve_live_audio(
+            source(), yt_dlp_binary=binary,
+        ))
+
+
+def test_nonnumeric_bitrate_keeps_usable_audio(tmp_path):
+    binary = fake_metadata_resolver(tmp_path, {
+        "is_live": True, "formats": [
+            {"format_id": "audio", "vcodec": "none", "acodec": "opus",
+             "url": "https://cdn.example.org/audio", "abr": "unknown"},
+        ],
+    })
+    result = asyncio.run(youtube_capture.resolve_live_audio(
+        source(), yt_dlp_binary=binary,
+    ))
+    assert result.format_id == "audio"
+
+
+def test_live_diagnostic_emits_only_json_safe_statistics(monkeypatch):
+    async def fake_pcm(item, **kwargs):
+        yield b"\x01\x00" * 8000
+        yield b"\x02\x00" * 8000
+    monkeypatch.setattr(youtube_capture, "youtube_pcm_chunks", fake_pcm)
+    result = asyncio.run(youtube_capture.youtube_diagnostic(source(), duration=.6))
+    assert result["bytes"] == 19_200
+    assert result["chunks"] == 2
+    assert result["seconds"] == pytest.approx(.6)
+    assert result["audio_retransmitted"] is False
+    assert all(field not in result for field in ("url", "pcm", "audio", "headers"))
+    with pytest.raises(CaptureError, match="duration"):
+        asyncio.run(youtube_capture.youtube_diagnostic(source(), duration=61))
+
+
+def test_live_diagnostic_rejects_no_audio(monkeypatch):
+    async def fake_pcm(item, **kwargs):
+        if False:
+            yield b"\x00\x00"
+    monkeypatch.setattr(youtube_capture, "youtube_pcm_chunks", fake_pcm)
+    with pytest.raises(CaptureError, match="no PCM"):
+        asyncio.run(youtube_capture.youtube_diagnostic(source(), duration=.5))
