@@ -113,3 +113,26 @@ def test_dns_public_check_rejects_private_resolution(monkeypatch):
         with pytest.raises(CaptureError, match="non-public IP"):
             await check_public_destination("https://radio.example.org/live")
     asyncio.run(scenario())
+
+
+def test_ffmpeg_discards_video_from_muxed_fixture(tmp_path):
+    """The fallback can ingest muxed A/V, but delivers PCM audio only."""
+    assert shutil.which("ffmpeg"), "FFmpeg must be present in CI"
+    muxed = tmp_path / "muxed.mp4"
+    subprocess.run([
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "lavfi", "-i", "color=c=black:s=64x64:r=5:d=1",
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+        "-c:v", "mpeg4", "-c:a", "aac", "-shortest", str(muxed),
+    ], check=True, capture_output=True)
+
+    async def collect():
+        async with aclosing(pcm_chunks(
+            radio(), fixture_file=muxed, chunk_ms=500,
+        )) as stream:
+            return [chunk async for chunk in stream]
+
+    blocks = asyncio.run(collect())
+    assert sum(map(len, blocks)) >= 30_000
+    assert all(len(block) <= 16_000 and len(block) % 2 == 0 for block in blocks)
+    assert any(any(value != 0 for value in block) for block in blocks)
