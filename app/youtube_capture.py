@@ -11,7 +11,10 @@ from contextlib import aclosing
 from datetime import datetime, timezone
 from dataclasses import dataclass
 import json
+import importlib.util
+from pathlib import Path
 import shutil
+import sys
 from typing import AsyncIterator
 
 from app.audio_capture import CaptureError, pcm_chunks
@@ -36,11 +39,24 @@ async def resolve_live_audio(
         validate_source_urls([source])
     except StoreConflict as exc:
         raise CaptureError(str(exc)) from exc
-    executable = shutil.which(yt_dlp_binary)
-    if executable is None:
-        raise CaptureError("yt-dlp not found; install it and add it to PATH")
-    command = [
-        executable, "--ignore-config", "--no-cache-dir", "--no-playlist", "--skip-download",
+    # Windows cannot launch POSIX-shebang .py fixtures as native executables.
+    # Also allow the official package to run in the active venv when its CLI
+    # entrypoint is absent from PATH (e.g. invoking .venv\\Scripts\\python.exe).
+    if yt_dlp_binary.endswith(".py") and Path(yt_dlp_binary).is_file():
+        launcher = [sys.executable, yt_dlp_binary]
+    else:
+        executable = shutil.which(yt_dlp_binary)
+        if executable:
+            launcher = [executable]
+        elif yt_dlp_binary == "yt-dlp" and importlib.util.find_spec("yt_dlp"):
+            launcher = [sys.executable, "-m", "yt_dlp"]
+        else:
+            raise CaptureError(
+                "yt-dlp not found; install it in this Python environment "
+                "(python -m pip install yt-dlp) or add it to PATH"
+            )
+    command = launcher + [
+        "--ignore-config", "--no-cache-dir", "--no-playlist", "--skip-download",
         "--dump-single-json", "--no-warnings", "--", source.url,
     ]
     try:
