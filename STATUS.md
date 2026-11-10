@@ -6,6 +6,13 @@
 **Próxima tarefa:** **GN-031 — prova com YouTube Live real e permitido**. Código de diagnóstico já existe, mas este ambiente não pode comprovar uma transmissão real autorizada; manter `[ ]`. Próxima implementação independente possível: GN-040 (ASR CPU, exige modelo real e benchmark).
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
+## Diagnóstico Windows de 2026-11-10 (correção aguardando nova execução física)
+
+- No primeiro teste no Windows 11 com Python 3.12: **49 passaram, 17 falharam**. Desses, quatro decorreram de FFmpeg ausente do `PATH` no PowerShell ainda aberto após a instalação pelo winget. Os outros treze apontaram `WinError 193`: os mocks de yt-dlp eram arquivos com shebang Unix, não executáveis Win32.
+- Os scripts falsos de `tests/test_youtube_capture.py` e `tests/test_media_policy.py` agora terminam em `.py` e são lançados pelo próprio `sys.executable`, de forma portátil. O resolvedor passou a aceitar o módulo oficial `yt_dlp` instalado no mesmo ambiente Python quando o entrypoint não estiver no `PATH`. Foi acrescentado teste do fallback.
+- O teste manual tentou `youtube.com/shorts/...`, que **não é YouTube Live**. Mesmo com yt-dlp localizado, esse link não comprovaria GN-031.
+- **Ainda falta confirmar o resultado após essa correção no Windows físico e depois capturar cinco segundos de uma Live real autorizada**. Não declarar a suíte Windows aprovada, nem marcar GN-031 ou GN-012 como concluídas sem evidência. Ver instruções no README.
+
 ## Implementado e validado
 - **GN-033:** `app/capture_supervisor.py` mantém um worker por fonte, reconecta com backoff exponencial limitado, detecta fluxo terminado/sem PCM e encerra rapidamente por `asyncio.Event`; cada retomada de YouTube invoca o resolvedor novamente. Acumula apenas PCM limitado pelo `MultiSourceAudioBuffer`, não URLs assinadas. `tests/test_capture_supervisor.py` cobre desconexão, retentativas, sessão parada, isolamento e timeout (fontes simuladas; não é validação de rádio/YouTube ao vivo).
 - **GN-037:** URLs de fontes permanecem sob `app/source_validation.py`; yt-dlp agora é chamado com `--ignore-config`, `--no-cache-dir` e `--skip-download`. `tests/test_media_policy.py` valida rejeição de links indevidos, ausência de players no frontend e nenhuma gravação no diretório de simulação. O FFmpeg continua emitindo PCM por stdout. Verificação de SSRF em redirecionamentos/substreams continua GN-090.
