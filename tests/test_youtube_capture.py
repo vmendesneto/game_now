@@ -3,6 +3,7 @@ import asyncio
 from contextlib import aclosing
 import json
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -18,7 +19,7 @@ def source(name="normal"):
 
 
 def fake_ytdlp(tmp_path: Path):
-    executable = tmp_path / "fake-yt-dlp"
+    executable = tmp_path / "fake-yt-dlp.py"
     executable.write_text('''#!/usr/bin/env python3
 import json,sys,time
 link=sys.argv[-1]
@@ -49,6 +50,38 @@ print(json.dumps({"is_live":live,"live_status":"is_live" if live else "not_live"
 ''', encoding="utf-8")
     executable.chmod(0o755)
     return str(executable)
+
+
+def test_installed_yt_dlp_module_without_path_entrypoint(monkeypatch):
+    """The virtualenv Python can load yt-dlp even if PATH lacks its .exe."""
+    monkeypatch.setattr(youtube_capture.shutil, "which", lambda _: None)
+    monkeypatch.setattr(
+        youtube_capture.importlib.util, "find_spec",
+        lambda name: object() if name == "yt_dlp" else None,
+    )
+    invocations = []
+
+    class FakeProcess:
+        returncode = 0
+
+        async def communicate(self):
+            metadata = {
+                "is_live": True,
+                "formats": [
+                    {"format_id": "audio", "acodec": "opus", "vcodec": "none",
+                     "url": "https://cdn.example.org/audio.m3u8"}
+                ],
+            }
+            return json.dumps(metadata).encode(), b""
+
+    async def fake_spawn(*args, **kwargs):
+        invocations.append(args)
+        return FakeProcess()
+
+    monkeypatch.setattr(youtube_capture.asyncio, "create_subprocess_exec", fake_spawn)
+    result = asyncio.run(youtube_capture.resolve_live_audio(source()))
+    assert result.format_id == "audio"
+    assert invocations[0][:3] == (sys.executable, "-m", "yt_dlp")
 
 
 def test_live_audio_only_selection_excludes_cookies(tmp_path):
@@ -108,7 +141,7 @@ def test_youtube_pcm_uses_resolved_audio_not_video(tmp_path,monkeypatch):
 
 def fake_metadata_resolver(tmp_path, metadata):
     """Local fake yt-dlp process with a controlled metadata response."""
-    binary = tmp_path / "metadata-yt-dlp"
+    binary = tmp_path / "metadata-yt-dlp.py"
     data = json.dumps(metadata)
     binary.write_text(
         "#!/usr/bin/env python3\nimport sys\nsys.stdout.write(" +
