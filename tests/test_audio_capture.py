@@ -68,7 +68,8 @@ def test_ffmpeg_decodes_radio_formats_to_pcm_s16le_16khz(tmp_path, codec):
     assert len(blocks) >= 4
     assert all(len(chunk) <= 6400 and len(chunk) % 2 == 0 for chunk in blocks)
     total = sum(len(chunk) for chunk in blocks)
-    assert 30_000 <= total <= 34_000, (codec, total)
+    # AAC/HLS carry codec priming/padding samples; PCM format remains exact.
+    assert 30_000 <= total <= 40_000, (codec, total)
     assert any(value != 0 for block in blocks for value in block)
     summary = asyncio.run(diagnostic(radio(), fixture_file=media, duration=0.4))
     assert summary["sample_rate"] == SAMPLE_RATE
@@ -82,7 +83,7 @@ def test_disabled_nonradio_missing_ffmpeg_and_bad_chunk_bounds(tmp_path):
     fixture = make_audio_fixture(tmp_path, "mp3")
 
     async def collect(source, **kwargs):
-        async with aclosing(pcm_chunks(source, fixture_file=fixture, **kwargs)) as stream:
+        async with aclosing(pcm_chunks(source, fixture_file=kwargs.pop("fixture_file", fixture), **kwargs)) as stream:
             return [block async for block in stream]
 
     with pytest.raises(CaptureError, match="Only enabled radio"):
