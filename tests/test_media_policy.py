@@ -37,7 +37,7 @@ def test_frontend_does_not_embed_media_players():
 
 
 def test_ytdlp_is_invoked_without_cache_download_or_credentials(tmp_path):
-    executable = tmp_path / "mock-yt-dlp"
+    executable = tmp_path / "mock-yt-dlp.py"
     executable.write_text(
         "#!/usr/bin/env python3\n"
         "import json, sys\n"
