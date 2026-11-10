@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.configuration import MatchConfig, RosterPlayer
+from app.corrections import CorrectionService, ManualCorrection
 from app.contracts import AudioSource, ContractBundle, Match
 from app.demo import DemoEngine
 from app.entities import ResolveRequest, ResolveResult, resolve_player
@@ -23,6 +24,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     engine = DemoEngine()
     store = SQLiteStore(database_path)
     flow = MatchFlowService(store)
+    corrections = CorrectionService(store)
     application.state.store = store
     clients: set[WebSocket] = set()
 
@@ -129,6 +131,23 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     async def apply_match_action(match_id: str, action: MatchAction):
         try:
             result = flow.apply(match_id, action)
+        except StoreConflict as exc:
+            conflict(exc)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Partida não encontrada")
+        return result
+
+    @application.get("/api/matches/{match_id}/corrections")
+    async def get_match_corrections(match_id: str):
+        result = corrections.list(match_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Partida não encontrada")
+        return result
+
+    @application.post("/api/matches/{match_id}/corrections", status_code=201)
+    async def apply_match_correction(match_id: str, correction: ManualCorrection):
+        try:
+            result = corrections.apply(match_id, correction)
         except StoreConflict as exc:
             conflict(exc)
         if result is None:
