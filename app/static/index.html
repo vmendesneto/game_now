@@ -35,6 +35,56 @@
         <div class="panel feed"><div class="panel-title">RELATOS RECEBIDOS</div><ol id="feed"><li class="empty">Nenhuma narração ainda.</li></ol></div>
       </aside>
     </section>
+
+    <section class="config-area" aria-labelledby="configuration-title">
+      <div class="config-heading"><div><div class="eyebrow">GN-020 · GN-021 · GN-023</div>
+        <h2 id="configuration-title">Partidas e elencos</h2>
+        <p>Cadastre a partida e os atletas no SQLite local. O campo acima continua sendo uma <strong>demo sintética separada</strong>; suas narrações não alteram os jogos cadastrados.</p>
+      </div></div>
+      <div class="config-grid">
+        <form id="match-form" class="panel config-form">
+          <div class="panel-title">CADASTRO / EDIÇÃO DA PARTIDA</div>
+          <label>Partida cadastrada<select id="match-picker"><option value="">Nova partida</option></select></label>
+          <div class="controls"><button id="match-new" class="secondary" type="button">Nova partida</button><button id="match-delete" class="secondary" type="button" disabled>Excluir partida</button></div>
+          <div class="form-pair">
+            <label>Mandante<input id="home-input" required maxlength="80" value="Azul"></label>
+            <label>Visitante<input id="away-input" required maxlength="80" value="Vermelho"></label>
+            <label>Sigla mandante<input id="home-short" required maxlength="12" value="AZU"></label>
+            <label>Sigla visitante<input id="away-short" required maxlength="12" value="VER"></label>
+            <label>Cor mandante<input id="home-color" type="color" value="#4990ff"></label>
+            <label>Cor visitante<input id="away-color" type="color" value="#f26c69"></label>
+          </div>
+          <label>Ataque do mandante<select id="home-direction"><option value="left_to_right">Esquerda → direita</option><option value="right_to_left">Direita → esquerda</option></select></label>
+          <div class="form-pair">
+            <label>Período<select id="match-period"><option value="first_half">1º tempo</option><option value="half_time">Intervalo</option><option value="second_half">2º tempo</option><option value="finished">Encerrado</option></select></label>
+            <label>Relógio (segundos)<input id="match-seconds" type="number" min="0" step="1" value="0" required></label>
+            <label>Gols mandante<input id="home-goals" type="number" min="0" step="1" value="0" required></label>
+            <label>Gols visitante<input id="away-goals" type="number" min="0" step="1" value="0" required></label>
+          </div>
+          <button id="match-save" type="submit">Salvar partida</button>
+          <p id="match-message" class="form-message" role="status"></p>
+        </form>
+        <div class="panel config-form" id="roster-controls">
+          <div class="panel-title">ELENCOS · MANDANTE / VISITANTE</div>
+          <p class="muted">Selecione uma partida salva. Números podem se repetir entre clubes, mas não dentro do mesmo clube.</p>
+          <form id="player-form">
+            <label>Equipe<select id="player-team" required></select></label>
+            <div class="form-pair">
+              <label>Camisa<input id="player-number" type="number" min="1" max="99" required></label>
+              <label>Nome<input id="player-name" maxlength="100" required></label>
+            </div>
+            <label>Apelidos (separados por vírgula)<input id="player-aliases" placeholder="Ex.: camisa 10, Pedrinho"></label>
+            <div class="form-pair">
+              <label>Posição<select id="player-position"><option value="goalkeeper">Goleiro</option><option value="defender">Defensor</option><option value="midfielder">Meio-campo</option><option value="forward">Atacante</option><option value="other">Outra</option></select></label>
+              <label>Situação<select id="player-starter"><option value="true">Titular</option><option value="false">Reserva</option></select></label>
+            </div>
+            <div class="controls"><button type="submit">Salvar atleta</button><button id="player-cancel" type="button" class="secondary">Cancelar edição</button></div>
+          </form>
+          <p id="player-message" class="form-message" role="status"></p>
+          <ul id="player-list" class="roster-list"></ul>
+        </div>
+      </div>
+    </section>
     <footer>Game Now · Contrato v1 · Um campo de <b>15 zonas</b> · Rádio/YouTube reais ainda não integrados</footer>
   </main>
   <script src="/static/app.js" defer></script>

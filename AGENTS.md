@@ -59,6 +59,6 @@ Como continuar: comando/arquivo específico
 - **Transcrição criada** não prova extração correta de jogador/posse/região.
 - **Duas fontes captadas** não prova alinhamento de tempos ou seleção correta.
 
-## Primeiro trabalho indicado
+## Próximo trabalho indicado
 
-**GN-020: CRUD da partida**, conforme `STATUS.md`; em paralelo GN-012 depende do Windows físico. GN-003/GN-004 e a demo inicial foram implementados. Manter esta indicação sincronizada com `STATUS.md` nas futuras edições.
+**GN-022: normalização e desambiguação de atletas**, conforme `STATUS.md`; GN-012 continua dependendo do Windows físico. GN-020/021/023 deixam configuração em SQLite, separada do motor de demonstração volátil. Não confundir `/api/matches/{id}/state` (snapshot persistido) com `/api/state` (demo). Preservar `ContractBundle` v1 ao implementar GN-022, GN-032 e integração futura.
