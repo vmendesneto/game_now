@@ -40,7 +40,7 @@ async def resolve_live_audio(
     if executable is None:
         raise CaptureError("yt-dlp not found; install it and add it to PATH")
     command = [
-        executable, "--ignore-config", "--no-playlist", "--skip-download",
+        executable, "--ignore-config", "--no-cache-dir", "--no-playlist", "--skip-download",
         "--dump-single-json", "--no-warnings", "--", source.url,
     ]
     try:
