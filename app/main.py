@@ -12,6 +12,7 @@ from app.configuration import MatchConfig, RosterPlayer
 from app.contracts import AudioSource, ContractBundle, Match
 from app.demo import DemoEngine
 from app.entities import ResolveRequest, ResolveResult, resolve_player
+from app.match_flow import MatchAction, MatchFlowService
 from app.storage import SQLiteStore, StoreConflict
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -21,6 +22,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     application = FastAPI(title="Game Now", version="0.2.0")
     engine = DemoEngine()
     store = SQLiteStore(database_path)
+    flow = MatchFlowService(store)
     application.state.store = store
     clients: set[WebSocket] = set()
 
@@ -115,6 +117,23 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
             return resolve_player(match, request.mention, request.team_id)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @application.get("/api/matches/{match_id}/flow")
+    async def get_match_flow(match_id: str):
+        result = flow.get(match_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Partida não encontrada")
+        return result
+
+    @application.post("/api/matches/{match_id}/actions")
+    async def apply_match_action(match_id: str, action: MatchAction):
+        try:
+            result = flow.apply(match_id, action)
+        except StoreConflict as exc:
+            conflict(exc)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Partida não encontrada")
+        return result
 
     @application.get("/api/matches/{match_id}/sources", response_model=list[AudioSource])
     async def get_sources(match_id: str):
