@@ -169,6 +169,27 @@
         <div class="panel-title">TRILHA DE AUDITORIA</div>
         <ul id="correction-history" class="roster-list"></ul>
       </div>
+      <div class="panel config-form" id="sources-panel" hidden>
+        <div class="panel-title">GN-032 · FONTES DE NARRAÇÃO</div>
+        <p class="muted">Cadastre rádios HTTP(S) e links públicos de YouTube. As fontes ficam salvas no SQLite, mas a captura de áudio ainda não está implementada.</p>
+        <form id="source-form">
+          <div class="form-pair">
+            <label>Nome da fonte<input id="source-name" maxlength="120" required></label>
+            <label>Tipo<select id="source-kind">
+              <option value="radio">Rádio online</option>
+              <option value="youtube">YouTube público</option>
+            </select></label>
+          </div>
+          <label>URL pública<input id="source-url" type="url" maxlength="2048" placeholder="https://..."></label>
+          <label><input id="source-enabled" type="checkbox" checked> Fonte habilitada para captura futura</label>
+          <div class="controls">
+            <button type="submit">Salvar fonte</button>
+            <button type="button" id="source-cancel" class="secondary">Cancelar edição</button>
+          </div>
+          <p id="source-message" class="form-message" role="status"></p>
+        </form>
+        <ul id="source-list" class="roster-list"></ul>
+      </div>
     </section>
     <footer>Game Now · Contrato v1 · Um campo de <b>15 zonas</b> · Rádio/YouTube reais ainda não integrados</footer>
   </main>
