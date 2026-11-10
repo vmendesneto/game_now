@@ -119,10 +119,10 @@ async def pcm_chunks(
     ]
     if http_headers:
         allowed = {"user-agent", "referer", "origin", "accept"}
-        if any(key.lower() not in allowed or "\\r" in value or "\\n" in value
+        if any(key.lower() not in allowed or "\r" in value or "\n" in value
                or len(value) > 1024 for key, value in http_headers.items()):
             raise CaptureError("Only safe public-stream request headers are supported")
-        args += ["-headers", "".join(f"{key}: {value}\\r\\n" for key, value in http_headers.items())]
+        args += ["-headers", "".join(f"{key}: {value}\r\n" for key, value in http_headers.items())]
     args += [
         "-i", input_uri, "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE),
         "-f", "s16le", "-acodec", "pcm_s16le", "pipe:1",
