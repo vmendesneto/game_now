@@ -144,6 +144,8 @@ async def youtube_diagnostic(
             blocks += 1
             if received >= target_bytes:
                 break
+    if received == 0:
+        raise CaptureError("YouTube Live delivered no PCM samples")
     return {
         "source_id": source.id, "captured_at": datetime.now(timezone.utc).isoformat(),
         "sample_rate": 16_000, "channels": 1, "format": "s16le",
