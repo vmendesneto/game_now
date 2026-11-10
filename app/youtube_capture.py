@@ -176,7 +176,7 @@ def main() -> None:
         ))
         print(json.dumps(stats))
     except (CaptureError, OSError) as exc:
-        parser.exit(status=1, message=f"Capture error: {exc}\\n")
+        parser.exit(status=1, message=f"Capture error: {exc}\n")
 
 
 if __name__ == "__main__":
