@@ -39,10 +39,10 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 ## F02 — Partida, escalação e persistência
 
-- [ ] **GN-020 [P0]** Criar esquema de partida (mandante/visitante, cores, lado de ataque, período, relógio, placar); evidência: CRUD e testes.
-- [ ] **GN-021 [P0]** Cadastro dos dois elencos com número, nome, apelidos, posição e titular/reserva; evidência: fluxo web/API.
-- [ ] **GN-022 [P0]** Normalizar nomes, apelidos e “camisa 10” sem misturar atletas de equipes; evidência: testes com ambiguidades.
-- [ ] **GN-023 [P0]** Persistir configuração, fontes, estado e histórico de eventos em SQLite; evidência: reiniciar sem perder dados.
+- [x] **GN-020 [P0]** Criar esquema de partida (mandante/visitante, cores, lado de ataque, período, relógio, placar); evidência: CRUD e testes.
+- [x] **GN-021 [P0]** Cadastro dos dois elencos com número, nome, apelidos, posição e titular/reserva; evidência: fluxo web/API.
+- [x] **GN-022 [P0]** Normalizar nomes, apelidos e “camisa 10” sem misturar atletas de equipes; evidência: testes com ambiguidades.
+- [x] **GN-023 [P0]** Persistir configuração, fontes, estado e histórico de eventos em SQLite; evidência: reiniciar sem perder dados.
 - [ ] **GN-024 [P1]** Substituições, expulsões, intervalo, troca de lados e acréscimos; evidência: testes de regras.
 - [ ] **GN-025 [P1]** Correções manuais de placar, posse e evento com trilha de auditoria; evidência: API/UI + registro.
 

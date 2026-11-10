@@ -10,7 +10,8 @@ def test_health_and_schema_and_no_media_endpoints():
         data = health.json()
         assert data["status"] == "ok"
         assert data["sources"] == "synthetic_only"
-        assert data["storage"] == "volatile_memory_only"
+        assert data["storage"] == "sqlite_persistent"
+        assert data["demo_state"] == "volatile_memory_only"
         assert data["windows_hardware_tested"] is False
         assert client.get("/api/schema").json()["title"] == "ContractBundle"
         assert client.get("/").status_code == 200

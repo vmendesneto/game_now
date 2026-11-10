@@ -33,5 +33,7 @@ jobs:
           if git ls-files --error-unmatch schemas/v1.schema.json >/dev/null 2>&1; then
             git diff --exit-code -- schemas/v1.schema.json
           fi
+      - name: Check frontend JavaScript syntax
+        run: node --check app/static/app.js
       - name: Run tests
         run: python -m pytest -q

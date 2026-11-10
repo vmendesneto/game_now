@@ -1,52 +1,45 @@
 # STATUS — Estado atual do Game Now
 
-**Atualizado:** 2026-11-10  
-**Branch de referência:** `main` (integração da branch `feat/gn003-contract-and-offline-demo`)  
-**Projeto:** https://github.com/vmendesneto/game_now  
-**Fase atual:** F01 — demonstração offline implementada; F02 ainda pendente.  
-**Próxima tarefa executável:** **GN-020 — CRUD da partida**. Depois GN-021 (elencos) e GN-023 (SQLite).  
-**Bloqueio paralelo:** **GN-012 — validar o launcher no Windows físico do usuário**.
+**Atualizado:** 2026-11-10
+**Branch de referência:** `main` (após integração da entrega GN-020/021/023)
+**Projeto:** https://github.com/vmendesneto/game_now
+**Fase atual:** F02 — cadastro e persistência iniciais implementados; motor de demo permanece separado.
+**Próxima tarefa executável:** **GN-024 — substituições, expulsões, intervalo, troca de lados e acréscimos**.
+**Bloqueio paralelo:** **GN-012 — testar launcher no Windows físico.**
 
-## Últimas entregas
+## Entrega desta etapa
 
-- ✅ **GN-003:** contrato Pydantic v1 com `Match`, `Team`, `Player`, `AudioSource`, `TranscriptSegment`, `FootballEvent`, `EstimatedBallState`, confidências independentes, timestamps com fuso e zona 5×3; schema versionado em `schemas/v1.schema.json` e três fixtures (lance, publicidade, duas fontes atrasadas).
-- ✅ **GN-004:** decisão de arquitetura documentada em `docs/ADR-0001.md` (FastAPI, SVG sem Node, contratos, limites de inferência, SQLite posterior, Windows local).
-- ✅ **GN-005:** workflow Python 3.11/3.12 com validação do schema e suíte de testes.
-- ✅ **GN-010:** FastAPI, site HTML/CSS/JS e SVG servidos via HTTP em `127.0.0.1:8000`.
-- ✅ **GN-011:** dependências Python fixadas, procedimento de venv/documentação e instalação limpa de pacotes exercitada pelo CI em duas versões. FFmpeg é opcional no modo demo.
-- ✅ **GN-013:** `GET /health` com diagnóstico explícito de FFmpeg, ASR não configurado, memória volátil e fontes sintéticas.
-- ✅ **GN-014:** roteiro sintético offline com duas fontes, comercial, cruzamento, gol duplicado, replay e expiração; `/api/demo/next`, `/api/demo/reset` e transmissão de estado via `/ws`.
+- ✅ **GN-020**: `POST/GET/PUT/DELETE /api/matches` e `/api/matches/{id}`; mandante/visitante, cores, sentido do ataque, período, relógio e placar. Validação Pydantic usa a estrutura `Match` do contrato v1; equipe duplicada, direção incompatível, cores e placar inválidos são rejeitados.
+- ✅ **GN-021**: `GET/PUT /api/matches/{id}/players`, cadastro dos elencos com camisa, nome, apelidos, posição e titular/reserva; edição e exclusão pelo navegador. Camisa única por equipe; no máximo 11 titulares; IDs de atleta únicos; referência à equipe validada. `position` fica fora de `Player` v1, mantendo schema e fixtures intocados.
+- ✅ **GN-023**: banco SQLite em `data/game_now.sqlite3` (ou `GAME_NOW_DB_PATH`); partidas, elencos, fontes, snapshot completo `ContractBundle`, transcrições, eventos e bola persistidos. `GET/PUT /api/matches/{id}/sources` e `GET/PUT /api/matches/{id}/state`. Operações sobre elenco/equipe/fonte com referências históricas inválidas retornam HTTP 409 sem remover o estado salvo. Deleção em cascata.
+- ✅ **GN-022**: `app/entities.py` normaliza acentos/caixa/pontuação e resolve nomes, apelidos e número de camisa com contexto explícito de equipe; resultados ambíguos nunca são transformados em identificação. Endpoint `POST /api/matches/{id}/resolve-player` e teste de menção pelo navegador. Não interpreta frases inteiras de narração.
+- Interface web em `app/static/` com formulário de partida, troca de partida, inclusão/edição/exclusão de atletas e identificação de menções.
+- `README.md`, `AGENTS.md`, GitHub Actions e testes de integração atualizados.
+- **Contrato v1 preservado**: `app/contracts.py`, `schemas/v1.schema.json` e fixtures não foram modificados.
 
-## Evidência verificada
+## Testes e evidência
 
-- Workflow: https://github.com/vmendesneto/game_now/actions/runs/42878455255
-- SHA dos testes aprovados antes da exportação versionada: `ef18b1d08216d65cea97e3fec5b9e48e731f38da`.
-- Python 3.11: job `tests (3.11)` passou.
-- Python 3.12: job `tests (3.12)` passou, com **13 testes aprovados**, incluindo contrato/fixtures, regras sintéticas, API HTTP e dois clientes WebSocket simultâneos.
-- Comandos CI: `python -m pip install -r requirements-dev.txt`, `python scripts/export_schema.py`, `python -m pytest -q`.
-- O contrato JSON exportado por CI foi incorporado na mesma alteração de atualização de progresso.
-- **Não houve teste de navegador gráfico nem teste no Windows físico.** CI Linux não comprova integração com rádio, YouTube, GPU ou estabilidade em Windows.
+- Testes automatizados incluídos em `tests/test_entities.py` (identidades iguais entre clubes, colisão de apelidos no mesmo clube, números de camisa, nomes com acentos e reinício SQLite) e em `tests/test_configuration.py`: CRUD, campos inválidos, conflitos, elencos independentes, números repetidos, persistência de fontes e eventos, reabertura de SQLite após recriar o aplicativo, esquema e UI HTTP.
+- Testes de regressão existentes da demo, contrato, WebSocket e fixtures continuam na suíte.
+- Pipeline GitHub Actions: Python **3.11 e 3.12**, exportação/comparação do schema, `node --check app/static/app.js`, `python -m pytest -q`.
+- **CI GN-020/021/023:** 17 testes passaram em Python 3.11/3.12, com sintaxe JS: https://github.com/vmendesneto/game_now/actions/runs/42881246017.
+- **CI GN-022 integrado:** **20 testes aprovados em Python 3.11 e 3.12**, schema v1 idêntico e sintaxe JavaScript válida: https://github.com/vmendesneto/game_now/actions/runs/42881936576. Houve 1 aviso de depreciação em dependência Starlette/AnyIO, sem falha de teste.
+- Antiga evidência da fase F01: https://github.com/vmendesneto/game_now/actions/runs/42878455255 (13 testes em Python 3.12).
 
-## Estado que ainda NÃO está pronto
+## Limitações e bloqueios
 
-| Item | Estado |
-| --- | --- |
-| GN-012 — `iniciar_windows.bat` | Script criado, mas não executado em Windows real; continua [ ] |
-| GN-070 a GN-074 — interface completa | Campo SVG e dados em tela implementados como base; responsividade visual, troca de lados e fluxo de configuração ainda não validados |
-| GN-020/021/023 — cadastro e persistência | A demo usa equipes fixas e estado volátil; nenhuma implementação de SQLite ou CRUD |
-| GN-030/031 — rádios e YouTube | Não iniciados; verificar condições e permissões das fontes |
-| GN-040 a GN-043 — ASR pt-BR | Não iniciados; modelo não instalado |
-| GN-050 a GN-065 — classificação e fusão reais | Não iniciados; `app/demo.py` usa poucas palavras-chave e chaves de duplicação predeterminadas |
-| Windows CPU/RAM/FFmpeg | Não aferidos; não assumir compatibilidade |
-| Posições em campo | Zonas estimadas apenas; nunca coordenadas físicas precisas |
+- **O estado da demonstração em `GET /api/state` e em `/ws` continua volátil.** `/api/demo/next` e `/api/demo/reset` não gravam eventos nas partidas cadastradas. A persistência GN-023 é do **estado configurado via `/api/matches/{id}/state`**, não uma falsa integração do simulador.
+- O `/health` agora informa `storage=sqlite_persistent` e `demo_state=volatile_memory_only`; FFmpeg/ASR/fontes reais não implementados.
+- A GN-022 identifica menções extraídas isoladamente; resolução em frases de narração ainda depende de GN-051. Ambiguidade não gera suposições.
+- **GN-012, GN-085** e demais testes Windows, navegador gráfico, áudio, yt-dlp, CPU/RAM, GPU e FFmpeg reais não realizados.
+- `GN-070` a `GN-074`: campinho SVG e demo prontos como base; visualização de partida cadastrada e integração da configuração com narração ainda pendentes. Não marcar completos.
+- Nunca exibir coordenada exata da bola a partir de uma narração.
 
-## Como continuar
+## Continuar
 
-1. Conferir o HEAD real de `main` e reler este arquivo, `ROADMAP.md` e `AGENTS.md`.
-2. **GN-020:** adicionar CRUD de uma partida com dois clubes, direção do ataque, período, relógio e placar. Primeiro escrever testes de criação/edição/validação; não reutilizar estado de demo como banco.
-3. Depois **GN-021**, **GN-023** e configuração web. Preservar o contrato v1, ou versionar mudança incompatível.
-4. Para rodar demo: instalar Python 3.11/3.12, executar `iniciar_windows.bat` no Windows ou `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000` com venv e requirements. Abrir http://127.0.0.1:8000.
-5. **GN-012, quando o Windows estiver disponível:** registrar versão Python, instalação do launcher, acesso ao site em dois navegadores, `/health` e erros; não fechar a tarefa antes dessa evidência.
-6. Para novos commits: `python scripts/export_schema.py` e `python -m pytest -q`. Marcar [x] somente após CI/teste aplicável; atualizar STATUS e ROADMAP juntos.
-
-**Proibido** registrar como testada uma fonte real ou validação de hardware não realizada.
+1. Conferir HEAD real de `main`, `ROADMAP.md`, este arquivo, `AGENTS.md` e CI da última integração.
+2. **GN-024**: planejar e implementar substituições, expulsões, intervalo/troca de lados e acréscimos com testes, evitando mudar o contrato de eventos v1 sem versionar. Em paralelo, preparar GN-032 para cadastro de fontes com validação de URL.
+3. Para executar localmente: `python -m pip install -r requirements-dev.txt`; `python scripts/export_schema.py`; `python -m pytest -q`.
+4. Servidor: `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`, interface em http://127.0.0.1:8000. Em Windows físico, usar `iniciar_windows.bat` e registrar evidências antes de marcar GN-012.
+5. Para simular persistência, cadastrar uma partida no formulário, adicionar atletas, fechar e reabrir o processo: os dados permanecem no arquivo SQLite. A demo reinicia separadamente; não é bug de persistência da configuração.
+6. Ao alterar o contrato v1, criar versão adequada e atualizar schema, fixtures e adaptadores; não alterar silenciosamente.

@@ -43,7 +43,7 @@ function render(snapshot) {
   $("home-score").textContent=match.home_score;
   $("away-score").textContent=match.away_score;
   const m=Math.floor(match.match_seconds/60),s=Math.floor(match.match_seconds%60);
-  $("clock").textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")+" · 1º tempo";
+  $("clock").textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")+" · "+({first_half:"1º tempo",half_time:"Intervalo",second_half:"2º tempo",finished:"Encerrado"}[match.period]||match.period);
   $("direction").textContent=match.home.name+" ataca "+(match.home.attack_direction==="left_to_right"?"→":"←");
   const active = data.events.at(-1);
   const lastSegment=data.segments.at(-1);
@@ -93,3 +93,222 @@ function connect(){
 drawPitch();
 fetch("/api/state").then(r=>r.json()).then(render).catch(()=>{});
 connect();
+
+/* CRUD UI: match configuration and player positions are separate from the demo feed. */
+let configuredMatches = [];
+let chosenMatch = null;
+let currentRoster = [];
+let editingPlayerId = null;
+const configValue = id => $(id).value;
+const makeId = prefix => prefix+"-"+crypto.randomUUID();
+function formNotice(element, message, error=false) {
+  $(element).textContent=message;
+  $(element).classList.toggle("error",error);
+}
+async function configApi(path, method="GET", body) {
+  const options={method,headers:{}};
+  if(body!==undefined){options.headers["Content-Type"]="application/json";options.body=JSON.stringify(body);}
+  const response=await fetch(path,options);
+  if(!response.ok){
+    const detail=await response.json().catch(()=>({detail:response.statusText}));
+    const description=typeof detail.detail==="string"?detail.detail:JSON.stringify(detail.detail||detail);
+    throw new Error(description||"HTTP "+response.status);
+  }
+  return response.status===204?null:response.json();
+}
+function blankMatch() {
+  chosenMatch=null;currentRoster=[];editingPlayerId=null;
+  $("match-form").reset();
+  $("home-input").value="Azul";$("away-input").value="Vermelho";
+  $("home-short").value="AZU";$("away-short").value="VER";
+  $("home-color").value="#4990ff";$("away-color").value="#f26c69";
+  $("match-picker").value="";
+  $("match-delete").disabled=true;
+  $("player-form").reset();
+  $("player-list").replaceChildren();
+  $("roster-controls").hidden=true;
+  formNotice("resolve-message","");
+  formNotice("match-message","Nova partida: informe os dois clubes e salve.");
+}
+function showMatch(match) {
+  chosenMatch=match;
+  $("match-picker").value=match.id;
+  $("home-input").value=match.home.name;
+  $("away-input").value=match.away.name;
+  $("home-short").value=match.home.short_name;
+  $("away-short").value=match.away.short_name;
+  $("home-color").value=match.home.color;
+  $("away-color").value=match.away.color;
+  $("home-direction").value=match.home.attack_direction;
+  $("match-period").value=match.period;
+  $("match-seconds").value=match.match_seconds;
+  $("home-goals").value=match.home_score;
+  $("away-goals").value=match.away_score;
+  $("match-delete").disabled=false;
+  $("roster-controls").hidden=false;
+  const context=$("resolve-team");
+  context.replaceChildren();
+  const noTeam=document.createElement("option");
+  noTeam.value="";noTeam.textContent="Não informada (pode ser ambígua)";context.append(noTeam);
+  for(const team of [match.home,match.away]){
+    const option=document.createElement("option");
+    option.value=team.id;option.textContent=team.name;context.append(option);
+  }
+  const teamSelector=$("player-team");
+  teamSelector.replaceChildren();
+  for(const team of [match.home,match.away]){
+    const option=document.createElement("option");
+    option.value=team.id;option.textContent=team.name;teamSelector.append(option);
+  }
+}
+async function chooseMatch(id) {
+  if(!id){blankMatch();return;}
+  const match=configuredMatches.find(item=>item.id===id);
+  if(!match){blankMatch();return;}
+  showMatch(match);
+  currentRoster=await configApi("/api/matches/"+encodeURIComponent(id)+"/players");
+  editingPlayerId=null;
+  $("player-form").reset();
+  showRoster();
+  formNotice("match-message","Partida carregada do SQLite.");
+}
+async function refreshMatches(wanted=null) {
+  configuredMatches=await configApi("/api/matches");
+  const picker=$("match-picker");
+  picker.replaceChildren();
+  const empty=document.createElement("option");empty.value="";empty.textContent="Nova partida";picker.append(empty);
+  for(const match of configuredMatches){
+    const option=document.createElement("option");
+    option.value=match.id;option.textContent=match.home.name+" × "+match.away.name;picker.append(option);
+  }
+  if(wanted && configuredMatches.some(match=>match.id===wanted))await chooseMatch(wanted);
+  else if(configuredMatches.length)await chooseMatch(configuredMatches[0].id);
+  else blankMatch();
+}
+function matchFromForm() {
+  const id=chosenMatch?.id||makeId("match");
+  const direction=configValue("home-direction");
+  return {
+    id,
+    home:{id:chosenMatch?.home.id||makeId("club"),name:configValue("home-input").trim(),
+          short_name:configValue("home-short").trim(),color:configValue("home-color"),
+          attack_direction:direction},
+    away:{id:chosenMatch?.away.id||makeId("club"),name:configValue("away-input").trim(),
+          short_name:configValue("away-short").trim(),color:configValue("away-color"),
+          attack_direction:direction==="left_to_right"?"right_to_left":"left_to_right"},
+    period:configValue("match-period"),
+    match_seconds:Number(configValue("match-seconds")),
+    home_score:Number(configValue("home-goals")),
+    away_score:Number(configValue("away-goals"))
+  };
+}
+$("match-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  const payload=matchFromForm();
+  try{
+    await configApi(chosenMatch?"/api/matches/"+encodeURIComponent(payload.id):"/api/matches",
+                    chosenMatch?"PUT":"POST",payload);
+    await refreshMatches(payload.id);
+    formNotice("match-message","Partida salva no SQLite.");
+  }catch(error){formNotice("match-message","Não foi possível salvar: "+error.message,true);}
+});
+$("match-new").addEventListener("click",blankMatch);
+$("match-picker").addEventListener("change",async event=>{
+  try{await chooseMatch(event.target.value);}catch(error){formNotice("match-message",error.message,true);}
+});
+$("match-delete").addEventListener("click",async ()=>{
+  if(!chosenMatch||!confirm("Excluir esta partida, seus elencos e histórico salvo?"))return;
+  try{
+    await configApi("/api/matches/"+encodeURIComponent(chosenMatch.id),"DELETE");
+    await refreshMatches();
+    formNotice("match-message","Partida excluída.");
+  }catch(error){formNotice("match-message",error.message,true);}
+});
+function resetPlayerForm() {
+  editingPlayerId=null;
+  $("player-form").reset();
+}
+function showRoster() {
+  const list=$("player-list");list.replaceChildren();
+  if(!currentRoster.length){
+    const item=document.createElement("li");item.textContent="Nenhum atleta cadastrado.";list.append(item);
+    return;
+  }
+  const positions={goalkeeper:"Goleiro",defender:"Defensor",midfielder:"Meio-campo",forward:"Atacante",other:"Outra"};
+  for(const player of currentRoster){
+    const item=document.createElement("li"),details=document.createElement("div");
+    const title=document.createElement("strong");
+    const team=player.team_id===chosenMatch.home.id?chosenMatch.home.name:chosenMatch.away.name;
+    title.textContent=team+" · #"+player.number+" · "+player.name;
+    const small=document.createElement("small");
+    small.textContent=(positions[player.position]||player.position)+" · "+(player.starter?"Titular":"Reserva")+
+      (player.aliases.length?" · "+player.aliases.join(", "):"");
+    details.append(title,small);
+    const actions=document.createElement("div");actions.className="roster-actions";
+    const edit=document.createElement("button");edit.type="button";edit.className="secondary";edit.textContent="Editar";
+    edit.addEventListener("click",()=>editPlayer(player));
+    const remove=document.createElement("button");remove.type="button";remove.className="secondary";remove.textContent="Excluir";
+    remove.addEventListener("click",()=>removePlayer(player.id));
+    actions.append(edit,remove);item.append(details,actions);list.append(item);
+  }
+}
+function editPlayer(player) {
+  editingPlayerId=player.id;
+  $("player-team").value=player.team_id;
+  $("player-number").value=player.number;
+  $("player-name").value=player.name;
+  $("player-aliases").value=player.aliases.join(", ");
+  $("player-position").value=player.position;
+  $("player-starter").value=String(player.starter);
+  formNotice("player-message","Editando "+player.name);
+}
+async function persistRoster(roster) {
+  if(!chosenMatch)throw new Error("Salve uma partida primeiro");
+  const saved=await configApi("/api/matches/"+encodeURIComponent(chosenMatch.id)+"/players","PUT",roster);
+  currentRoster=saved;
+  resetPlayerForm();showRoster();
+}
+$("player-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(!chosenMatch){formNotice("player-message","Escolha uma partida.",true);return;}
+  const profile={
+    id:editingPlayerId||makeId("player"),
+    team_id:configValue("player-team"),name:configValue("player-name").trim(),
+    number:Number(configValue("player-number")),
+    aliases:configValue("player-aliases").split(",").map(value=>value.trim()).filter(Boolean),
+    position:configValue("player-position"),starter:configValue("player-starter")==="true"
+  };
+  const next=currentRoster.filter(player=>player.id!==profile.id);
+  next.push(profile);
+  try{
+    await persistRoster(next);
+    formNotice("player-message","Elenco salvo no SQLite.");
+  }catch(error){formNotice("player-message","Não foi possível salvar: "+error.message,true);}
+});
+async function removePlayer(id) {
+  try{
+    await persistRoster(currentRoster.filter(player=>player.id!==id));
+    formNotice("player-message","Atleta excluído.");
+  }catch(error){formNotice("player-message","Não foi possível excluir: "+error.message,true);}
+}
+$("player-cancel").addEventListener("click",resetPlayerForm);
+refreshMatches().catch(error=>formNotice("match-message","Não foi possível abrir cadastro: "+error.message,true));
+
+$("resolve-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(!chosenMatch)return;
+  try{
+    const result=await configApi(
+      "/api/matches/"+encodeURIComponent(chosenMatch.id)+"/resolve-player",
+      "POST",{mention:configValue("resolve-mention"),team_id:configValue("resolve-team")||null}
+    );
+    if(result.status==="resolved"){
+      const athlete=currentRoster.find(p=>p.id===result.player_id);
+      formNotice("resolve-message","Identificado: "+(athlete?.name||result.player_id)+" ("+result.team_id+").");
+    }else if(result.status==="ambiguous"){
+      formNotice("resolve-message","Ambíguo: "+result.candidate_ids.length+" atletas possíveis. Informe a equipe.",true);
+    }else{
+      formNotice("resolve-message","Nenhum atleta identificado; não foi feita associação por suposição.",true);
+    }
+  }catch(error){formNotice("resolve-message","Erro na identificação: "+error.message,true);}
+});
