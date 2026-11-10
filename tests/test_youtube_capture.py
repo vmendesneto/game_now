@@ -127,7 +127,7 @@ def fake_metadata_resolver(tmp_path, metadata):
     ([{"url": "https://cdn.example.org/media", "vcodec": "none",
        "acodec": "aac", "has_drm": True}], "containing audio"),
     ([{"url": "https://cdn.example.org/video", "vcodec": "h264",
-       "acodec": "aac"}], "containing audio"),
+       "acodec": "none"}], "containing audio"),
 ])
 def test_fail_closed_on_invalid_or_drm_only_formats(tmp_path, formats, needle):
     binary = fake_metadata_resolver(
