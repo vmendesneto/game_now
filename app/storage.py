@@ -211,6 +211,8 @@ class SQLiteStore:
             return self._get_state(conn, match_id)
 
     def replace_state(self, match_id: str, bundle: ContractBundle) -> ContractBundle | None:
+        from app.source_validation import validate_source_urls
+        validate_source_urls(bundle.sources)
         with self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             match = self._get_match(conn, match_id)
@@ -235,6 +237,8 @@ class SQLiteStore:
         return state.sources if state else None
 
     def replace_sources(self, match_id: str, sources: list[AudioSource]) -> list[AudioSource] | None:
+        from app.source_validation import validate_source_urls
+        validate_source_urls(sources)
         with self._connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             state = self._get_state(conn, match_id)
