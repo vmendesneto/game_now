@@ -25,6 +25,7 @@ class ResolvedLiveAudio:
     url: str
     format_id: str
     headers: dict[str, str]
+    input_has_video: bool = False
 
 
 async def resolve_live_audio(
@@ -70,21 +71,41 @@ async def resolve_live_audio(
         available = metadata.get("formats")
         if not isinstance(available, list):
             raise CaptureError("yt-dlp metadata has no valid formats list")
-        formats = [
+        # Some public live HLS manifests expose audio only inside a
+        # combined video/audio rendition. Prefer separate audio if offered.
+        # In the fallback, FFmpeg -vn outputs PCM audio only; the input
+        # transport can still transfer video bytes (never stored or served).
+        sound_formats = [
             item for item in available
             if isinstance(item, dict) and not item.get("has_drm")
             and item.get("acodec") not in (None, "none")
-            and item.get("vcodec") in (None, "none")
             and isinstance(item.get("url"), str)
         ]
-        if not formats:
-            raise CaptureError("No publicly accessible audio-only format was offered")
-        def audio_bitrate(item: dict) -> float:
+        audio_only = [
+            item for item in sound_formats
+            if item.get("vcodec") in (None, "none")
+        ]
+        muxed = [
+            item for item in sound_formats
+            if item.get("vcodec") not in (None, "none")
+        ]
+        if not audio_only and not muxed:
+            raise CaptureError("No publicly accessible format containing audio was offered")
+
+        def bitrate(item: dict, key: str) -> float:
             try:
-                return float(item.get("abr") or 0)
+                value = float(item.get(key) or 0)
+                return value if 0 <= value < float("inf") else 0.0
             except (TypeError, ValueError):
                 return 0.0
-        selected = max(formats, key=audio_bitrate)
+
+        if audio_only:
+            selected = max(audio_only, key=lambda item: bitrate(item, "abr"))
+            input_has_video = False
+        else:
+            # Lowest reported combined bitrate limits unnecessary transfer.
+            selected = min(muxed, key=lambda item: bitrate(item, "tbr") or float("inf"))
+            input_has_video = True
         url = selected["url"]
         if not isinstance(url, str):
             raise CaptureError("Invalid yt-dlp audio URL")
@@ -104,8 +125,10 @@ async def resolve_live_audio(
             if (key.lower() in {"user-agent", "referer", "origin", "accept"}
                     and isinstance(value, str) and "\r" not in value and "\n" not in value):
                 headers[key] = value
-        return ResolvedLiveAudio(url=url, format_id=str(selected.get("format_id", "audio")),
-                                 headers=headers)
+        return ResolvedLiveAudio(
+            url=url, format_id=str(selected.get("format_id", "audio")),
+            headers=headers, input_has_video=input_has_video,
+        )
     finally:
         if process.returncode is None:
             process.kill()

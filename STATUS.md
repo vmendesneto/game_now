@@ -3,7 +3,7 @@
 **Atualizado:** 2026-11-10
 **Branch:** `main`
 **Últimas tarefas concluídas:** GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Próxima tarefa:** **GN-031 — prova com YouTube Live real e permitido**. Código de diagnóstico já existe, mas este ambiente não pode comprovar uma transmissão real autorizada; manter `[ ]`. Próxima implementação independente possível: GN-040 (ASR CPU, exige modelo real e benchmark).
+**Próxima tarefa:** **GN-031 — repetir no Windows a captura de uma live pública permitida após atualizar o código**. Houve resolução de metadados, mas ainda não captura de PCM real; manter `[ ]`. Próxima implementação independente possível: GN-040 (ASR CPU, exige modelo real e benchmark).
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -17,6 +17,13 @@
 - **GN-032:** `app/source_validation.py`; cadastro/edição/ativação/desativação de fontes de rádio e YouTube pelo navegador e API existente. Persistência SQLite, URLs públicas básicas, rejeição de credenciais, esquemas inadequados e IPs locais. Não há captura nem reprodução de mídia no site.
 - GN-020, GN-021, GN-022, GN-023 permanecem implementados: CRUD de partidas, elenco, identificação conservadora e SQLite. Contrato `ContractBundle` v1 não mudou.
 
+## Diagnóstico Windows informado pelo usuário — 2026-11-10
+- Clone em Documentos, Python 3.12, ambiente virtual e yt-dlp instalados. FFmpeg foi instalado via winget; a primeira sessão PowerShell não tinha o novo PATH, e nenhum resultado de decodificação de áudio real foi comprovado.
+- A URL de Shorts retornou `The YouTube broadcast is not currently live` (tratamento esperado).
+- A URL de live `https://www.youtube.com/watch?v=3Z-oNlt1XO0` retornou `No publicly accessible audio-only format was offered`. Isso comprova consulta/identificação como live, **não** a captura.
+- A correção GN-031 permite fallback para um formato público combinado com áudio, caso não haja áudio-only; FFmpeg mantém saída exclusiva PCM. Foi adicionada prova automatizada Linux de decodificação de um fixture real com vídeo+áudio. A captura Windows da URL **deve ser repetida depois do git pull**, e GN-031 continua [ ].
+- Na variante combinada, tráfego de rede pode conter vídeo mesmo que apenas PCM de áudio seja gerado; não se grava nem entrega vídeo. Nunca alegar que houve extração apenas de áudio no transporte de entrada.
+
 ## Testes e evidências
 - GitHub Actions: https://github.com/vmendesneto/game_now/actions/runs/42888042259
 - **66 testes aprovados** em **Python 3.11 e 3.12** para a branch de entrega, exportação/verificação de JSON schema, `node --check app/static/app.js` e FFmpeg decodificando MP3/AAC/HLS de teste. Evidência: https://github.com/vmendesneto/game_now/actions/runs/42892117487.
@@ -24,7 +31,7 @@
 - Um aviso de depreciação de dependência observado na CI, sem falha. Não houve teste com rádio, YouTube ou Windows reais.
 
 ## Limitações importantes
-- **GN-031 parcialmente implementada, ainda [ ] no ROADMAP**: `app/youtube_capture.py` oferece diagnóstico CLI `python -m app.youtube_capture --url URL_LIVE_PERMITIDA --seconds 5` e resolução com subprocesso `yt-dlp` (`--ignore-config`, sem cookies/login), escolhe formato somente de áudio, valida URL retornada, descarta cabeçalhos de autenticação, usa FFmpeg e trata transmissão off-line, metadados inválidos, timeout e formatos indisponíveis. `tests/test_youtube_capture.py` exercita binário yt-dlp **simulado** e verificações de formatos DRM, metadados e captura de PCM fictício; **nenhum YouTube Live permitido real foi capturado**, `yt-dlp` real não foi instalado/testado no Windows. Precisa da URL autorizada e prova de execução real para marcar concluída. GN-030 converte fontes de teste e oferece CLI de rádio, mas o cadastro do navegador ainda não inicia captação. Não há ASR.
+- **GN-031 parcialmente implementada, ainda [ ] no ROADMAP**: `app/youtube_capture.py` oferece diagnóstico CLI `python -m app.youtube_capture --url URL_LIVE_PERMITIDA --seconds 5` e resolução com subprocesso `yt-dlp` (`--ignore-config`, sem cookies/login), prefere formato somente de áudio e usa fluxo público combinado com áudio quando necessário, valida URL retornada, descarta cabeçalhos de autenticação, usa FFmpeg e trata transmissão off-line, metadados inválidos, timeout e formatos indisponíveis. `tests/test_youtube_capture.py` exercita binário yt-dlp **simulado** e verificações de formatos DRM, metadados e captura de PCM fictício; **nenhum YouTube Live permitido real foi capturado**, `yt-dlp` real foi instalado e consultou metadados no Windows, mas nenhum PCM real foi capturado. Precisa da URL autorizada e prova de execução real para marcar concluída. GN-030 converte fontes de teste e oferece CLI de rádio, mas o cadastro do navegador ainda não inicia captação. Não há ASR.
 - `/api/demo/next`, `/api/state` e `/ws` operam demo **volátil** separada de `/api/matches/{id}/state` e operações de partida.
 - Modelo de substituições não impõe limite/regra de competição (5 substituições, janelas, cartões amarelos e suspensões futuras). Corrigir a regra por competição antes de jogo oficial.
 - Auditoria é durável no SQLite, mas administradores locais podem alterar o arquivo; não é trilha assinada. Servidor apenas `127.0.0.1`.

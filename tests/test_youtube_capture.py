@@ -42,6 +42,9 @@ formats=[
 ]
 if "noaudio" in link:
     formats=formats[:1]
+if "onlyvideo" in link:
+    formats=[{"format_id":"silent", "vcodec":"h264", "acodec":"none",
+              "url":"https://cdn.example.org/silent.m3u8"}]
 if "privatecdn" in link:
     formats[-1]["url"]="http://127.0.0.1/private"
 print(json.dumps({"is_live":live,"live_status":"is_live" if live else "not_live",
@@ -64,7 +67,7 @@ def test_live_audio_only_selection_excludes_cookies(tmp_path):
 @pytest.mark.parametrize("name,error", [
     ("restricted", "unavailable or restricted"),
     ("notlive", "not currently live"),
-    ("noaudio", "audio-only"),
+    ("onlyvideo", "containing audio"),
     ("privatecdn", "non-public"),
     ("invalidjson", "invalid metadata"),
 ])
@@ -122,9 +125,9 @@ def fake_metadata_resolver(tmp_path, metadata):
 @pytest.mark.parametrize("formats,needle", [
     ({}, "valid formats list"),
     ([{"url": "https://cdn.example.org/media", "vcodec": "none",
-       "acodec": "aac", "has_drm": True}], "audio-only"),
+       "acodec": "aac", "has_drm": True}], "containing audio"),
     ([{"url": "https://cdn.example.org/video", "vcodec": "h264",
-       "acodec": "aac"}], "audio-only"),
+       "acodec": "none"}], "containing audio"),
 ])
 def test_fail_closed_on_invalid_or_drm_only_formats(tmp_path, formats, needle):
     binary = fake_metadata_resolver(
@@ -171,3 +174,55 @@ def test_live_diagnostic_rejects_no_audio(monkeypatch):
     monkeypatch.setattr(youtube_capture, "youtube_pcm_chunks", fake_pcm)
     with pytest.raises(CaptureError, match="no PCM"):
         asyncio.run(youtube_capture.youtube_diagnostic(source(), duration=.5))
+
+
+def test_muxed_live_fallback_is_audio_output_only(tmp_path, monkeypatch):
+    """YouTube may offer video+audio HLS but no separate audio rendition."""
+    executable = fake_metadata_resolver(tmp_path, {
+        "live_status": "is_live",
+        "formats": [
+            {"format_id": "hd", "vcodec": "h264", "acodec": "aac",
+             "tbr": 2200, "url": "https://cdn.example.org/hd.m3u8"},
+            {"format_id": "low", "vcodec": "h264", "acodec": "aac",
+             "tbr": 300, "url": "https://cdn.example.org/low.m3u8",
+             "http_headers": {"User-Agent": "Test", "Cookie": "secret"}},
+        ],
+    })
+    resolved = asyncio.run(youtube_capture.resolve_live_audio(
+        source(), yt_dlp_binary=executable,
+    ))
+    assert resolved.format_id == "low"
+    assert resolved.url.endswith("/low.m3u8")
+    assert resolved.input_has_video is True
+    assert resolved.headers == {"User-Agent": "Test"}
+
+    captured = []
+    async def fake_pcm(item, **kwargs):
+        captured.append((item, kwargs))
+        yield b"\x11\x00" * 1600
+    monkeypatch.setattr(youtube_capture, "pcm_chunks", fake_pcm)
+    async def consume():
+        async with aclosing(youtube_capture.youtube_pcm_chunks(
+            source(), yt_dlp_binary=executable,
+        )) as pcm:
+            return [block async for block in pcm]
+    assert asyncio.run(consume()) == [b"\x11\x00" * 1600]
+    assert captured[0][0].url.endswith("/low.m3u8")
+    assert captured[0][1]["http_headers"] == {"User-Agent": "Test"}
+
+
+def test_audio_only_still_preferred_over_muxed(tmp_path):
+    executable = fake_metadata_resolver(tmp_path, {
+        "is_live": True,
+        "formats": [
+            {"format_id": "combined", "vcodec": "h264", "acodec": "aac",
+             "tbr": 80, "url": "https://cdn.example.org/combined.m3u8"},
+            {"format_id": "audio", "vcodec": "none", "acodec": "aac",
+             "abr": 64, "url": "https://cdn.example.org/audio.m3u8"},
+        ],
+    })
+    resolved = asyncio.run(youtube_capture.resolve_live_audio(
+        source(), yt_dlp_binary=executable,
+    ))
+    assert resolved.format_id == "audio"
+    assert resolved.input_has_video is False
