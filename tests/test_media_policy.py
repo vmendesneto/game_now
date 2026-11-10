@@ -32,8 +32,8 @@ def test_frontend_does_not_embed_media_players():
     root = Path(__file__).resolve().parents[1] / "app" / "static"
     html = (root / "index.html").read_text(encoding="utf-8")
     js = (root / "app.js").read_text(encoding="utf-8")
-    assert re.search(r"<(audio|video|iframe)\\b", html, re.IGNORECASE) is None
-    assert re.search(r"new\\s+Audio\\s*\\(|getUserMedia\\s*\\(|new\\s+MediaSource\\s*\\(", js) is None
+    assert re.search(r"<(audio|video|iframe)\b", html, re.IGNORECASE) is None
+    assert re.search(r"new\s+Audio\s*\(|getUserMedia\s*\(|new\s+MediaSource\s*\(", js) is None
 
 
 def test_ytdlp_is_invoked_without_cache_download_or_credentials(tmp_path):
