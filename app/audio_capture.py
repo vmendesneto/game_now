@@ -81,6 +81,7 @@ async def pcm_chunks(
     ffmpeg_binary: str = "ffmpeg",
     chunk_ms: int = DEFAULT_CHUNK_MS,
     fixture_file: Path | None = None,
+    http_headers: dict[str, str] | None = None,
 ) -> AsyncIterator[bytes]:
     """Decode a radio stream into chunks of PCM s16le/mono/16k.
 
@@ -115,6 +116,14 @@ async def pcm_chunks(
     args = [
         ffmpeg_binary, "-nostdin", "-hide_banner", "-loglevel", "error",
         "-protocol_whitelist", "file,http,https,tcp,tls,crypto,data",
+    ]
+    if http_headers:
+        allowed = {"user-agent", "referer", "origin", "accept"}
+        if any(key.lower() not in allowed or "\\r" in value or "\\n" in value
+               or len(value) > 1024 for key, value in http_headers.items()):
+            raise CaptureError("Only safe public-stream request headers are supported")
+        args += ["-headers", "".join(f"{key}: {value}\\r\\n" for key, value in http_headers.items())]
+    args += [
         "-i", input_uri, "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE),
         "-f", "s16le", "-acodec", "pcm_s16le", "pipe:1",
     ]
