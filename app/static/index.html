@@ -94,6 +94,40 @@
           </div>
         </div>
       </div>
+      <div class="panel config-form" id="match-flow-panel" hidden>
+        <div class="panel-title">GN-024 · CONTROLE DA PARTIDA CADASTRADA</div>
+        <p class="muted">Operações registradas no SQLite. A demonstração do campinho acima continua independente.</p>
+        <p id="flow-summary" role="status"></p>
+        <form id="match-action-form">
+          <div class="form-pair">
+            <label>Operação
+              <select id="action-kind">
+                <option value="substitution">Substituição</option>
+                <option value="red_card">Expulsão</option>
+                <option value="half_time">Iniciar intervalo</option>
+                <option value="second_half">Iniciar 2º tempo e inverter lados</option>
+                <option value="added_time">Acréscimos (segundos)</option>
+                <option value="finish">Encerrar partida</option>
+              </select>
+            </label>
+            <label>Relógio atualizado (segundos, opcional)
+              <input id="action-clock" type="number" min="0" step="1" placeholder="Manter relógio atual">
+            </label>
+          </div>
+          <div class="form-pair" id="action-substitution-fields">
+            <label>Sai <select id="action-out"></select></label>
+            <label>Entra <select id="action-in"></select></label>
+          </div>
+          <label id="action-red-fields" hidden>Atleta expulso<select id="action-red"></select></label>
+          <label id="action-added-fields" hidden>Acréscimos (segundos)
+            <input id="action-seconds" type="number" min="0" max="3600" step="1" value="0">
+          </label>
+          <button type="submit">Registrar operação</button>
+          <p class="form-message" id="action-message" role="status"></p>
+        </form>
+        <div class="panel-title">HISTÓRICO DE OPERAÇÕES</div>
+        <ul id="action-history" class="roster-list"></ul>
+      </div>
     </section>
     <footer>Game Now · Contrato v1 · Um campo de <b>15 zonas</b> · Rádio/YouTube reais ainda não integrados</footer>
   </main>
