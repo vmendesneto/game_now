@@ -18,6 +18,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+      - name: Install FFmpeg for real codec fixture tests
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          ffmpeg -version
       - name: Install dependencies
         run: python -m pip install -r requirements-dev.txt
       - name: Generate canonical JSON schema
