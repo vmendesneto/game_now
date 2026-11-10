@@ -51,11 +51,11 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-030 [P0]** Capturar URL de rádio MP3/AAC/HLS via FFmpeg, converter para PCM mono 16 kHz; evidência: arquivo/stream de teste.
 - [ ] **GN-031 [P0]** Capturar **somente áudio** de transmissões públicas YouTube Live via yt-dlp + FFmpeg; evidência: link de teste permitido e tratamento de indisponibilidade.
 - [x] **GN-032 [P0]** Cadastrar, editar, ativar e desativar múltiplas fontes independentes; evidência: API/UI.
-- [ ] **GN-033 [P0]** Detectar desconexão e reconectar com backoff, incluindo URLs de YouTube que expiram; evidência: simular perda e retomada.
+- [x] **GN-033 [P0]** Detectar desconexão e reconectar com backoff, incluindo URLs de YouTube que expiram; evidência: simular perda e retomada.
 - [x] **GN-034 [P0]** Buffer de áudio por fonte com timestamps e limites de memória; evidência: teste de longas sessões.
 - [ ] **GN-035 [P1]** Telemetria por fonte: online, sem áudio, comercial, narrando, atraso estimado; evidência: painel atualizado.
 - [ ] **GN-036 [P1]** VAD/silêncio com Silero ou alternativa: medir benefício sem confundir propaganda com silêncio; evidência: benchmark.
-- [ ] **GN-037 [P1]** Política de URLs, ausência de transmissão embutida no site e limpeza de arquivos temporários; evidência: testes e inspeção.
+- [x] **GN-037 [P1]** Política de URLs, ausência de transmissão embutida no site e limpeza de arquivos temporários; evidência: testes e inspeção.
 
 ## F04 — Transcrição pt-BR
 
