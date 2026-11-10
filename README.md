@@ -59,6 +59,28 @@ python -m pytest -q
 
 O contrato reside em `app/contracts.py`, o schema exportado em `schemas/v1.schema.json`, fixtures em `fixtures/`, e a decisão de arquitetura em [docs/ADR-0001.md](docs/ADR-0001.md). Não edite o JSON schema manualmente: regenere com o script e revise o diff. Os testes verificam ambos.
 
+## Validação no Windows após instalar FFmpeg e yt-dlp
+
+Se `winget install --id Gyan.FFmpeg -e` disser que alterou o `PATH`, **feche o PowerShell e abra uma nova janela** antes de testar. No terminal antigo `ffmpeg` continuará invisível. O teste físico requer `ffmpeg -version` funcionando no novo terminal.
+
+Na pasta já clonada em Documentos (`game_now`), use o Python do mesmo ambiente virtual em todos os comandos:
+
+```powershell
+cd "$([Environment]::GetFolderPath('MyDocuments'))\game_now"
+ffmpeg -version
+.\.venv\Scripts\python.exe -m pip install --upgrade yt-dlp
+.\.venv\Scripts\python.exe -m yt_dlp --version
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+O resolvedor aceita o módulo `yt_dlp` instalado **nesse** Python mesmo quando `yt-dlp.exe` não aparece no `PATH`. Para GN-031, use apenas uma **transmissão YouTube Live ativa** cuja captação seja permitida, não `/shorts/...`, que é conteúdo gravado:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.youtube_capture --url "https://www.youtube.com/watch?v=ID_DE_LIVE_AUTORIZADA" --seconds 5
+```
+
+O comando fornece apenas estatísticas, não salva ou reproduz mídia. Se a transmissão estiver encerrada, exigir login/DRM ou não permitir formato áudio-only, a falha é esperada. Até comprovação em Windows com uma Live real e autorizada, **GN-031 segue pendente**. Os testes unitários de yt-dlp simulam respostas; não substituem a prova real.
+
 ## FFmpeg (GN-030 — conversão de áudio em ferramenta de diagnóstico)
 
 Para o modo demo não é necessário instalar FFmpeg. A ferramenta GN-030 precisa de FFmpeg no PATH. A CI instala FFmpeg e testa decodificação real de fixtures MP3, AAC e HLS como PCM mono 16k (`tests/test_audio_capture.py`). Para testar sem acessar a internet:
