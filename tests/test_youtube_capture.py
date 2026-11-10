@@ -111,8 +111,8 @@ def fake_metadata_resolver(tmp_path, metadata):
     binary = tmp_path / "metadata-yt-dlp"
     data = json.dumps(metadata)
     binary.write_text(
-        "#!/usr/bin/env python3\\nimport sys\\nsys.stdout.write(" +
-        repr(data) + ")\\n",
+        "#!/usr/bin/env python3\nimport sys\nsys.stdout.write(" +
+        repr(data) + ")\n",
         encoding="utf-8",
     )
     binary.chmod(0o755)
@@ -151,8 +151,8 @@ def test_nonnumeric_bitrate_keeps_usable_audio(tmp_path):
 
 def test_live_diagnostic_emits_only_json_safe_statistics(monkeypatch):
     async def fake_pcm(item, **kwargs):
-        yield b"\\x01\\x00" * 8000
-        yield b"\\x02\\x00" * 8000
+        yield b"\x01\x00" * 8000
+        yield b"\x02\x00" * 8000
     monkeypatch.setattr(youtube_capture, "youtube_pcm_chunks", fake_pcm)
     result = asyncio.run(youtube_capture.youtube_diagnostic(source(), duration=.6))
     assert result["bytes"] == 19_200
@@ -167,7 +167,7 @@ def test_live_diagnostic_emits_only_json_safe_statistics(monkeypatch):
 def test_live_diagnostic_rejects_no_audio(monkeypatch):
     async def fake_pcm(item, **kwargs):
         if False:
-            yield b"\\x00\\x00"
+            yield b"\x00\x00"
     monkeypatch.setattr(youtube_capture, "youtube_pcm_chunks", fake_pcm)
     with pytest.raises(CaptureError, match="no PCM"):
         asyncio.run(youtube_capture.youtube_diagnostic(source(), duration=.5))
