@@ -22,7 +22,8 @@
 - Testes automatizados incluídos em `tests/test_entities.py` (identidades iguais entre clubes, colisão de apelidos no mesmo clube, números de camisa, nomes com acentos e reinício SQLite) e em `tests/test_configuration.py`: CRUD, campos inválidos, conflitos, elencos independentes, números repetidos, persistência de fontes e eventos, reabertura de SQLite após recriar o aplicativo, esquema e UI HTTP.
 - Testes de regressão existentes da demo, contrato, WebSocket e fixtures continuam na suíte.
 - Pipeline GitHub Actions: Python **3.11 e 3.12**, exportação/comparação do schema, `node --check app/static/app.js`, `python -m pytest -q`.
-- **CI da etapa GN-020/021/023:** 17 testes passaram em Python 3.11 e Python 3.12, incluindo sintaxe JavaScript, execução https://github.com/vmendesneto/game_now/actions/runs/42881246017. **GN-022:** validar o novo commit no workflow da PR antes de integrar na main.
+- **CI GN-020/021/023:** 17 testes passaram em Python 3.11/3.12, com sintaxe JS: https://github.com/vmendesneto/game_now/actions/runs/42881246017.
+- **CI GN-022 integrado:** **20 testes aprovados em Python 3.11 e 3.12**, schema v1 idêntico e sintaxe JavaScript válida: https://github.com/vmendesneto/game_now/actions/runs/42881936576. Houve 1 aviso de depreciação em dependência Starlette/AnyIO, sem falha de teste.
 - Antiga evidência da fase F01: https://github.com/vmendesneto/game_now/actions/runs/42878455255 (13 testes em Python 3.12).
 
 ## Limitações e bloqueios
