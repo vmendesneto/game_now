@@ -1,0 +1,36 @@
+name: Testes Game Now
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Generate canonical JSON schema
+        run: python scripts/export_schema.py
+      - name: Print schema to bootstrap the first tracked copy
+        if: matrix.python-version == '3.12'
+        run: |
+          if ! git ls-files --error-unmatch schemas/v1.schema.json >/dev/null 2>&1; then
+            python -c "import base64,pathlib;print('GAME_NOW_SCHEMA_BEGIN');print(base64.b64encode(pathlib.Path('schemas/v1.schema.json').read_bytes()).decode());print('GAME_NOW_SCHEMA_END')"
+          fi
+      - name: Check tracked schema if present
+        run: |
+          if git ls-files --error-unmatch schemas/v1.schema.json >/dev/null 2>&1; then
+            git diff --exit-code -- schemas/v1.schema.json
+          fi
+      - name: Run tests
+        run: pytest -q
