@@ -18,7 +18,7 @@ def source(name="normal"):
 
 
 def fake_ytdlp(tmp_path: Path):
-    executable = tmp_path / "fake-yt-dlp"
+    executable = tmp_path / "fake-yt-dlp.py"
     executable.write_text('''#!/usr/bin/env python3
 import json,sys,time
 link=sys.argv[-1]
@@ -108,7 +108,7 @@ def test_youtube_pcm_uses_resolved_audio_not_video(tmp_path,monkeypatch):
 
 def fake_metadata_resolver(tmp_path, metadata):
     """Local fake yt-dlp process with a controlled metadata response."""
-    binary = tmp_path / "metadata-yt-dlp"
+    binary = tmp_path / "metadata-yt-dlp.py"
     data = json.dumps(metadata)
     binary.write_text(
         "#!/usr/bin/env python3\nimport sys\nsys.stdout.write(" +
