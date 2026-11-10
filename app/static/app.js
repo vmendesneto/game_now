@@ -127,6 +127,8 @@ function blankMatch() {
   $("player-form").reset();
   $("player-list").replaceChildren();
   $("roster-controls").hidden=true;
+  $("match-flow-panel").hidden=true;
+  currentFlow=null;
   formNotice("resolve-message","");
   formNotice("match-message","Nova partida: informe os dois clubes e salve.");
 }
@@ -170,6 +172,7 @@ async function chooseMatch(id) {
   editingPlayerId=null;
   $("player-form").reset();
   showRoster();
+  await loadMatchFlow();
   formNotice("match-message","Partida carregada do SQLite.");
 }
 async function refreshMatches(wanted=null) {
@@ -267,6 +270,7 @@ async function persistRoster(roster) {
   const saved=await configApi("/api/matches/"+encodeURIComponent(chosenMatch.id)+"/players","PUT",roster);
   currentRoster=saved;
   resetPlayerForm();showRoster();
+  await loadMatchFlow();
 }
 $("player-form").addEventListener("submit",async event=>{
   event.preventDefault();
@@ -311,4 +315,87 @@ $("resolve-form").addEventListener("submit",async event=>{
       formNotice("resolve-message","Nenhum atleta identificado; não foi feita associação por suposição.",true);
     }
   }catch(error){formNotice("resolve-message","Erro na identificação: "+error.message,true);}
+});
+
+/* GN-024: persistent match operations, not synthetic demo actions. */
+let currentFlow = null;
+const actionTitles = {
+  substitution:"Substituição",red_card:"Expulsão",half_time:"Intervalo",
+  second_half:"Início do segundo tempo",added_time:"Acréscimos",finish:"Fim de jogo"
+};
+function actionFields(){
+  const kind=configValue("action-kind");
+  $("action-substitution-fields").hidden=kind!=="substitution";
+  $("action-red-fields").hidden=kind!=="red_card";
+  $("action-added-fields").hidden=kind!=="added_time";
+}
+$("action-kind").addEventListener("change",actionFields);
+actionFields();
+function fillAthleteSelect(id, players){
+  const select=$(id), wanted=select.value;
+  select.replaceChildren();
+  for(const player of players){
+    const option=document.createElement("option");
+    option.value=player.id;
+    option.textContent=(player.team_id===chosenMatch.home.id?chosenMatch.home.name:chosenMatch.away.name)+
+      " · #"+player.number+" · "+player.name;
+    select.append(option);
+  }
+  if(players.some(player=>player.id===wanted))select.value=wanted;
+}
+async function loadMatchFlow(){
+  if(!chosenMatch)return;
+  currentFlow=await configApi("/api/matches/"+encodeURIComponent(chosenMatch.id)+"/flow");
+  $("match-flow-panel").hidden=false;
+  const active=new Set(currentFlow.active_player_ids);
+  const retired=new Set(currentFlow.substitutions.map(item=>item.out));
+  const expelled=new Set(currentFlow.sent_off_ids);
+  fillAthleteSelect("action-out",currentRoster.filter(p=>active.has(p.id)));
+  fillAthleteSelect("action-in",currentRoster.filter(p=>
+    !active.has(p.id)&&!retired.has(p.id)&&!expelled.has(p.id)));
+  fillAthleteSelect("action-red",currentRoster.filter(p=>active.has(p.id)));
+  $("flow-summary").textContent="Período: "+currentFlow.period+
+    " · Em campo: "+currentFlow.active_player_ids.length+
+    " · Expulsos: "+currentFlow.sent_off_ids.length+
+    " · Acréscimos: "+currentFlow.added_time_seconds.first_half+"s / "+
+    currentFlow.added_time_seconds.second_half+"s";
+  const history=$("action-history");
+  history.replaceChildren();
+  const operations=[...currentFlow.operations].reverse();
+  if(!operations.length){
+    const item=document.createElement("li");item.textContent="Nenhuma operação registrada.";
+    history.append(item);
+  }
+  for(const operation of operations){
+    const item=document.createElement("li");
+    item.textContent=(actionTitles[operation.kind]||operation.kind)+
+      " · "+Math.floor(operation.match_seconds/60)+" min"+
+      (operation.details.player_out_id?" · "+operation.details.player_out_id+" → "+operation.details.player_in_id:"")+
+      (operation.details.player_id?" · "+operation.details.player_id:"")+
+      (operation.details.seconds!==undefined?" · "+operation.details.seconds+" s":"");
+    history.append(item);
+  }
+}
+$("match-action-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(!chosenMatch)return;
+  const kind=configValue("action-kind"),payload={kind};
+  if(kind==="substitution"){
+    payload.player_out_id=configValue("action-out");
+    payload.player_in_id=configValue("action-in");
+  }else if(kind==="red_card"){
+    payload.player_id=configValue("action-red");
+  }else if(kind==="added_time"){
+    payload.seconds=Number(configValue("action-seconds"));
+  }
+  if(configValue("action-clock")!=="")payload.match_seconds=Number(configValue("action-clock"));
+  try{
+    const id=chosenMatch.id;
+    await configApi("/api/matches/"+encodeURIComponent(id)+"/actions","POST",payload);
+    await refreshMatches(id);
+    $("action-clock").value="";
+    formNotice("action-message","Operação registrada no SQLite.");
+  }catch(error){
+    formNotice("action-message","Operação recusada: "+error.message,true);
+  }
 });
