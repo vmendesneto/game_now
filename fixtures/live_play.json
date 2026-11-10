@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.0.0",
+  "match": {
+    "id": "match-demo-1",
+    "home": {
+      "id": "team-home",
+      "name": "Azul",
+      "short_name": "AZU",
+      "color": "#2563eb",
+      "attack_direction": "left_to_right"
+    },
+    "away": {
+      "id": "team-away",
+      "name": "Vermelho",
+      "short_name": "VER",
+      "color": "#dc2626",
+      "attack_direction": "right_to_left"
+    },
+    "players": [
+      {
+        "id": "player-azul-9",
+        "team_id": "team-home",
+        "name": "Caio",
+        "number": 9,
+        "aliases": [
+          "camisa nove"
+        ],
+        "starter": true
+      },
+      {
+        "id": "player-ver-1",
+        "team_id": "team-away",
+        "name": "Rafael",
+        "number": 1,
+        "aliases": [
+          "goleiro Rafael"
+        ],
+        "starter": true
+      }
+    ],
+    "period": "first_half",
+    "match_seconds": 732,
+    "home_score": 0,
+    "away_score": 0
+  },
+  "sources": [
+    {
+      "id": "source-radio-a",
+      "name": "Rádio A (simulada)",
+      "kind": "radio",
+      "enabled": true,
+      "status": "online"
+    }
+  ],
+  "segments": [
+    {
+      "id": "seg-shot-a",
+      "source_id": "source-radio-a",
+      "text": "Caio bateu de dentro da área, defendeu Rafael!",
+      "category": "live_play",
+      "captured_at": "2026-11-10T18:32:00+00:00",
+      "transcribed_at": "2026-11-10T18:32:02+00:00",
+      "match_seconds": 732,
+      "text_confidence": 0.91
+    }
+  ],
+  "events": [
+    {
+      "id": "event-shot-1",
+      "kind": "shot",
+      "source_ids": [
+        "source-radio-a"
+      ],
+      "segment_ids": [
+        "seg-shot-a"
+      ],
+      "observed_at": "2026-11-10T18:32:02+00:00",
+      "match_seconds": 732,
+      "team_id": "team-home",
+      "player_id": "player-azul-9",
+      "zone": {
+        "band": 5,
+        "lane": "center"
+      },
+      "confidences": {
+        "team": 0.96,
+        "player": 0.9,
+        "zone": 0.74,
+        "action": 0.94,
+        "timing": 0.79
+      },
+      "uncertainty": "estimated"
+    }
+  ],
+  "ball": {
+    "last_event_id": "event-shot-1",
+    "team_id": "team-home",
+    "player_id": "player-azul-9",
+    "zone": {
+      "band": 5,
+      "lane": "center"
+    },
+    "confidences": {
+      "team": 0.96,
+      "player": 0.9,
+      "zone": 0.74,
+      "action": 0.94,
+      "timing": 0.79
+    },
+    "uncertainty": "estimated",
+    "updated_at": "2026-11-10T18:32:02+00:00",
+    "expires_at": "2026-11-10T18:32:12+00:00"
+  }
+}
