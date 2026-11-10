@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import aclosing
+from datetime import datetime, timezone
 from dataclasses import dataclass
 import json
 import shutil
@@ -66,14 +67,24 @@ async def resolve_live_audio(
             raise CaptureError("yt-dlp returned invalid metadata") from exc
         if metadata.get("is_live") is not True and metadata.get("live_status") != "is_live":
             raise CaptureError("The YouTube broadcast is not currently live")
+        available = metadata.get("formats")
+        if not isinstance(available, list):
+            raise CaptureError("yt-dlp metadata has no valid formats list")
         formats = [
-            item for item in metadata.get("formats", [])
-            if item.get("acodec") not in (None, "none")
-            and item.get("vcodec") in (None, "none") and item.get("url")
+            item for item in available
+            if isinstance(item, dict) and not item.get("has_drm")
+            and item.get("acodec") not in (None, "none")
+            and item.get("vcodec") in (None, "none")
+            and isinstance(item.get("url"), str)
         ]
         if not formats:
             raise CaptureError("No publicly accessible audio-only format was offered")
-        selected = max(formats, key=lambda item: float(item.get("abr") or 0))
+        def audio_bitrate(item: dict) -> float:
+            try:
+                return float(item.get("abr") or 0)
+            except (TypeError, ValueError):
+                return 0.0
+        selected = max(formats, key=audio_bitrate)
         url = selected["url"]
         if not isinstance(url, str):
             raise CaptureError("Invalid yt-dlp audio URL")
@@ -86,7 +97,10 @@ async def resolve_live_audio(
         except StoreConflict as exc:
             raise CaptureError("yt-dlp returned a non-public/non-HTTP stream") from exc
         headers = {}
-        for key, value in selected.get("http_headers", {}).items():
+        raw_headers = selected.get("http_headers") or {}
+        if not isinstance(raw_headers, dict):
+            raise CaptureError("Invalid audio request headers in yt-dlp metadata")
+        for key, value in raw_headers.items():
             if (key.lower() in {"user-agent", "referer", "origin", "accept"}
                     and isinstance(value, str) and "\r" not in value and "\n" not in value):
                 headers[key] = value
@@ -110,3 +124,58 @@ async def youtube_pcm_chunks(
                                    chunk_ms=chunk_ms, http_headers=live.headers)) as pcm:
         async for chunk in pcm:
             yield chunk
+
+
+async def youtube_diagnostic(
+    source: AudioSource, *, duration: float = 5.0, yt_dlp_binary: str = "yt-dlp",
+    ffmpeg_binary: str = "ffmpeg",
+) -> dict:
+    """Verify actual PCM decoding without saving or returning audio/media URLs."""
+    if not 0 < duration <= 60:
+        raise CaptureError("Diagnostic duration must be >0 and <=60 seconds")
+    target_bytes = int(duration * 16_000 * 2)
+    received = 0
+    blocks = 0
+    async with aclosing(youtube_pcm_chunks(
+        source, yt_dlp_binary=yt_dlp_binary, ffmpeg_binary=ffmpeg_binary,
+    )) as stream:
+        async for block in stream:
+            received += min(len(block), target_bytes - received)
+            blocks += 1
+            if received >= target_bytes:
+                break
+    return {
+        "source_id": source.id, "captured_at": datetime.now(timezone.utc).isoformat(),
+        "sample_rate": 16_000, "channels": 1, "format": "s16le",
+        "seconds": received / (16_000 * 2), "bytes": received, "chunks": blocks,
+        "audio_retransmitted": False,
+    }
+
+
+def main() -> None:
+    """Explicit opt-in live capture smoke test; no API endpoint for media."""
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="GN-031: check permitted public YouTube Live audio (no playback)"
+    )
+    parser.add_argument("--url", required=True, help="Authorized public YouTube Live URL")
+    parser.add_argument("--seconds", type=float, default=5.0)
+    parser.add_argument("--yt-dlp", default="yt-dlp")
+    parser.add_argument("--ffmpeg", default="ffmpeg")
+    args = parser.parse_args()
+    source = AudioSource(
+        id="youtube-diagnostic", name="Live diagnostic", kind="youtube",
+        url=args.url, enabled=True, status="offline",
+    )
+    try:
+        stats = asyncio.run(youtube_diagnostic(
+            source, duration=args.seconds, yt_dlp_binary=args.yt_dlp,
+            ffmpeg_binary=args.ffmpeg,
+        ))
+        print(json.dumps(stats))
+    except (CaptureError, OSError) as exc:
+        parser.exit(status=1, message=f"Capture error: {exc}\\n")
+
+
+if __name__ == "__main__":
+    main()
