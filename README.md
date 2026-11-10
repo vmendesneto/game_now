@@ -134,3 +134,22 @@ Substitua a URL ilustrativa pela transmissão pública **ativa e com uso permiti
 O processamento não grava arquivos de mídia. Para diagnosticar um stream offline, a execução retorna código diferente de zero. Os endereços dos servidores de mídia expiram: `app/capture_supervisor.py` permite criar um worker independente por fonte, com timeout de ausência de PCM, backoff exponencial de 1 a 30 segundos por padrão e encerramento ao acionar `asyncio.Event`. A cada tentativa de YouTube, o worker chama o resolvedor novamente; não reutiliza o endereço expirado. Blocos PCM são guardados no `MultiSourceAudioBuffer` por fonte, com limites de memória e sem transmissão ao site. Os estados internos não incluem URLs ou mensagens de erro potencialmente sensíveis.
 
 Esse supervisor **ainda não é iniciado pelos botões de fontes nem integra ASR ou o site**; integração operacional/telemetria será tratada nos próximos itens. Testes da GN-033 simulam desconexão, reconexão, fluxo sem áudio, fonte travada, múltiplas fontes, expiração de URL e parada segura. Nada disso equivale à validação de uma live real, de políticas dos criadores, da estabilidade por 90 minutos, de redirecionamentos/HLS com DNS ou do Windows físico.
+
+
+### YouTube Live sem formato áudio-only (GN-031 — compatibilidade)
+
+Algumas transmissões públicas ao vivo não oferecem uma faixa de áudio separada. Nesses casos, o resolvedor prefere sempre um formato exclusivamente de áudio, mas agora pode selecionar uma **variante combinada de vídeo e áudio** quando essa for a única disponível sem DRM. O FFmpeg já recebe `-vn` e entrega apenas **PCM mono 16 kHz**, sem salvar vídeo, repassar mídia ao navegador ou publicar URLs de stream. **Limitação:** em uma variante combinada, a rede pode transferir bytes de vídeo juntamente com áudio antes do descarte; não é correto afirmar que o tráfego de origem tem somente áudio.
+
+No PowerShell, após `git pull --ff-only`, teste com uma live pública ativa cuja captação seja permitida:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.youtube_capture --yt-dlp ".\.venv\Scripts\yt-dlp.exe" --url "https://www.youtube.com/watch?v=ID_DA_LIVE" --seconds 5
+```
+
+Se a fonte não tiver áudio decodificável, não oferecer URL pública acessível ou exigir autenticação/DRM, a ferramenta continua falhando sem tentativas de contorno. Se o erro persistir, inspecione os formatos sem baixar mídia:
+
+```powershell
+.\.venv\Scripts\yt-dlp.exe --ignore-config --no-cache-dir --list-formats "https://www.youtube.com/watch?v=ID_DA_LIVE"
+```
+
+Testes Linux verificam prioridade do áudio-only, fallback combinado, rejeição de fonte sem áudio/DRM e conversão FFmpeg de arquivo real com vídeo e áudio. A validação da URL enviada pelo usuário no Windows ainda precisará ser repetida após atualizar o código.
