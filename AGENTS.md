@@ -61,4 +61,4 @@ Como continuar: comando/arquivo específico
 
 ## Próximo trabalho indicado
 
-**GN-030: captura de rádio (MP3/AAC/HLS) por FFmpeg para PCM 16 kHz**, conforme `STATUS.md`; GN-012 continua dependendo de Windows físico. GN-024 controla partidas com operações SQLite e escalação imutável após ações. GN-025 aplica correções auditadas, e GN-032 registra fontes com validação inicial de URLs mas sem capturar áudio. O estado em `/api/matches/{id}/state` permanece separado de `/api/state` (demo). Preservar o `ContractBundle` v1.
+**GN-031: resolver áudio de transmissão pública YouTube Live via yt-dlp**, conforme `STATUS.md`; GN-012 continua dependendo de Windows físico. GN-030 converte MP3/AAC/HLS para PCM 16 kHz via FFmpeg (fixtures reais aprovadas no Linux), mas não há integração com site/ASR. GN-024 controla partidas com operações SQLite e escalação imutável após ações. GN-025 aplica correções auditadas, e GN-032 registra fontes com validação inicial de URLs mas sem capturar áudio. O estado em `/api/matches/{id}/state` permanece separado de `/api/state` (demo). Preservar o `ContractBundle` v1.

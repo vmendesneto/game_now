@@ -34,7 +34,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [ ] **GN-012 [P0]** Script `iniciar_windows.bat` ou PowerShell, sem necessidade de IDE; evidência: inicializa em Windows.
 - [x] **GN-013 [P0]** Criar `/health` e diagnóstico de FFmpeg, modelo ASR, armazenamento e sources; evidência: respostas verificáveis.
 - [x] **GN-014 [P0]** Modo demonstração totalmente offline para testar campo, interpretação e WebSocket sem downloads; evidência: roteiro reproduzível.
-- [ ] **GN-015 [P1]** Logs estruturados, rotação e mensagens de erro compreensíveis; evidência: testes de falhas.
+- [x] **GN-015 [P1]** Logs estruturados, rotação e mensagens de erro compreensíveis; evidência: testes de falhas.
 - [ ] **GN-016 [P1]** Encerramento seguro dos processos de áudio e recuperação após reinício; evidência: nenhum processo órfão.
 
 ## F02 — Partida, escalação e persistência
@@ -48,7 +48,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 ## F03 — Entradas de áudio: rádios e YouTube
 
-- [ ] **GN-030 [P0]** Capturar URL de rádio MP3/AAC/HLS via FFmpeg, converter para PCM mono 16 kHz; evidência: arquivo/stream de teste.
+- [x] **GN-030 [P0]** Capturar URL de rádio MP3/AAC/HLS via FFmpeg, converter para PCM mono 16 kHz; evidência: arquivo/stream de teste.
 - [ ] **GN-031 [P0]** Capturar **somente áudio** de transmissões públicas YouTube Live via yt-dlp + FFmpeg; evidência: link de teste permitido e tratamento de indisponibilidade.
 - [x] **GN-032 [P0]** Cadastrar, editar, ativar e desativar múltiplas fontes independentes; evidência: API/UI.
 - [ ] **GN-033 [P0]** Detectar desconexão e reconectar com backoff, incluindo URLs de YouTube que expiram; evidência: simular perda e retomada.

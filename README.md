@@ -1,6 +1,6 @@
 # Game Now — acompanhamento de futebol a partir de narrações
 
-**Estado:** demonstração offline e cadastro persistente de partidas, elencos e snapshots implementados; captura real ainda pendente. Não há ingestão de rádio/YouTube nem ASR conectados. Acompanhe [STATUS.md](STATUS.md) e [ROADMAP.md](ROADMAP.md).
+**Estado:** demonstração offline, configuração de partidas/fontes e controle/auditoria persistentes; módulo de captura rádio FFmpeg em CLI com fixtures aprovadas, ainda sem ingestão de rádio/YouTube pelo site ou ASR. Acompanhe [STATUS.md](STATUS.md) e [ROADMAP.md](ROADMAP.md).
 
 ## Executar a demonstração offline
 
@@ -59,13 +59,25 @@ python -m pytest -q
 
 O contrato reside em `app/contracts.py`, o schema exportado em `schemas/v1.schema.json`, fixtures em `fixtures/`, e a decisão de arquitetura em [docs/ADR-0001.md](docs/ADR-0001.md). Não edite o JSON schema manualmente: regenere com o script e revise o diff. Os testes verificam ambos.
 
-## FFmpeg (futura ingestão)
+## FFmpeg (GN-030 — conversão de áudio em ferramenta de diagnóstico)
 
-Para o modo demo não é necessário instalar FFmpeg. Ao testar captura de rádio/YouTube no Windows, instalar uma versão oficial/confiável de FFmpeg, adicionar o executável ao PATH e verificar com `ffmpeg -version`. O endpoint `/health` indica se foi detectado. Esse teste físico pertence a GN-012/GN-030 e ainda não foi executado.
+Para o modo demo não é necessário instalar FFmpeg. A ferramenta GN-030 precisa de FFmpeg no PATH. A CI instala FFmpeg e testa decodificação real de fixtures MP3, AAC e HLS como PCM mono 16k (`tests/test_audio_capture.py`). Para testar sem acessar a internet:
+
+```bash
+python -m app.audio_capture --file caminho/arquivo.mp3 --seconds 5
+```
+
+Para diagnosticar uma rádio pública permitida, cuja URL você fornece:
+
+```bash
+python -m app.audio_capture --url https://exemplo.radio/stream.mp3 --seconds 5
+```
+
+O comando apenas imprime estatísticas JSON, **não** reproduz ou salva áudio e não alimenta o site. O URL ilustrativo acima não é uma estação verificada. A função Python `pcm_chunks` oferece blocos binários de 16 kHz para etapas seguintes. A opção `--file` é somente CLI/testes e não é exposta pela API. A resolução DNS inicial bloqueia IPs não públicos, mas segurança contra redirecionamentos e substreams HLS exige GN-090. **Nenhuma rádio real ou Windows foi validado nesta etapa.**
 
 ## Limitações (importante)
 
-- **Não há captação/transcrição de fontes reais.** FFmpeg e yt-dlp permanecem etapas futuras.
+- **O módulo GN-030 permite capturar e converter áudio de rádio por FFmpeg isoladamente**, mas não há conexão do cadastro ao capturador, transcrição ASR nem ingestão de YouTube pelo site. GN-031 continua pendente.
 - A interpretação no modo demo é um conjunto pequeno de palavras-chave e dados de cenário. O agrupamento de fontes é pré-indicado no script sintético; não é fusão real.
 - A posição mostrada é **uma zona de 15** relativa ao sentido de ataque, não coordenada precisa. Comerciais e replays não devem mover a região; sem evidência, o estado pode ser desconhecido/expirado.
 - O **demo sintético** é volátil e reinicia com o processo. Partidas cadastradas, elencos, fontes e snapshots de eventos são persistidos em SQLite (GN-023). São ambientes separados até integrar narrações reais.
@@ -85,3 +97,9 @@ Para corrigir um resultado, use `POST /api/matches/{id}/corrections` com `{"kind
 O cadastro de fontes permite várias rádios e vídeos públicos do YouTube, cada qual com nome, tipo, URL e flag `enabled`. O `PUT /sources` substitui a lista completa; alterações que removem fontes citadas em eventos/transcrições retornam 409. São aceitos URLs públicos HTTP(S) para rádio e HTTPS de `youtube.com` / `youtu.be` para YouTube, sem credenciais ou IP local. URLs ausentes são placeholders, não fontes operacionais. **A validação de cadastro não substitui uma defesa de rede no capturador**, que precisará validar DNS, redirecionamentos e IP de destino na GN-090. Nenhuma fonte é executada/reproduzida pelo cadastro.
 
 Testes de integração `tests/test_match_flow.py`, `tests/test_corrections.py`, `tests/test_sources.py` comprovam rejeições, atomicidade, edição, consulta, reinício SQLite e interface HTTP. CI Linux, **28 testes em Python 3.11 e 3.12**, schema v1 preservado e JS sintaticamente válido: https://github.com/vmendesneto/game_now/actions/runs/42884686478. Persistem validações físicas no Windows, rádio real e modelos ASR.
+
+## Logs estruturados (GN-015)
+
+O servidor grava requisições HTTP em JSON em `data/game_now.log` por padrão; configure outro arquivo antes de iniciar com `GAME_NOW_LOG_PATH`. Log contém timestamp UTC, status, caminho (sem query), método, duração e ID devolvido ao cliente via header `X-Request-ID`, sem o corpo das solicitações ou as URLs de rádio do formulário. Há rotação a cada 2 MB, 3 backups (máximo nominal 8 MB de arquivos), e testes cobrindo rotatividade, ausência de credenciais no corpo e códigos de erro. Não é necessário manter o arquivo para preservar as partidas, que seguem no SQLite.
+
+CI após GN-015/GN-030: **35 testes passaram em Python 3.11 e 3.12**: https://github.com/vmendesneto/game_now/actions/runs/42886144524. O contrato v1 segue inalterado. A validação do Windows físico está pendente.
