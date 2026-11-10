@@ -61,4 +61,4 @@ Como continuar: comando/arquivo específico
 
 ## Próximo trabalho indicado
 
-**GN-022: normalização e desambiguação de atletas**, conforme `STATUS.md`; GN-012 continua dependendo do Windows físico. GN-020/021/023 deixam configuração em SQLite, separada do motor de demonstração volátil. Não confundir `/api/matches/{id}/state` (snapshot persistido) com `/api/state` (demo). Preservar `ContractBundle` v1 ao implementar GN-022, GN-032 e integração futura.
+**GN-024: substituições, expulsões, intervalo e acréscimos**, conforme `STATUS.md`; GN-012 continua dependendo do Windows físico. GN-020/021/023 deixam configuração em SQLite, separada do motor de demonstração volátil; GN-022 oferece resolução conservadora de menções isoladas, não NLP em narração. Não confundir `/api/matches/{id}/state` (snapshot persistido) com `/api/state` (demo). Preservar `ContractBundle` v1 ao implementar GN-022, GN-032 e integração futura.

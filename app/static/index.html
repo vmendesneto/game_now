@@ -82,6 +82,16 @@
           </form>
           <p id="player-message" class="form-message" role="status"></p>
           <ul id="player-list" class="roster-list"></ul>
+          <div class="entity-resolver">
+            <div class="panel-title">TESTAR IDENTIFICAÇÃO DE ATLETA</div>
+            <p class="muted">Identificação conservadora de menção isolada; sem analisar narração ao vivo.</p>
+            <form id="resolve-form">
+              <label>Nome, apelido ou camisa<input id="resolve-mention" required maxlength="150" placeholder="Ex.: camisa 10"></label>
+              <label>Equipe de contexto<select id="resolve-team"><option value="">Não informada (pode ser ambígua)</option></select></label>
+              <button type="submit">Identificar atleta</button>
+            </form>
+            <p id="resolve-message" class="form-message" role="status"></p>
+          </div>
         </div>
       </div>
     </section>

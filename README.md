@@ -34,12 +34,15 @@ Abra http://127.0.0.1:8000 no navegador. Clique em **Próximo relato** para simu
 | `/api/matches` | GET, POST | Listar e cadastrar partidas |
 | `/api/matches/{id}` | GET, PUT, DELETE | Detalhar, editar e excluir partida |
 | `/api/matches/{id}/players` | GET, PUT | Elenco completo dos dois clubes, com posição, camisa, apelidos e titularidade |
+| `/api/matches/{id}/resolve-player` | POST | Resolver menção isolada (nome, apelido, camisa), retornando `resolved`, `ambiguous` ou `unknown` |
 | `/api/matches/{id}/sources` | GET, PUT | Lista persistida de fontes (sem ingestão) |
 | `/api/matches/{id}/state` | GET, PUT | Snapshot do contrato v1, incluindo eventos, transcrições e bola |
 
 ## Configuração e banco de dados
 
 A seção **Partidas e elencos**, abaixo da demonstração, permite criar/editar/excluir partidas e cadastrar os dois elencos pelo navegador, sem editar Python. Posição é metadado de elenco separado do contrato de eventos v1. Cada PUT de elenco/fontes substitui a lista integral; 409 significa conflito de referências históricas, camisa duplicada ou equipe inválida. Dados são escritos em `data/game_now.sqlite3` por padrão (não versionado); escolha outro caminho com `GAME_NOW_DB_PATH` antes de iniciar. Copiar o arquivo com o servidor parado permite backup manual. Não apagar o arquivo para atualizar o aplicativo.
+
+A GN-022 acrescenta identificação conservadora de atletas: `POST /api/matches/{id}/resolve-player` recebe `{"mention":"camisa 10","team_id":null}`. Nomes são normalizados por caixa, acentos e pontuação. Sem equipe de contexto, dois atletas com a mesma camisa ou apelido geram `ambiguous`, nunca um palpite. O formulário no painel de elencos permite testar. Isso **não** é transcrição nem resolução de entidades em texto livre (GN-051).
 
 O snapshot persistente está disponível em `/api/matches/{id}/state`. Ele exige um `ContractBundle` v1 válido e não altera a configuração da partida; edite partida/elenco pelos endpoints próprios. **O botão Próximo relato continua operando a demo separada**, sem preencher histórico das partidas cadastradas; integração entre eles ocorrerá numa etapa futura. Fontes reais e sua captura continuam não implementadas.
 

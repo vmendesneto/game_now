@@ -127,6 +127,7 @@ function blankMatch() {
   $("player-form").reset();
   $("player-list").replaceChildren();
   $("roster-controls").hidden=true;
+  formNotice("resolve-message","");
   formNotice("match-message","Nova partida: informe os dois clubes e salve.");
 }
 function showMatch(match) {
@@ -145,6 +146,14 @@ function showMatch(match) {
   $("away-goals").value=match.away_score;
   $("match-delete").disabled=false;
   $("roster-controls").hidden=false;
+  const context=$("resolve-team");
+  context.replaceChildren();
+  const noTeam=document.createElement("option");
+  noTeam.value="";noTeam.textContent="Não informada (pode ser ambígua)";context.append(noTeam);
+  for(const team of [match.home,match.away]){
+    const option=document.createElement("option");
+    option.value=team.id;option.textContent=team.name;context.append(option);
+  }
   const teamSelector=$("player-team");
   teamSelector.replaceChildren();
   for(const team of [match.home,match.away]){
@@ -284,3 +293,22 @@ async function removePlayer(id) {
 }
 $("player-cancel").addEventListener("click",resetPlayerForm);
 refreshMatches().catch(error=>formNotice("match-message","Não foi possível abrir cadastro: "+error.message,true));
+
+$("resolve-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(!chosenMatch)return;
+  try{
+    const result=await configApi(
+      "/api/matches/"+encodeURIComponent(chosenMatch.id)+"/resolve-player",
+      "POST",{mention:configValue("resolve-mention"),team_id:configValue("resolve-team")||null}
+    );
+    if(result.status==="resolved"){
+      const athlete=currentRoster.find(p=>p.id===result.player_id);
+      formNotice("resolve-message","Identificado: "+(athlete?.name||result.player_id)+" ("+result.team_id+").");
+    }else if(result.status==="ambiguous"){
+      formNotice("resolve-message","Ambíguo: "+result.candidate_ids.length+" atletas possíveis. Informe a equipe.",true);
+    }else{
+      formNotice("resolve-message","Nenhum atleta identificado; não foi feita associação por suposição.",true);
+    }
+  }catch(error){formNotice("resolve-message","Erro na identificação: "+error.message,true);}
+});

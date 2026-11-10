@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from app.configuration import MatchConfig, RosterPlayer
 from app.contracts import AudioSource, ContractBundle, Match
 from app.demo import DemoEngine
+from app.entities import ResolveRequest, ResolveResult, resolve_player
 from app.storage import SQLiteStore, StoreConflict
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -106,6 +107,14 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         if result is None:
             raise HTTPException(status_code=404, detail="Partida não encontrada")
         return result
+
+    @application.post("/api/matches/{match_id}/resolve-player", response_model=ResolveResult)
+    async def resolve_mention(match_id: str, request: ResolveRequest):
+        match = require_match(match_id)
+        try:
+            return resolve_player(match, request.mention, request.team_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @application.get("/api/matches/{match_id}/sources", response_model=list[AudioSource])
     async def get_sources(match_id: str):
