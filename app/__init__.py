@@ -1,0 +1,1 @@
+"""Game Now app package."""

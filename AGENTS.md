@@ -61,4 +61,4 @@ Como continuar: comando/arquivo específico
 
 ## Primeiro trabalho indicado
 
-**GN-003: schema de eventos**, conforme `STATUS.md`; seguir GN-004 e implementação vertical mínima no Windows. Manter esta indicação sincronizada com `STATUS.md` nas futuras edições.
+**GN-020: CRUD da partida**, conforme `STATUS.md`; em paralelo GN-012 depende do Windows físico. GN-003/GN-004 e a demo inicial foram implementados. Manter esta indicação sincronizada com `STATUS.md` nas futuras edições.

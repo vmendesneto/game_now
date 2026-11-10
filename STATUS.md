@@ -1,51 +1,52 @@
 # STATUS — Estado atual do Game Now
 
 **Atualizado:** 2026-11-10  
-**Branch de referência:** `main`  
+**Branch de referência:** `main` (integração da branch `feat/gn003-contract-and-offline-demo`)  
 **Projeto:** https://github.com/vmendesneto/game_now  
-**Fase atual:** F00 — Planejamento e preparação técnica  
-**Próxima tarefa:** **GN-003 — contrato dos eventos de futebol**. Em seguida GN-004, GN-010 a GN-014.
+**Fase atual:** F01 — demonstração offline implementada; F02 ainda pendente.  
+**Próxima tarefa executável:** **GN-020 — CRUD da partida**. Depois GN-021 (elencos) e GN-023 (SQLite).  
+**Bloqueio paralelo:** **GN-012 — validar o launcher no Windows físico do usuário**.
 
-## O que está realmente pronto
+## Últimas entregas
 
-- ✅ **GN-001:** repositório GitHub `vmendesneto/game_now` criado pelo usuário e inicializado com `README.md`.
-- ✅ **GN-002:** arquivos de rastreamento `ROADMAP.md`, `STATUS.md` e `AGENTS.md` criados no repositório.
-- ✅ Escopo inicial decidido: **uma única partida**, **Windows como servidor**, entradas de **rádios online e transmissões públicas do YouTube**, **somente áudio para inferência**, **sem áudio nem vídeo retransmitido no site**.
-- ✅ Direção técnica provisória: Python/FastAPI, FFmpeg, faster-whisper, yt-dlp, SQLite, React/TypeScript ou frontend SVG leve, WebSocket e módulo próprio de reconciliação.
+- ✅ **GN-003:** contrato Pydantic v1 com `Match`, `Team`, `Player`, `AudioSource`, `TranscriptSegment`, `FootballEvent`, `EstimatedBallState`, confidências independentes, timestamps com fuso e zona 5×3; schema versionado em `schemas/v1.schema.json` e três fixtures (lance, publicidade, duas fontes atrasadas).
+- ✅ **GN-004:** decisão de arquitetura documentada em `docs/ADR-0001.md` (FastAPI, SVG sem Node, contratos, limites de inferência, SQLite posterior, Windows local).
+- ✅ **GN-005:** workflow Python 3.11/3.12 com validação do schema e suíte de testes.
+- ✅ **GN-010:** FastAPI, site HTML/CSS/JS e SVG servidos via HTTP em `127.0.0.1:8000`.
+- ✅ **GN-011:** dependências Python fixadas, procedimento de venv/documentação e instalação limpa de pacotes exercitada pelo CI em duas versões. FFmpeg é opcional no modo demo.
+- ✅ **GN-013:** `GET /health` com diagnóstico explícito de FFmpeg, ASR não configurado, memória volátil e fontes sintéticas.
+- ✅ **GN-014:** roteiro sintético offline com duas fontes, comercial, cruzamento, gol duplicado, replay e expiração; `/api/demo/next`, `/api/demo/reset` e transmissão de estado via `/ws`.
 
-**Não está pronto ainda:** backend, interface, transcrição, fontes reais, interpretação de lances, sincronização, testes físicos no Windows. **Não existe MVP testável na main neste estado.**
+## Evidência verificada
 
-## Próximo passo exato (GN-003)
+- Workflow: https://github.com/vmendesneto/game_now/actions/runs/42878455255
+- SHA dos testes aprovados antes da exportação versionada: `ef18b1d08216d65cea97e3fec5b9e48e731f38da`.
+- Python 3.11: job `tests (3.11)` passou.
+- Python 3.12: job `tests (3.12)` passou, com **13 testes aprovados**, incluindo contrato/fixtures, regras sintéticas, API HTTP e dois clientes WebSocket simultâneos.
+- Comandos CI: `python -m pip install -r requirements-dev.txt`, `python scripts/export_schema.py`, `python -m pytest -q`.
+- O contrato JSON exportado por CI foi incorporado na mesma alteração de atualização de progresso.
+- **Não houve teste de navegador gráfico nem teste no Windows físico.** CI Linux não comprova integração com rádio, YouTube, GPU ou estabilidade em Windows.
 
-Especificar um contrato JSON tipado e testado para `Match`, `Team`, `Player`, `AudioSource`, `TranscriptSegment`, `FootballEvent` e `EstimatedBallState`, incluindo:
-
-1. IDs estáveis; versão do schema; marcações de tempo da captura, transcrição e partida.
-2. Equipe, jogador e posse opcionais (desconhecido é permitido).
-3. Região do campo como **zona**, não como coordenada precisa inventada. Modelo inicial: 5 faixas × 3 corredores, orientação relativa ao sentido de ataque.
-4. Categoria do texto `live_play | ad | analysis | replay | unknown`; evento `pass | cross | shot | save | goal | corner | throw_in | offside | foul | penalty | goal_kick | possession | unknown`.
-5. Confianças independentes para equipe, jogador, região, ação e tempo, não uma confiança mágica única.
-6. Fonte que produziu a observação, ID de evento deduplicado e estado de incerteza/expiração.
-7. Exemplos de três tipos: lance válido, comercial, duas fontes relatando o mesmo lance com atraso.
-
-**Aceite de GN-003:** schema e fixtures versionados com testes automatizados que validem os exemplos acima. Somente então marcar GN-003 no ROADMAP.
-
-## Dependências e fatos ainda não verificados
+## Estado que ainda NÃO está pronto
 
 | Item | Estado |
 | --- | --- |
-| Processador e RAM do Windows servidor | Não informados; medir no equipamento antes de selecionar modelo definitivo |
-| FFmpeg no Windows | Não verificado |
-| Python 3.11/3.12 e venv no Windows | Não verificados |
-| yt-dlp com uma live pública específica | Não testado |
-| Transcrição pt-BR de rádio real | Não testada |
-| Latência CPU/GPU com duas fontes | Não medida |
-| Permissões/condições dos streams selecionados | A verificar fonte a fonte |
+| GN-012 — `iniciar_windows.bat` | Script criado, mas não executado em Windows real; continua [ ] |
+| GN-070 a GN-074 — interface completa | Campo SVG e dados em tela implementados como base; responsividade visual, troca de lados e fluxo de configuração ainda não validados |
+| GN-020/021/023 — cadastro e persistência | A demo usa equipes fixas e estado volátil; nenhuma implementação de SQLite ou CRUD |
+| GN-030/031 — rádios e YouTube | Não iniciados; verificar condições e permissões das fontes |
+| GN-040 a GN-043 — ASR pt-BR | Não iniciados; modelo não instalado |
+| GN-050 a GN-065 — classificação e fusão reais | Não iniciados; `app/demo.py` usa poucas palavras-chave e chaves de duplicação predeterminadas |
+| Windows CPU/RAM/FFmpeg | Não aferidos; não assumir compatibilidade |
+| Posições em campo | Zonas estimadas apenas; nunca coordenadas físicas precisas |
 
-## Regras de execução e atualização
+## Como continuar
 
-- A próxima pessoa/agente deve **ler este STATUS primeiro** e conferir HEAD/arquivos reais no GitHub.
-- Escolher a próxima tarefa não concluída compatível com dependências, iniciar implementação e teste.
-- Ao terminar: marcar `[x]` na linha correspondente de `ROADMAP.md`, registrar aqui **o que foi entregue**, **provas/testes**, **o que falta**, **o novo ID próximo** e **o SHA do commit/PR se disponível**.
-- Se um teste depende do Windows físico, descrever como executá-lo e **não** marcá-lo como feito antes do resultado.
-- Não apagar tarefas, não renumerar IDs e não mascarar um bloqueio como concluído.
-- Se o usuário disser apenas “continue”, executar a próxima tarefa daqui, sem rediscutir todo o planejamento.
+1. Conferir o HEAD real de `main` e reler este arquivo, `ROADMAP.md` e `AGENTS.md`.
+2. **GN-020:** adicionar CRUD de uma partida com dois clubes, direção do ataque, período, relógio e placar. Primeiro escrever testes de criação/edição/validação; não reutilizar estado de demo como banco.
+3. Depois **GN-021**, **GN-023** e configuração web. Preservar o contrato v1, ou versionar mudança incompatível.
+4. Para rodar demo: instalar Python 3.11/3.12, executar `iniciar_windows.bat` no Windows ou `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000` com venv e requirements. Abrir http://127.0.0.1:8000.
+5. **GN-012, quando o Windows estiver disponível:** registrar versão Python, instalação do launcher, acesso ao site em dois navegadores, `/health` e erros; não fechar a tarefa antes dessa evidência.
+6. Para novos commits: `python scripts/export_schema.py` e `python -m pytest -q`. Marcar [x] somente após CI/teste aplicável; atualizar STATUS e ROADMAP juntos.
+
+**Proibido** registrar como testada uma fonte real ou validação de hardware não realizada.

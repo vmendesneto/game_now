@@ -23,17 +23,17 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 - [x] **GN-001 [P0]** Criar repositório `vmendesneto/game_now` na branch `main`; evidência: repositório acessível.
 - [x] **GN-002 [P0]** Criar ROADMAP, STATUS e AGENTS versionados, com regra de passagem entre chats; evidência: arquivos na `main`.
-- [ ] **GN-003 [P0]** Definir contrato dos eventos e nomenclatura padronizada (ação, tempo, equipe, jogador, região, fonte, confiança); evidência: exemplos e validação de schema.
-- [ ] **GN-004 [P0]** Registrar decisões de arquitetura, dependências e alternativas; evidência: documento revisável.
-- [ ] **GN-005 [P1]** Criar CI (lint + testes) para alterações no GitHub; evidência: workflow passando.
+- [x] **GN-003 [P0]** Definir contrato dos eventos e nomenclatura padronizada (ação, tempo, equipe, jogador, região, fonte, confiança); evidência: exemplos e validação de schema.
+- [x] **GN-004 [P0]** Registrar decisões de arquitetura, dependências e alternativas; evidência: documento revisável.
+- [x] **GN-005 [P1]** Criar CI (lint + testes) para alterações no GitHub; evidência: workflow passando.
 
 ## F01 — Executar e operar no Windows
 
-- [ ] **GN-010 [P0]** Criar backend Python e site estático funcional, separados por camadas; evidência: servidor HTTP inicializa.
-- [ ] **GN-011 [P0]** Fixar versões e dependências Python, com instruções Python 3.11/3.12, venv, FFmpeg e configurações; evidência: instalação limpa documentada.
+- [x] **GN-010 [P0]** Criar backend Python e site estático funcional, separados por camadas; evidência: servidor HTTP inicializa.
+- [x] **GN-011 [P0]** Fixar versões e dependências Python, com instruções Python 3.11/3.12, venv, FFmpeg e configurações; evidência: instalação limpa documentada.
 - [ ] **GN-012 [P0]** Script `iniciar_windows.bat` ou PowerShell, sem necessidade de IDE; evidência: inicializa em Windows.
-- [ ] **GN-013 [P0]** Criar `/health` e diagnóstico de FFmpeg, modelo ASR, armazenamento e sources; evidência: respostas verificáveis.
-- [ ] **GN-014 [P0]** Modo demonstração totalmente offline para testar campo, interpretação e WebSocket sem downloads; evidência: roteiro reproduzível.
+- [x] **GN-013 [P0]** Criar `/health` e diagnóstico de FFmpeg, modelo ASR, armazenamento e sources; evidência: respostas verificáveis.
+- [x] **GN-014 [P0]** Modo demonstração totalmente offline para testar campo, interpretação e WebSocket sem downloads; evidência: roteiro reproduzível.
 - [ ] **GN-015 [P1]** Logs estruturados, rotação e mensagens de erro compreensíveis; evidência: testes de falhas.
 - [ ] **GN-016 [P1]** Encerramento seguro dos processos de áudio e recuperação após reinício; evidência: nenhum processo órfão.
 
