@@ -43,14 +43,14 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-021 [P0]** Cadastro dos dois elencos com número, nome, apelidos, posição e titular/reserva; evidência: fluxo web/API.
 - [x] **GN-022 [P0]** Normalizar nomes, apelidos e “camisa 10” sem misturar atletas de equipes; evidência: testes com ambiguidades.
 - [x] **GN-023 [P0]** Persistir configuração, fontes, estado e histórico de eventos em SQLite; evidência: reiniciar sem perder dados.
-- [ ] **GN-024 [P1]** Substituições, expulsões, intervalo, troca de lados e acréscimos; evidência: testes de regras.
-- [ ] **GN-025 [P1]** Correções manuais de placar, posse e evento com trilha de auditoria; evidência: API/UI + registro.
+- [x] **GN-024 [P1]** Substituições, expulsões, intervalo, troca de lados e acréscimos; evidência: testes de regras.
+- [x] **GN-025 [P1]** Correções manuais de placar, posse e evento com trilha de auditoria; evidência: API/UI + registro.
 
 ## F03 — Entradas de áudio: rádios e YouTube
 
 - [ ] **GN-030 [P0]** Capturar URL de rádio MP3/AAC/HLS via FFmpeg, converter para PCM mono 16 kHz; evidência: arquivo/stream de teste.
 - [ ] **GN-031 [P0]** Capturar **somente áudio** de transmissões públicas YouTube Live via yt-dlp + FFmpeg; evidência: link de teste permitido e tratamento de indisponibilidade.
-- [ ] **GN-032 [P0]** Cadastrar, editar, ativar e desativar múltiplas fontes independentes; evidência: API/UI.
+- [x] **GN-032 [P0]** Cadastrar, editar, ativar e desativar múltiplas fontes independentes; evidência: API/UI.
 - [ ] **GN-033 [P0]** Detectar desconexão e reconectar com backoff, incluindo URLs de YouTube que expiram; evidência: simular perda e retomada.
 - [ ] **GN-034 [P0]** Buffer de áudio por fonte com timestamps e limites de memória; evidência: teste de longas sessões.
 - [ ] **GN-035 [P1]** Telemetria por fonte: online, sem áudio, comercial, narrando, atraso estimado; evidência: painel atualizado.

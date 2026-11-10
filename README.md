@@ -35,7 +35,10 @@ Abra http://127.0.0.1:8000 no navegador. Clique em **Próximo relato** para simu
 | `/api/matches/{id}` | GET, PUT, DELETE | Detalhar, editar e excluir partida |
 | `/api/matches/{id}/players` | GET, PUT | Elenco completo dos dois clubes, com posição, camisa, apelidos e titularidade |
 | `/api/matches/{id}/resolve-player` | POST | Resolver menção isolada (nome, apelido, camisa), retornando `resolved`, `ambiguous` ou `unknown` |
-| `/api/matches/{id}/sources` | GET, PUT | Lista persistida de fontes (sem ingestão) |
+| `/api/matches/{id}/flow` | GET | Período, titulares em campo, substituições, expulsões, acréscimos e histórico |
+| `/api/matches/{id}/actions` | POST | Registrar operação de jogo (GN-024) |
+| `/api/matches/{id}/corrections` | GET, POST | Corrigir placar, posse e eventos com auditoria (GN-025) |
+| `/api/matches/{id}/sources` | GET, PUT | Criar, editar, habilitar e desabilitar fontes persistidas (GN-032; sem ingestão) |
 | `/api/matches/{id}/state` | GET, PUT | Snapshot do contrato v1, incluindo eventos, transcrições e bola |
 
 ## Configuração e banco de dados
@@ -72,3 +75,13 @@ Para o modo demo não é necessário instalar FFmpeg. Ao testar captura de rádi
 ## Continuidade
 
 Leia [STATUS.md](STATUS.md), [ROADMAP.md](ROADMAP.md) e [AGENTS.md](AGENTS.md) antes de trabalhar. Marque tarefas somente depois de evidências reais; testes de CI Linux não equivalem a testes do Windows.
+
+## Operações, correções e fontes (GN-024/025/032)
+
+Os três painéis aparecem ao selecionar uma partida salva. As **operações** alteram o jogo cadastrado, não o simulador: `POST /api/matches/{id}/actions` aceita `{"kind":"substitution","player_out_id":"player-001","player_in_id":"player-012","match_seconds":2800}`, `{"kind":"red_card","player_id":"player-001"}`, `{"kind":"half_time"}`, `{"kind":"second_half"}`, `{"kind":"added_time","seconds":240}` ou `{"kind":"finish"}`. O relógio é opcional e não pode retroceder. O segundo tempo troca os lados automaticamente; intervalos invalidam posse/posição antigos. A escalação fica congelada após a primeira operação para não perder referência do histórico. Não há limite de substituições por competição nesta etapa.
+
+Para corrigir um resultado, use `POST /api/matches/{id}/corrections` com `{"kind":"score","home_score":1,"away_score":0,"reason":"Conferência do lance","actor":"operator"}`. `kind="possession"` exige `team_id` (nulo quando desconhecido), e aceita `player_id` da mesma equipe. `kind="event"` aceita `event_id` e `changes` com campos permitidos: `kind`, `team_id`, `player_id`, `zone`, `uncertainty`, `match_seconds`. A fonte/proveniência e o ID original do evento não podem ser substituídos. Toda correção tem motivo, autor, snapshot anterior e posterior auditados no SQLite; também há auditoria automática quando se altera placar via editor legado ou substitui o estado pela API anterior. Não fornece autenticação nem assinatura criptográfica da trilha; uso local somente.
+
+O cadastro de fontes permite várias rádios e vídeos públicos do YouTube, cada qual com nome, tipo, URL e flag `enabled`. O `PUT /sources` substitui a lista completa; alterações que removem fontes citadas em eventos/transcrições retornam 409. São aceitos URLs públicos HTTP(S) para rádio e HTTPS de `youtube.com` / `youtu.be` para YouTube, sem credenciais ou IP local. URLs ausentes são placeholders, não fontes operacionais. **A validação de cadastro não substitui uma defesa de rede no capturador**, que precisará validar DNS, redirecionamentos e IP de destino na GN-090. Nenhuma fonte é executada/reproduzida pelo cadastro.
+
+Testes de integração `tests/test_match_flow.py`, `tests/test_corrections.py`, `tests/test_sources.py` comprovam rejeições, atomicidade, edição, consulta, reinício SQLite e interface HTTP. CI Linux, **28 testes em Python 3.11 e 3.12**, schema v1 preservado e JS sintaticamente válido: https://github.com/vmendesneto/game_now/actions/runs/42884686478. Persistem validações físicas no Windows, rádio real e modelos ASR.

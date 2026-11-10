@@ -1,45 +1,34 @@
-# STATUS — Estado atual do Game Now
+# STATUS — Game Now
 
 **Atualizado:** 2026-11-10
-**Branch de referência:** `main` (após integração da entrega GN-020/021/023)
-**Projeto:** https://github.com/vmendesneto/game_now
-**Fase atual:** F02 — cadastro e persistência iniciais implementados; motor de demo permanece separado.
-**Próxima tarefa executável:** **GN-024 — substituições, expulsões, intervalo, troca de lados e acréscimos**.
-**Bloqueio paralelo:** **GN-012 — testar launcher no Windows físico.**
+**Branch:** `main`
+**Últimas tarefas concluídas:** GN-024 (operações de partida), GN-025 (correções auditadas), GN-032 (cadastro de fontes).
+**Próxima tarefa executável:** **GN-030 — captura de rádio MP3/AAC/HLS via FFmpeg, PCM mono 16 kHz**.
+**Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
-## Entrega desta etapa
+## Implementado e validado
+- **GN-024:** `app/match_flow.py`; `GET /api/matches/{id}/flow` e `POST /api/matches/{id}/actions`. Substituições com titulares/reservas elegíveis da mesma equipe; expulsões sem reposição; intervalo e início do segundo tempo com inversão automática de lado; acréscimos monotônicos e encerramento. Relógio não retrocede. Opções inválidas retornam 409/422; transação atômica atualiza partida, bundle v1 e log. Elenco e mudanças diretas de período/direção bloqueados após iniciar operações. Painel na interface.
+- **GN-025:** `app/corrections.py`; `GET/POST /api/matches/{id}/corrections`. Correções de placar, posse e evento com motivo, autor, estado anterior/posterior e histórico imutável via API. Transações rejeitam entidade ou ID inválido. Editor legado de placar e troca de snapshot por PUT também geram auditoria. Formulário no site.
+- **GN-032:** `app/source_validation.py`; cadastro/edição/ativação/desativação de fontes de rádio e YouTube pelo navegador e API existente. Persistência SQLite, URLs públicas básicas, rejeição de credenciais, esquemas inadequados e IPs locais. Não há captura nem reprodução de mídia no site.
+- GN-020, GN-021, GN-022, GN-023 permanecem implementados: CRUD de partidas, elenco, identificação conservadora e SQLite. Contrato `ContractBundle` v1 não mudou.
 
-- ✅ **GN-020**: `POST/GET/PUT/DELETE /api/matches` e `/api/matches/{id}`; mandante/visitante, cores, sentido do ataque, período, relógio e placar. Validação Pydantic usa a estrutura `Match` do contrato v1; equipe duplicada, direção incompatível, cores e placar inválidos são rejeitados.
-- ✅ **GN-021**: `GET/PUT /api/matches/{id}/players`, cadastro dos elencos com camisa, nome, apelidos, posição e titular/reserva; edição e exclusão pelo navegador. Camisa única por equipe; no máximo 11 titulares; IDs de atleta únicos; referência à equipe validada. `position` fica fora de `Player` v1, mantendo schema e fixtures intocados.
-- ✅ **GN-023**: banco SQLite em `data/game_now.sqlite3` (ou `GAME_NOW_DB_PATH`); partidas, elencos, fontes, snapshot completo `ContractBundle`, transcrições, eventos e bola persistidos. `GET/PUT /api/matches/{id}/sources` e `GET/PUT /api/matches/{id}/state`. Operações sobre elenco/equipe/fonte com referências históricas inválidas retornam HTTP 409 sem remover o estado salvo. Deleção em cascata.
-- ✅ **GN-022**: `app/entities.py` normaliza acentos/caixa/pontuação e resolve nomes, apelidos e número de camisa com contexto explícito de equipe; resultados ambíguos nunca são transformados em identificação. Endpoint `POST /api/matches/{id}/resolve-player` e teste de menção pelo navegador. Não interpreta frases inteiras de narração.
-- Interface web em `app/static/` com formulário de partida, troca de partida, inclusão/edição/exclusão de atletas e identificação de menções.
-- `README.md`, `AGENTS.md`, GitHub Actions e testes de integração atualizados.
-- **Contrato v1 preservado**: `app/contracts.py`, `schemas/v1.schema.json` e fixtures não foram modificados.
+## Testes e evidências
+- GitHub Actions: https://github.com/vmendesneto/game_now/actions/runs/42884686478
+- **28 testes aprovados** em **Python 3.11 e 3.12**, exportação/verificação de JSON schema, `node --check app/static/app.js`.
+- Novos testes: `tests/test_match_flow.py` (inclui transição de fases e reinício), `tests/test_corrections.py` (auditoria, rollback e reinício), `tests/test_sources.py` (múltiplas fontes, URLs inválidas e persistência). A suíte anterior permanece verde.
+- Um aviso de depreciação de dependência observado na CI, sem falha. Não houve teste com rádio, YouTube ou Windows reais.
 
-## Testes e evidência
-
-- Testes automatizados incluídos em `tests/test_entities.py` (identidades iguais entre clubes, colisão de apelidos no mesmo clube, números de camisa, nomes com acentos e reinício SQLite) e em `tests/test_configuration.py`: CRUD, campos inválidos, conflitos, elencos independentes, números repetidos, persistência de fontes e eventos, reabertura de SQLite após recriar o aplicativo, esquema e UI HTTP.
-- Testes de regressão existentes da demo, contrato, WebSocket e fixtures continuam na suíte.
-- Pipeline GitHub Actions: Python **3.11 e 3.12**, exportação/comparação do schema, `node --check app/static/app.js`, `python -m pytest -q`.
-- **CI GN-020/021/023:** 17 testes passaram em Python 3.11/3.12, com sintaxe JS: https://github.com/vmendesneto/game_now/actions/runs/42881246017.
-- **CI GN-022 integrado:** **20 testes aprovados em Python 3.11 e 3.12**, schema v1 idêntico e sintaxe JavaScript válida: https://github.com/vmendesneto/game_now/actions/runs/42881936576. Houve 1 aviso de depreciação em dependência Starlette/AnyIO, sem falha de teste.
-- Antiga evidência da fase F01: https://github.com/vmendesneto/game_now/actions/runs/42878455255 (13 testes em Python 3.12).
-
-## Limitações e bloqueios
-
-- **O estado da demonstração em `GET /api/state` e em `/ws` continua volátil.** `/api/demo/next` e `/api/demo/reset` não gravam eventos nas partidas cadastradas. A persistência GN-023 é do **estado configurado via `/api/matches/{id}/state`**, não uma falsa integração do simulador.
-- O `/health` agora informa `storage=sqlite_persistent` e `demo_state=volatile_memory_only`; FFmpeg/ASR/fontes reais não implementados.
-- A GN-022 identifica menções extraídas isoladamente; resolução em frases de narração ainda depende de GN-051. Ambiguidade não gera suposições.
-- **GN-012, GN-085** e demais testes Windows, navegador gráfico, áudio, yt-dlp, CPU/RAM, GPU e FFmpeg reais não realizados.
-- `GN-070` a `GN-074`: campinho SVG e demo prontos como base; visualização de partida cadastrada e integração da configuração com narração ainda pendentes. Não marcar completos.
-- Nunca exibir coordenada exata da bola a partir de uma narração.
+## Limitações importantes
+- **GN-030/031 pendentes**: cadastro de fonte não capta nem transcreve; não afirmar rádio/YouTube operacional.
+- `/api/demo/next`, `/api/state` e `/ws` operam demo **volátil** separada de `/api/matches/{id}/state` e operações de partida.
+- Modelo de substituições não impõe limite/regra de competição (5 substituições, janelas, cartões amarelos e suspensões futuras). Corrigir a regra por competição antes de jogo oficial.
+- Auditoria é durável no SQLite, mas administradores locais podem alterar o arquivo; não é trilha assinada. Servidor apenas `127.0.0.1`.
+- Validação das URLs é superficial e feita no cadastro; ainda faltam regras DNS/redirecionamentos no processo de captura.
+- `iniciar_windows.bat`, execução com FFmpeg real, browsers físicos e GPU/CPU não foram testados em Windows.
 
 ## Continuar
-
-1. Conferir HEAD real de `main`, `ROADMAP.md`, este arquivo, `AGENTS.md` e CI da última integração.
-2. **GN-024**: planejar e implementar substituições, expulsões, intervalo/troca de lados e acréscimos com testes, evitando mudar o contrato de eventos v1 sem versionar. Em paralelo, preparar GN-032 para cadastro de fontes com validação de URL.
-3. Para executar localmente: `python -m pip install -r requirements-dev.txt`; `python scripts/export_schema.py`; `python -m pytest -q`.
-4. Servidor: `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`, interface em http://127.0.0.1:8000. Em Windows físico, usar `iniciar_windows.bat` e registrar evidências antes de marcar GN-012.
-5. Para simular persistência, cadastrar uma partida no formulário, adicionar atletas, fechar e reabrir o processo: os dados permanecem no arquivo SQLite. A demo reinicia separadamente; não é bug de persistência da configuração.
-6. Ao alterar o contrato v1, criar versão adequada e atualizar schema, fixtures e adaptadores; não alterar silenciosamente.
+1. Ler `STATUS.md`, `ROADMAP.md` e `AGENTS.md`, conferir HEAD da `main` e CI.
+2. **GN-030**: construir capturador FFmpeg de rádio MP3/AAC/HLS que emita PCM mono 16 kHz, com encerramento de subprocesso e erros diagnósticos. Testar com fixture reproduzível/local antes de uma rádio real. Garantir URLs seguras (GN-090) no ponto de execução, sem alegar validação Windows.
+3. Depois, seguir GN-031 (YouTube com yt-dlp), GN-033 (reconexão), GN-034 (buffer), mantendo itens incompletos em `[ ]` até seus testes.
+4. Para testar: `python -m pip install -r requirements-dev.txt && python scripts/export_schema.py && python -m pytest -q`. Sintaxe JS: `node --check app/static/app.js`.
+5. Servidor: `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`. Em Windows, executar e validar `iniciar_windows.bat` fisicamente antes de concluir GN-012.

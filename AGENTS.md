@@ -61,4 +61,4 @@ Como continuar: comando/arquivo específico
 
 ## Próximo trabalho indicado
 
-**GN-024: substituições, expulsões, intervalo e acréscimos**, conforme `STATUS.md`; GN-012 continua dependendo do Windows físico. GN-020/021/023 deixam configuração em SQLite, separada do motor de demonstração volátil; GN-022 oferece resolução conservadora de menções isoladas, não NLP em narração. Não confundir `/api/matches/{id}/state` (snapshot persistido) com `/api/state` (demo). Preservar `ContractBundle` v1 ao implementar GN-022, GN-032 e integração futura.
+**GN-030: captura de rádio (MP3/AAC/HLS) por FFmpeg para PCM 16 kHz**, conforme `STATUS.md`; GN-012 continua dependendo de Windows físico. GN-024 controla partidas com operações SQLite e escalação imutável após ações. GN-025 aplica correções auditadas, e GN-032 registra fontes com validação inicial de URLs mas sem capturar áudio. O estado em `/api/matches/{id}/state` permanece separado de `/api/state` (demo). Preservar o `ContractBundle` v1.
