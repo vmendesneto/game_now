@@ -97,7 +97,7 @@ def test_disabled_nonradio_missing_ffmpeg_and_bad_chunk_bounds(tmp_path):
     with pytest.raises(CaptureError, match="safe public-stream"):
         asyncio.run(collect(radio(), http_headers={"Authorization": "secret"}))
     with pytest.raises(CaptureError, match="safe public-stream"):
-        asyncio.run(collect(radio(), http_headers={"Referer": "ok\\r\\nCookie: secret"}))
+        asyncio.run(collect(radio(), http_headers={"Referer": "ok\r\nCookie: secret"}))
     with pytest.raises(CaptureError, match="no URL"):
         asyncio.run(collect(radio(), fixture_file=None))
     with pytest.raises(CaptureError, match="duration"):
