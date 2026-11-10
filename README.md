@@ -37,10 +37,14 @@ Abra http://127.0.0.1:8000 no navegador. Clique em **Próximo relato** para simu
 ```bash
 python -m pip install -r requirements-dev.txt
 python scripts/export_schema.py
-pytest -q
+python -m pytest -q
 ```
 
 O contrato reside em `app/contracts.py`, o schema exportado em `schemas/v1.schema.json`, fixtures em `fixtures/`, e a decisão de arquitetura em [docs/ADR-0001.md](docs/ADR-0001.md). Não edite o JSON schema manualmente: regenere com o script e revise o diff. Os testes verificam ambos.
+
+## FFmpeg (futura ingestão)
+
+Para o modo demo não é necessário instalar FFmpeg. Ao testar captura de rádio/YouTube no Windows, instalar uma versão oficial/confiável de FFmpeg, adicionar o executável ao PATH e verificar com `ffmpeg -version`. O endpoint `/health` indica se foi detectado. Esse teste físico pertence a GN-012/GN-030 e ainda não foi executado.
 
 ## Limitações (importante)
 

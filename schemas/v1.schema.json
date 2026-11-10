@@ -1,0 +1,650 @@
+{
+  "$defs": {
+    "AudioSource": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "radio",
+            "youtube"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "status": {
+          "default": "offline",
+          "enum": [
+            "offline",
+            "connecting",
+            "online",
+            "error"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind"
+      ],
+      "title": "AudioSource",
+      "type": "object"
+    },
+    "Category": {
+      "enum": [
+        "live_play",
+        "ad",
+        "analysis",
+        "replay",
+        "unknown"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "Confidences": {
+      "additionalProperties": false,
+      "properties": {
+        "team": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Team",
+          "type": "number"
+        },
+        "player": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Player",
+          "type": "number"
+        },
+        "zone": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Zone",
+          "type": "number"
+        },
+        "action": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Action",
+          "type": "number"
+        },
+        "timing": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Timing",
+          "type": "number"
+        }
+      },
+      "title": "Confidences",
+      "type": "object"
+    },
+    "EstimatedBallState": {
+      "additionalProperties": false,
+      "properties": {
+        "last_event_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 3,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Event Id"
+        },
+        "team_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 3,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team Id"
+        },
+        "player_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 3,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Player Id"
+        },
+        "zone": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Zone"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "confidences": {
+          "$ref": "#/$defs/Confidences"
+        },
+        "uncertainty": {
+          "default": "uncertain",
+          "enum": [
+            "estimated",
+            "uncertain",
+            "expired"
+          ],
+          "title": "Uncertainty",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        }
+      },
+      "required": [
+        "updated_at"
+      ],
+      "title": "EstimatedBallState",
+      "type": "object"
+    },
+    "EventKind": {
+      "enum": [
+        "pass",
+        "cross",
+        "shot",
+        "save",
+        "goal",
+        "corner",
+        "throw_in",
+        "offside",
+        "foul",
+        "penalty",
+        "goal_kick",
+        "possession",
+        "unknown"
+      ],
+      "title": "EventKind",
+      "type": "string"
+    },
+    "FootballEvent": {
+      "additionalProperties": false,
+      "description": "One canonical ID can consolidate several source observations.",
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EventKind"
+        },
+        "source_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 3,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "segment_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 3,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Segment Ids",
+          "type": "array"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "match_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Match Seconds"
+        },
+        "team_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 3,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team Id"
+        },
+        "player_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 3,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Player Id"
+        },
+        "zone": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Zone"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "confidences": {
+          "$ref": "#/$defs/Confidences"
+        },
+        "uncertainty": {
+          "default": "uncertain",
+          "enum": [
+            "estimated",
+            "uncertain",
+            "expired"
+          ],
+          "title": "Uncertainty",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "source_ids",
+        "segment_ids",
+        "observed_at",
+        "confidences"
+      ],
+      "title": "FootballEvent",
+      "type": "object"
+    },
+    "Match": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "home": {
+          "$ref": "#/$defs/Team"
+        },
+        "away": {
+          "$ref": "#/$defs/Team"
+        },
+        "players": {
+          "items": {
+            "$ref": "#/$defs/Player"
+          },
+          "title": "Players",
+          "type": "array"
+        },
+        "period": {
+          "default": "first_half",
+          "enum": [
+            "first_half",
+            "half_time",
+            "second_half",
+            "finished"
+          ],
+          "title": "Period",
+          "type": "string"
+        },
+        "match_seconds": {
+          "default": 0,
+          "minimum": 0.0,
+          "title": "Match Seconds",
+          "type": "number"
+        },
+        "home_score": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Home Score",
+          "type": "integer"
+        },
+        "away_score": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Away Score",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "home",
+        "away"
+      ],
+      "title": "Match",
+      "type": "object"
+    },
+    "Player": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "team_id": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+          "title": "Team Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "number": {
+          "maximum": 99,
+          "minimum": 1,
+          "title": "Number",
+          "type": "integer"
+        },
+        "aliases": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        },
+        "starter": {
+          "default": true,
+          "title": "Starter",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "team_id",
+        "name",
+        "number"
+      ],
+      "title": "Player",
+      "type": "object"
+    },
+    "Team": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "short_name": {
+          "maxLength": 12,
+          "minLength": 1,
+          "title": "Short Name",
+          "type": "string"
+        },
+        "color": {
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "title": "Color",
+          "type": "string"
+        },
+        "attack_direction": {
+          "enum": [
+            "left_to_right",
+            "right_to_left"
+          ],
+          "title": "Attack Direction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "short_name",
+        "color",
+        "attack_direction"
+      ],
+      "title": "Team",
+      "type": "object"
+    },
+    "TranscriptSegment": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "category": {
+          "$ref": "#/$defs/Category"
+        },
+        "captured_at": {
+          "format": "date-time",
+          "title": "Captured At",
+          "type": "string"
+        },
+        "transcribed_at": {
+          "format": "date-time",
+          "title": "Transcribed At",
+          "type": "string"
+        },
+        "match_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Match Seconds"
+        },
+        "text_confidence": {
+          "default": 0.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Text Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "source_id",
+        "text",
+        "category",
+        "captured_at",
+        "transcribed_at"
+      ],
+      "title": "TranscriptSegment",
+      "type": "object"
+    },
+    "Zone": {
+      "additionalProperties": false,
+      "description": "15 zones, relative to the attacking team's direction; not GPS coordinates.",
+      "properties": {
+        "band": {
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "title": "Band",
+          "type": "integer"
+        },
+        "lane": {
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "title": "Lane",
+          "type": "string"
+        }
+      },
+      "required": [
+        "band",
+        "lane"
+      ],
+      "title": "Zone",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "match": {
+      "$ref": "#/$defs/Match"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/AudioSource"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "segments": {
+      "items": {
+        "$ref": "#/$defs/TranscriptSegment"
+      },
+      "title": "Segments",
+      "type": "array"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/FootballEvent"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "ball": {
+      "$ref": "#/$defs/EstimatedBallState"
+    }
+  },
+  "required": [
+    "match",
+    "ball"
+  ],
+  "title": "ContractBundle",
+  "type": "object"
+}
