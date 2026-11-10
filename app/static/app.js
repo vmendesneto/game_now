@@ -128,6 +128,7 @@ function blankMatch() {
   $("player-list").replaceChildren();
   $("roster-controls").hidden=true;
   $("match-flow-panel").hidden=true;
+  $("corrections-panel").hidden=true;
   currentFlow=null;
   formNotice("resolve-message","");
   formNotice("match-message","Nova partida: informe os dois clubes e salve.");
@@ -173,6 +174,7 @@ async function chooseMatch(id) {
   $("player-form").reset();
   showRoster();
   await loadMatchFlow();
+  await loadMatchCorrections();
   formNotice("match-message","Partida carregada do SQLite.");
 }
 async function refreshMatches(wanted=null) {
@@ -271,6 +273,7 @@ async function persistRoster(roster) {
   currentRoster=saved;
   resetPlayerForm();showRoster();
   await loadMatchFlow();
+  await loadMatchCorrections();
 }
 $("player-form").addEventListener("submit",async event=>{
   event.preventDefault();
@@ -397,5 +400,97 @@ $("match-action-form").addEventListener("submit",async event=>{
     formNotice("action-message","Operação registrada no SQLite.");
   }catch(error){
     formNotice("action-message","Operação recusada: "+error.message,true);
+  }
+});
+
+/* GN-025: audit-safe corrections to registered matches, not the live demo. */
+function showCorrectionFields(){
+  const kind=configValue("correction-kind");
+  $("correction-score-fields").hidden=kind!=="score";
+  $("correction-possession-fields").hidden=kind!=="possession";
+  $("correction-event-fields").hidden=kind!=="event";
+  $("correction-home-goals").required=kind==="score";
+  $("correction-away-goals").required=kind==="score";
+}
+$("correction-kind").addEventListener("change",showCorrectionFields);
+showCorrectionFields();
+function updatePossessionPlayers(){
+  if(!chosenMatch)return;
+  const selectedTeam=configValue("correction-team");
+  const select=$("correction-player"),previous=select.value;
+  select.replaceChildren();
+  const none=document.createElement("option");none.value="";none.textContent="Não definido";
+  select.append(none);
+  for(const p of currentRoster.filter(p=>p.team_id===selectedTeam)){
+    const option=document.createElement("option");
+    option.value=p.id;option.textContent="#"+p.number+" · "+p.name;
+    select.append(option);
+  }
+  if([...select.options].some(option=>option.value===previous))select.value=previous;
+}
+$("correction-team").addEventListener("change",updatePossessionPlayers);
+async function loadMatchCorrections(){
+  if(!chosenMatch)return;
+  const base="/api/matches/"+encodeURIComponent(chosenMatch.id);
+  const [audit,state]=await Promise.all([
+    configApi(base+"/corrections"),configApi(base+"/state")
+  ]);
+  $("corrections-panel").hidden=false;
+  $("correction-home-goals").value=chosenMatch.home_score;
+  $("correction-away-goals").value=chosenMatch.away_score;
+  const teams=$("correction-team"),chosenTeam=teams.value;
+  teams.replaceChildren();
+  for(const [id,name] of [["","Desconhecida"],[chosenMatch.home.id,chosenMatch.home.name],
+                          [chosenMatch.away.id,chosenMatch.away.name]]){
+    const option=document.createElement("option");
+    option.value=id;option.textContent=name;teams.append(option);
+  }
+  teams.value=[chosenMatch.home.id,chosenMatch.away.id].includes(chosenTeam)?chosenTeam:"";
+  updatePossessionPlayers();
+  const events=$("correction-event-id"),oldEvent=events.value;
+  events.replaceChildren();
+  for(const e of state.events){
+    const option=document.createElement("option");
+    option.value=e.id;option.textContent=e.id+" · "+(actionTitles[e.kind]||names[e.kind]||e.kind);
+    events.append(option);
+  }
+  if(state.events.some(e=>e.id===oldEvent))events.value=oldEvent;
+  const list=$("correction-history");list.replaceChildren();
+  if(!audit.length){
+    const li=document.createElement("li");li.textContent="Nenhuma correção auditada.";
+    list.append(li);
+  }
+  for(const change of [...audit].reverse()){
+    const li=document.createElement("li");
+    li.textContent=(change.kind==="score"?"Placar":change.kind==="possession"?"Posse":
+      change.kind==="event"?"Evento":"Estado")+
+      " · "+change.actor+" · "+change.reason+" · "+
+      new Date(change.created_at).toLocaleString("pt-BR");
+    list.append(li);
+  }
+}
+$("correction-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(!chosenMatch)return;
+  const kind=configValue("correction-kind");
+  const payload={kind,reason:configValue("correction-reason").trim(),
+                 actor:configValue("correction-actor").trim()};
+  if(kind==="score"){
+    payload.home_score=Number(configValue("correction-home-goals"));
+    payload.away_score=Number(configValue("correction-away-goals"));
+  }else if(kind==="possession"){
+    payload.team_id=configValue("correction-team")||null;
+    payload.player_id=configValue("correction-player")||null;
+  }else if(kind==="event"){
+    payload.event_id=configValue("correction-event-id");
+    payload.changes={kind:configValue("correction-event-kind")};
+  }
+  try{
+    const id=chosenMatch.id;
+    await configApi("/api/matches/"+encodeURIComponent(id)+"/corrections","POST",payload);
+    await refreshMatches(id);
+    formNotice("correction-message","Correção salva com trilha de auditoria.");
+  }catch(error){
+    formNotice("correction-message","Correção recusada: "+error.message,true);
   }
 });
