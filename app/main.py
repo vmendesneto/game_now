@@ -3,8 +3,10 @@ from __future__ import annotations
 
 from pathlib import Path
 import shutil
+import time
+from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -14,6 +16,7 @@ from app.contracts import AudioSource, ContractBundle, Match
 from app.demo import DemoEngine
 from app.entities import ResolveRequest, ResolveResult, resolve_player
 from app.match_flow import MatchAction, MatchFlowService
+from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -26,7 +29,29 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     flow = MatchFlowService(store)
     corrections = CorrectionService(store)
     application.state.store = store
+    logger = request_logger()
     clients: set[WebSocket] = set()
+
+    @application.middleware("http")
+    async def log_requests(request: Request, call_next):
+        start = time.perf_counter()
+        request_id = uuid4().hex
+        details = {"request_id": request_id, "method": request.method,
+                   "route": request.url.path}
+        try:
+            response = await call_next(request)
+        except Exception as exc:
+            logger.error("http_request", extra={"safe_details": {
+                **details, "status": 500, "error_type": type(exc).__name__,
+                "duration_ms": round((time.perf_counter() - start) * 1000, 2),
+            }})
+            raise
+        logger.info("http_request", extra={"safe_details": {
+            **details, "status": response.status_code,
+            "duration_ms": round((time.perf_counter() - start) * 1000, 2),
+        }})
+        response.headers["X-Request-ID"] = request_id
+        return response
 
     application.mount("/static", StaticFiles(directory=STATIC), name="static")
 
