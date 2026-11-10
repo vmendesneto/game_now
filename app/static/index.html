@@ -128,6 +128,47 @@
         <div class="panel-title">HISTÓRICO DE OPERAÇÕES</div>
         <ul id="action-history" class="roster-list"></ul>
       </div>
+      <div class="panel config-form" id="corrections-panel" hidden>
+        <div class="panel-title">GN-025 · CORREÇÕES MANUAIS AUDITADAS</div>
+        <p class="muted">Alterações no placar, posse e eventos da partida cadastrada ficam registradas com motivo, autor e estados anterior/posterior. Não afetam a demo.</p>
+        <form id="correction-form">
+          <div class="form-pair">
+            <label>Tipo de correção
+              <select id="correction-kind">
+                <option value="score">Placar</option>
+                <option value="possession">Posse provável</option>
+                <option value="event">Tipo de evento</option>
+              </select>
+            </label>
+            <label>Operador<input id="correction-actor" maxlength="80" value="operator" required></label>
+          </div>
+          <div class="form-pair" id="correction-score-fields">
+            <label>Gols mandante<input id="correction-home-goals" type="number" min="0" step="1" required></label>
+            <label>Gols visitante<input id="correction-away-goals" type="number" min="0" step="1" required></label>
+          </div>
+          <div class="form-pair" id="correction-possession-fields" hidden>
+            <label>Equipe com posse<select id="correction-team"><option value="">Desconhecida</option></select></label>
+            <label>Jogador (opcional)<select id="correction-player"><option value="">Não definido</option></select></label>
+          </div>
+          <div class="form-pair" id="correction-event-fields" hidden>
+            <label>Evento existente<select id="correction-event-id"></select></label>
+            <label>Tipo correto<select id="correction-event-kind">
+              <option value="pass">Passe</option><option value="cross">Cruzamento</option>
+              <option value="shot">Chute</option><option value="save">Defesa</option>
+              <option value="goal">Gol</option><option value="corner">Escanteio</option>
+              <option value="throw_in">Lateral</option><option value="offside">Impedimento</option>
+              <option value="foul">Falta</option><option value="penalty">Pênalti</option>
+              <option value="goal_kick">Tiro de meta</option><option value="possession">Posse</option>
+              <option value="unknown">Desconhecido</option>
+            </select></label>
+          </div>
+          <label>Motivo da correção<input id="correction-reason" maxlength="400" minlength="5" required placeholder="Ex.: conferido em outra narração"></label>
+          <button type="submit">Registrar correção auditada</button>
+          <p class="form-message" id="correction-message" role="status"></p>
+        </form>
+        <div class="panel-title">TRILHA DE AUDITORIA</div>
+        <ul id="correction-history" class="roster-list"></ul>
+      </div>
     </section>
     <footer>Game Now · Contrato v1 · Um campo de <b>15 zonas</b> · Rádio/YouTube reais ainda não integrados</footer>
   </main>
