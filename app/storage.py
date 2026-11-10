@@ -48,6 +48,12 @@ class SQLiteStore:
                     match_id TEXT PRIMARY KEY REFERENCES matches(id) ON DELETE CASCADE,
                     payload TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS match_corrections (
+                    id TEXT PRIMARY KEY,
+                    match_id TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+                    payload TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS corrections_by_match ON match_corrections(match_id);
             """)
 
     @contextmanager
@@ -134,6 +140,12 @@ class SQLiteStore:
                          (new_match.model_dump_json(), datetime.now(timezone.utc).isoformat(), match_id))
             conn.execute("UPDATE snapshots SET payload=? WHERE match_id=?",
                          (new_state.model_dump_json(), match_id))
+            if (new_match.home_score, new_match.away_score) != (old.home_score, old.away_score):
+                from app.corrections import write_audit
+                write_audit(conn, match_id, kind="score", reason="legacy match editor",
+                            actor="legacy_api",
+                            before=old_state.model_dump(mode="json"),
+                            after=new_state.model_dump(mode="json"))
             return new_match
 
     def delete_match(self, match_id: str) -> bool:
@@ -206,8 +218,16 @@ class SQLiteStore:
                 return None
             if bundle.match.id != match_id or bundle.match != match:
                 raise StoreConflict("State must use the saved match and roster; edit them through their APIs")
+            previous = self._get_state(conn, match_id)
+            assert previous is not None
             conn.execute("UPDATE snapshots SET payload=? WHERE match_id=?",
                          (bundle.model_dump_json(), match_id))
+            if previous != bundle:
+                from app.corrections import write_audit
+                write_audit(conn, match_id, kind="state_override",
+                            reason="legacy full state replacement", actor="legacy_api",
+                            before=previous.model_dump(mode="json"),
+                            after=bundle.model_dump(mode="json"))
             return bundle
 
     def get_sources(self, match_id: str) -> list[AudioSource] | None:
