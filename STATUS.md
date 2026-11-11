@@ -57,3 +57,10 @@
 3. GN-033 já implementa reconexão em workers simulados, mas NÃO é iniciado pelo cadastro nem pelo site, e GN-037 estabeleceu política inicial sem gravação de mídia. Próximo trabalho independente é ASR em CPU (GN-040) e, depois, integração operacional; GN-012 exige teste do Windows físico em seus próprios critérios.
 4. Para rodar CI local: `python -m pip install -r requirements-dev.txt && python scripts/export_schema.py && python -m pytest -q`. Testes GN-030 precisam FFmpeg no PATH.
 5. Servidor: `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`. Logs em `data/game_now.log`, registro JSON sem corpo das requisições.
+
+## GN-040 — implementação em revisão (2026-11-11)
+
+- Branch `feat/gn040-asr-cpu`, PR #7: `app/asr.py` aceita WAV mono 16 kHz/PCM s16le com limites de duração, integra faster-whisper opcional, oferece modelos tiny/base/small/medium e CPU int8. `requirements-asr.txt` é opt-in.
+- O modo demo permanece sem modelo; o diagnóstico `/health` não faz download, nem inicia inferência. A CLI só imprime JSON com texto/segmentos; não guarda áudio e não acessa fontes remotas.
+- `tests/test_asr.py` usa modelo falso para validação determinística; o workflow `asr-smoke.yml` foi configurado para gerar **fala sintetizada em português** e executar o modelo real em CPU. **Só marcar GN-040 [x] após workflow real confirmado**.
+- Em seguida: GN-041 (janelas sobrepostas e deduplicação) e GN-042 (feed por fonte), sem presumir teste físico Windows.
