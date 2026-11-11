@@ -55,9 +55,9 @@ def test_api_uses_configured_retention_and_filters_snapshot(tmp_path,monkeypatch
     monkeypatch.setenv("GAME_NOW_TRANSCRIPT_TTL_SECONDS","120")
     monkeypatch.setenv("GAME_NOW_TRANSCRIPT_MAX_ENTRIES","2")
     match={
-        "id":"match-retention","home":{"id":"a","name":"Azul","short_name":"AZU",
+        "id":"match-retention","home":{"id":"club-a","name":"Azul","short_name":"AZU",
             "color":"#0088FF","attack_direction":"left_to_right"},
-        "away":{"id":"b","name":"Vermelho","short_name":"VER",
+        "away":{"id":"club-b","name":"Vermelho","short_name":"VER",
             "color":"#FF1122","attack_direction":"right_to_left"},
         "period":"first_half","match_seconds":0,"home_score":0,"away_score":0,
     }
