@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Próxima tarefa independente:** **GN-046 — vocabulário de atletas, clubes e termos com teste A/B**. GN-044 requer benchmark real no Windows, GN-045 narração real autorizada; ativação operacional das fontes ainda não foi realizada. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
+**Últimas tarefas concluídas:** GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Próxima tarefa independente:** **GN-050 — classificar narração de lance, comercial, conversa, análise e replay com corpus rotulado**. GN-044 exige benchmark no Windows e GN-045 áudio real autorizado. GN-090 é pré-requisito de segurança para ativação de fontes pelo site. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -81,3 +81,10 @@
 - `app/transcription_runtime.py`: `AsyncSourceTranscriber.push/finish` chama `RollingASRProcessor` em `asyncio.to_thread` com lock por fonte. HTTP segue atendendo mesmo durante inferência lenta; filas por cliente são limitadas e descartam atualizações antigas quando saturam.
 - Testes `tests/test_transcription_feed.py` verificam duas fontes isoladas, limite de retenção, URLs de erro não vazadas, HTTP/WebSocket para dois clientes, latência da API com inferência sintética deliberadamente bloqueada e fechamento/cancelamento seguro. **106 passed, 1 skipped** em Python 3.11/3.12: https://github.com/vmendesneto/game_now/actions/runs/43018620370. Smoke real GN-040/041 continua: https://github.com/vmendesneto/game_now/actions/runs/43018616281.
 - **Limite fundamental:** a captura real ainda NÃO é iniciada pela interface nem conectada ao `AsyncSourceTranscriber`. A prova GN-043 usa modelo lento artificial, não garante inferência de Whisper durante uma partida real ou comportamento em Windows. Integração da captura, controles de start/stop e segurança de rede devem ser realizadas nas GN-074/GN-090, sem reabrir o risco SSRF prematuramente. GN-031 ainda depende de fonte permitida.
+
+## GN-046 — vocabulário e A/B com ASR CPU real (2026-11-11)
+
+- `app/asr_vocabulary.py`: gera `initial_prompt` de até 500 caracteres a partir dos nomes de clubes, atletas, apelidos e termos futebolísticos de partida salva; limita nomes e remove caracteres de controle. `app/asr.py` aceita `ASRSettings.initial_prompt` opcional e oferece `--match-id` na CLI, consultando a partida do SQLite (sem alterar ContractBundle v1). O modelo continua CPU int8 e com carregamento opcional.
+- Testes determinísticos `tests/test_asr_vocabulary.py` cobrem conteúdo, limite e encaminhamento do prompt ao modelo real. CI geral: **109 passed, 2 skipped** em Python 3.11/3.12: https://github.com/vmendesneto/game_now/actions/runs/43019542054.
+- Teste A/B real e reprodutível em Linux: mesma fala pt-BR sintetizada por `espeak-ng`, mesmo modelo `base` CPU int8, com e sem contexto. Alvos "Otávio, Mendes, Caio, Ventura, Azul, escanteio"; **1/6** alvos presentes no resultado sem vocabulário e **6/6** com vocabulário. A inferência real e 2 testes pesados foram aprovados: https://github.com/vmendesneto/game_now/actions/runs/43019542053.
+- **Interpretação correta**: 1/6 → 6/6 demonstra benefício nesta **única amostra sintética**, não WER estatisticamente representativo, não narração de futebol real, não Windows ou garantia de acerto. O prompt pode enviesar nomes ausentes no sinal; GN-051 deverá manter resolução conservadora.

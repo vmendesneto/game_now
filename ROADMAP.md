@@ -65,7 +65,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-043 [P0]** Não bloquear API/site durante inferência; evidência: dois clientes recebendo updates simultâneos.
 - [ ] **GN-044 [P1]** Benchmark de modelos Whisper (tiny/base/small/medium) em Windows CPU e, se disponível, GPU; evidência: WER, latência, RAM.
 - [ ] **GN-045 [P1]** Benchmark Parakeet pt-BR ONNX contra Whisper em narração real, sem afirmar backend nativo; evidência: relatório comparativo.
-- [ ] **GN-046 [P1]** Vocabulário personalizado de atletas, clubes e termos futebolísticos; evidência: teste A/B.
+- [x] **GN-046 [P1]** Vocabulário personalizado de atletas, clubes e termos futebolísticos; evidência: teste A/B.
 
 ## F05 — Interpretação do futebol
 

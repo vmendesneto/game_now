@@ -204,3 +204,17 @@ O motor Python `AsyncSourceTranscriber` em `app/transcription_runtime.py` usa `a
 
 A CI verifica duas conexões WebSocket recebendo o mesmo texto enquanto a CPU é artificialmente bloqueada e confirma que HTTP continua respondendo. O teste separado com Whisper real permanece exclusivo ao CPU Linux e ao áudio sintetizado. Evidência: https://github.com/vmendesneto/game_now/actions/runs/43018620370.
 
+
+## GN-046 — vocabulário de times, atletas e termos esportivos
+
+O faster-whisper aceita um `initial_prompt` opcional criado por `build_vocabulary_prompt(match)`, com nomes dos clubes, jogadores, apelidos e termos futebolísticos. Para testar no Windows/local com a partida já cadastrada no SQLite do Game Now:
+
+```powershell
+python -m pip install -r requirements-asr.txt
+python -m app.asr --file exemplo-16k-mono.wav --model base --match-id match-001
+```
+
+Sem `--match-id`, o ASR funciona sem contexto, como antes. `GAME_NOW_DB_PATH` define o SQLite consultado, e a partida precisa existir. O prompt tem limite estrito de caracteres e é passado somente ao reconhecimento local; não altera as escalações nem o contrato persistente.
+
+**Comparação A/B reproduzível:** teste `tests/test_asr_vocabulary_real.py` (CI https://github.com/vmendesneto/game_now/actions/runs/43019542053) usou **o mesmo áudio português sintetizado**, com modelo `base` CPU int8: 1 dos 6 termos de referência apareceu na condição sem contexto, contra 6 de 6 com o contexto. Isso é **taxa de presença dos termos nessa única frase**, não WER, não um estudo estatístico nem garantia de melhora em jogo real. Nomes sugeridos pelo prompt podem aparecer incorretamente; a resolução de atletas deve continuar exigindo evidência contextual (GN-051).
+
