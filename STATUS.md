@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-081, GN-080, GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Últimas concluídas:** GN-081 (integração API + dois WebSockets + SQLite/reinício), GN-080 (matriz de regressão unitária), GN-076 (controles demo). **Próximo trabalho: GN-082 [P0] — simulador de duas rádios, atrasos, comerciais, contradições e silêncio**. GN-066 [P1] segue pendente; GN-090 precede captura real. CI GN-081 https://github.com/vmendesneto/game_now/actions/runs/43058719362 (483 passed / 2 skipped em Python 3.11/3.12).
+**Últimas tarefas concluídas:** GN-082, GN-081, GN-080, GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Últimas concluídas:** GN-082 (simulador determinístico de duas rádios), GN-081 (integração API + WebSocket + SQLite), GN-080 (testes unitários). **Próximo trabalho: GN-083 [P0] — avaliação quantitativa de 5–10 minutos de narração brasileira autorizada**, quando houver material permitido; GN-090 [P0] pode avançar independentemente como segurança prévia à captura real. GN-066 [P1] segue aberta. CI GN-082 https://github.com/vmendesneto/game_now/actions/runs/43059870772 (486 passed / 2 skipped em Python 3.11/3.12).
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -249,3 +249,11 @@
 - **Evidência antes da conclusão:** PR #34, commit `8cd6baa`, CI https://github.com/vmendesneto/game_now/actions/runs/43058719362 — **483 passed, 2 skipped** em Python 3.11 e 3.12. Testes de integração baseados em `TestClient`, SQLite temporário e entradas inventadas, sem dispositivos físicos.
 - **Limites:** não há captura de rádio/YouTube ligada à UI, ASR real nesse cenário, execução no Windows físico, ensaio temporal de duas fontes sintéticas conflitantes, nem benchmark de partida real. GN-082 cobre simulação de atrasos/comerciais; GN-083–085 exigem evidências com fontes permitidas e Windows.
 - **Próxima GN-082 [P0]:** simulador reprodutível de duas rádios, atrasos, anúncios, contradições e silêncios. GN-090 deve preceder entrada de URLs externas pela API/site.
+
+## GN-082 — simulador determinístico de duas rádios (2026-11-11)
+
+- `scripts/simulate_two_radios.py` reproduz quatro fases com relógio UTC **inventado e estável**: lances comuns nas duas fontes com +8 s de atraso fornecido por correspondências explícitas, agrupamento de um gol duplicado, descarte de relato comercial, failover da rádio A para B, contradição após retorno à A, e silêncio/perda de fonte com expiração da região.
+- Reutiliza os diagnósticos **somente de prévia** GN-061/062/063/064/065; nenhum resultado escreve no SQLite, inicia subprocessos, resolve URL, retransmite mídia ou constitui alinhamento real de rádios. A comparação das observações contraditórias supõe timestamps já alinhados, não determina automaticamente que se referem ao mesmo lance.
+- **Reprodução:** `python -m scripts.simulate_two_radios` imprime JSON determinístico; `python -m pytest -q tests/test_gn082_simulator.py` verifica atraso, deduplicação, comerciais, alternância de fontes, contradição, TTL, ausência de permissão de escrita e igualdade CLI/função.
+- **Evidência:** PR #35, commit `2dfe000`, CI https://github.com/vmendesneto/game_now/actions/runs/43059870772 — **486 passed, 2 skipped** em Python 3.11 e 3.12, testes com dados sintéticos.
+- **Limites e próximo passo GN-083 [P0]:** obter gravação/permissão de 5–10 min de narração pt-BR e anotar equipe/atleta/zona; calcular métricas reais sem substituir pela simulação. Enquanto isso, GN-090 [P0] de SSRF/URL/localhost pode ser feito independentemente, sem ativar fontes. GN-012/085 dependem do Windows físico.

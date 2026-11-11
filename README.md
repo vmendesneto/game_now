@@ -331,3 +331,14 @@ Na demonstração, o campinho destaca um **retângulo de região estimada**, jam
 ## GN-072 — painel de jogo da demonstração
 
 O topo mostra placar e relógio **fornecidos pelo estado da partida simulada**, sem inferir gols a partir de texto repetido. O painel lateral mostra a **narração atual** e o **último evento confirmado** em lugares distintos: comercial, replay, análise e relato repetido não aparecem como gol novo. A posse e o jogador prováveis ficam desconhecidos quando a posição está incerta ou expirada (GN-071). `app/static/demo_scoreboard.js` calcula os rótulos; `node --test tests/test_demo_scoreboard.cjs` testa o módulo. Testes de integração com a API de demonstração percorrem os oito relatos sintéticos. O relógio representa os passos simulados e não avança sozinho entre relatos; o painel **ainda não recebe transmissões de rádio ou YouTube reais**.
+
+## Simulador de duas rádios (GN-082)
+
+Sem precisar de rádio real, YouTube, FFmpeg, ASR ou servidor aberto, execute com as dependências Python do projeto instaladas:
+
+```bash
+python -m scripts.simulate_two_radios
+python -m pytest -q tests/test_gn082_simulator.py
+```
+
+A CLI imprime um JSON reproduzível de **quatro fases fictícias**, com duas rádios que narram o mesmo lance oito segundos apartadas, um comercial, alternância de fonte, contradição e silêncio que expira a posição. Os identificadores de eventos comuns e os timestamps de captura/alinhamento são fornecidos artificialmente: **não** se trata de descoberta automática de eventos nem de sincronização real de streams. Nenhuma URL é acessada, nenhuma amostra de mídia é produzida e nenhum estado de partida é gravado ou movido por essas prévias. Para desempenho real com narração brasileira, consultar GN-083/GN-084 e requisitos de autorização das fontes.

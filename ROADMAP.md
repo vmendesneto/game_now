@@ -103,7 +103,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 - [x] **GN-080 [P0]** Testes unitários de parsing, entidades, períodos e validação de estado; evidência: `tests/test_gn080_unit_matrix.py`, PR #33, CI 43057714416 (481 passed/2 skipped em Python 3.11/3.12; fixtures sintéticas).
 - [x] **GN-081 [P0]** Testes de integração API + WebSocket + SQLite; evidência: `tests/test_gn081_integration.py`, PR #34, CI 43058719362 (483 passed/2 skipped Python 3.11/3.12; `TestClient` e entradas sintéticas).
-- [ ] **GN-082 [P0]** Simulador de duas rádios com comerciais, atrasos, contradições e silêncios; evidência: cenário reproduzível.
+- [x] **GN-082 [P0]** Simulador de duas rádios com comerciais, atrasos, contradições e silêncios; evidência: `python -m scripts.simulate_two_radios`, `tests/test_gn082_simulator.py`, PR #35 e CI 43059870772 (486 passed/2 skipped em Python 3.11/3.12; somente dados sintéticos).
 - [ ] **GN-083 [P0]** Testar cinco a dez minutos de narração brasileira e medir identificação da equipe, jogador e zona; evidência: métricas reais.
 - [ ] **GN-084 [P0]** Ensaiar uma partida inteira, medir latência fim a fim, cobertura e falhas de fonte; evidência: relatório com erros.
 - [ ] **GN-085 [P0]** Validar no Windows físico do usuário: FFmpeg, yt-dlp, modelos, áudio real e navegador; evidência: checklist executado pelo usuário.
@@ -205,3 +205,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### GN-081 integrada (2026-11-11)
 
 - **GN-081 [x]:** dois cenários de integração de API + WebSocket + SQLite, com duas partidas isoladas, dois clientes de feed, fonte sintética, alterações explícitas auditadas, intervalo e recuperação após reinício, sem transmitir áudio/vídeo. `tests/test_gn081_integration.py`; CI pré-documentação https://github.com/vmendesneto/game_now/actions/runs/43058719362 (**483 passed/2 skipped**, Python 3.11/3.12). Sem ensaio Windows ou duas transmissões reais. **Próxima GN-082 [P0]**; GN-090 antes de captura de URLs no painel.
+
+### GN-082 integrada (2026-11-11)
+
+- **GN-082 [x]:** CLI de quatro fases reproduzíveis, duas fontes artificiais com atraso +8 s, descarte de comercial, deduplicação, failover, contradição e silêncio com TTL, sem inferir mídia real ou alterar banco. `scripts/simulate_two_radios.py`, `tests/test_gn082_simulator.py`; CI https://github.com/vmendesneto/game_now/actions/runs/43059870772 (**486 passed/2 skipped** nas versões 3.11/3.12). **Próxima GN-083 [P0]**, condicionada a narração real autorizada; GN-090 [P0] permanece pré-requisito de captura operacional.
