@@ -1,0 +1,257 @@
+{
+  "version": "1.0",
+  "source": "synthetic_handwritten_pt_BR",
+  "license_note": "Frases originais construidas para teste; nao sao transcricoes de terceiros.",
+  "samples": [
+    {
+      "id": "live_play-01",
+      "label": "live_play",
+      "text": "Bola com Caio no meio-campo."
+    },
+    {
+      "id": "live_play-02",
+      "label": "live_play",
+      "text": "Mendes chuta de fora da área!"
+    },
+    {
+      "id": "live_play-03",
+      "label": "live_play",
+      "text": "Gol do Azul!"
+    },
+    {
+      "id": "live_play-04",
+      "label": "live_play",
+      "text": "Escanteio para o time da casa."
+    },
+    {
+      "id": "live_play-05",
+      "label": "live_play",
+      "text": "O camisa nove cruzou na área."
+    },
+    {
+      "id": "live_play-06",
+      "label": "live_play",
+      "text": "Impedimento marcado pelo árbitro."
+    },
+    {
+      "id": "live_play-07",
+      "label": "live_play",
+      "text": "Tiro de meta para a equipe visitante."
+    },
+    {
+      "id": "live_play-08",
+      "label": "live_play",
+      "text": "Ele tocou para o volante."
+    },
+    {
+      "id": "live_play-09",
+      "label": "live_play",
+      "text": "Defesa do goleiro após a finalização."
+    },
+    {
+      "id": "live_play-10",
+      "label": "live_play",
+      "text": "Lateral para o Vermelho."
+    },
+    {
+      "id": "ad-01",
+      "label": "ad",
+      "text": "Oferecimento da Loja Central."
+    },
+    {
+      "id": "ad-02",
+      "label": "ad",
+      "text": "Este gol tem patrocínio do Mercado do Bairro."
+    },
+    {
+      "id": "ad-03",
+      "label": "ad",
+      "text": "Aproveite a promoção de hoje e compre agora."
+    },
+    {
+      "id": "ad-04",
+      "label": "ad",
+      "text": "Intervalo comercial, já voltamos."
+    },
+    {
+      "id": "ad-05",
+      "label": "ad",
+      "text": "Acesse nosso site e confira os descontos."
+    },
+    {
+      "id": "ad-06",
+      "label": "ad",
+      "text": "Publicidade: lateral para você comprar na loja."
+    },
+    {
+      "id": "ad-07",
+      "label": "ad",
+      "text": "Apoio cultural da associação de moradores."
+    },
+    {
+      "id": "ad-08",
+      "label": "ad",
+      "text": "Oferta imperdível, parcelamento sem juros."
+    },
+    {
+      "id": "conversation-01",
+      "label": "conversation",
+      "text": "Bom dia pessoal, tudo certo por aí?"
+    },
+    {
+      "id": "conversation-02",
+      "label": "conversation",
+      "text": "Manda um abraço para a família."
+    },
+    {
+      "id": "conversation-03",
+      "label": "conversation",
+      "text": "Tudo bem com você, João?"
+    },
+    {
+      "id": "conversation-04",
+      "label": "conversation",
+      "text": "Obrigado pela audiência de hoje."
+    },
+    {
+      "id": "conversation-05",
+      "label": "conversation",
+      "text": "Pergunta do ouvinte sobre a camisa do time."
+    },
+    {
+      "id": "conversation-06",
+      "label": "conversation",
+      "text": "Vamos conversar enquanto a imagem não volta."
+    },
+    {
+      "id": "conversation-07",
+      "label": "conversation",
+      "text": "Uma mensagem do ouvinte que está na estrada."
+    },
+    {
+      "id": "conversation-08",
+      "label": "conversation",
+      "text": "Um abraço para quem está acompanhando a transmissão."
+    },
+    {
+      "id": "analysis-01",
+      "label": "analysis",
+      "text": "Na minha opinião o Azul deveria ter chutado antes."
+    },
+    {
+      "id": "analysis-02",
+      "label": "analysis",
+      "text": "Análise tática do posicionamento defensivo."
+    },
+    {
+      "id": "analysis-03",
+      "label": "analysis",
+      "text": "Esse gol mostra que o time precisava ter fechado o meio."
+    },
+    {
+      "id": "analysis-04",
+      "label": "analysis",
+      "text": "Taticamente o camisa nove está isolado."
+    },
+    {
+      "id": "analysis-05",
+      "label": "analysis",
+      "text": "Foi melhor no primeiro tempo, mas caiu de rendimento."
+    },
+    {
+      "id": "analysis-06",
+      "label": "analysis",
+      "text": "Eu acho que o treinador deveria ter trocado os laterais."
+    },
+    {
+      "id": "analysis-07",
+      "label": "analysis",
+      "text": "O esquema tático do adversário é muito fechado."
+    },
+    {
+      "id": "analysis-08",
+      "label": "analysis",
+      "text": "Ao meu ver aquele escanteio foi mal ensaiado."
+    },
+    {
+      "id": "replay-01",
+      "label": "replay",
+      "text": "Replay do gol do Caio."
+    },
+    {
+      "id": "replay-02",
+      "label": "replay",
+      "text": "Vamos rever o lance do pênalti."
+    },
+    {
+      "id": "replay-03",
+      "label": "replay",
+      "text": "Olha de novo o chute do atacante."
+    },
+    {
+      "id": "replay-04",
+      "label": "replay",
+      "text": "No lance anterior a bola bateu no zagueiro."
+    },
+    {
+      "id": "replay-05",
+      "label": "replay",
+      "text": "Instantes atrás o camisa dez finalizou."
+    },
+    {
+      "id": "replay-06",
+      "label": "replay",
+      "text": "Reprise da defesa do goleiro."
+    },
+    {
+      "id": "replay-07",
+      "label": "replay",
+      "text": "Voltando ao lance da falta marcada."
+    },
+    {
+      "id": "replay-08",
+      "label": "replay",
+      "text": "Vamos ver de novo como aconteceu o gol."
+    },
+    {
+      "id": "unknown-01",
+      "label": "unknown",
+      "text": "O estádio está lotado."
+    },
+    {
+      "id": "unknown-02",
+      "label": "unknown",
+      "text": "Futebol muito movimentado."
+    },
+    {
+      "id": "unknown-03",
+      "label": "unknown",
+      "text": ""
+    },
+    {
+      "id": "unknown-04",
+      "label": "unknown",
+      "text": "A câmera está aqui."
+    },
+    {
+      "id": "unknown-05",
+      "label": "unknown",
+      "text": "Bola."
+    },
+    {
+      "id": "unknown-06",
+      "label": "unknown",
+      "text": "A torcida está animada."
+    },
+    {
+      "id": "unknown-07",
+      "label": "unknown",
+      "text": "A camisa é vermelha."
+    },
+    {
+      "id": "unknown-08",
+      "label": "unknown",
+      "text": "A palavra colesterol não é lance."
+    }
+  ]
+}
