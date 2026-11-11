@@ -18,17 +18,17 @@
     </div><div class="demo-tag">SEM ÁUDIO / VÍDEO</div></section>
     <section class="dashboard">
       <div class="stage">
-        <div class="scoreboard">
+        <div class="scoreboard" role="group" aria-label="Placar da demonstração">
           <div class="club"><span class="club-dot blue"></span><span id="home-name">Azul</span></div>
           <div class="score"><strong id="home-score">0</strong><span>—</span><strong id="away-score">0</strong></div>
           <div class="club away"><span id="away-name">Vermelho</span><span class="club-dot red"></span></div>
         </div>
-        <div class="meta"><span id="clock">00:00 · 1º tempo</span><span id="direction">Azul ataca →</span></div>
+        <div class="meta"><span id="clock" aria-label="Relógio da demonstração">00:00 · 1º tempo</span><span id="direction">Azul ataca →</span></div>
         <div class="field-wrap"><svg id="field" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Campo de futebol com 15 zonas de localização aproximada" xmlns="http://www.w3.org/2000/svg"></svg></div>
         <div class="field-foot"><span><i class="legend-square"></i> Região provável (não posição exata)</span><span id="ball-status" role="status" aria-live="polite">Posição incerta</span></div>
       </div>
       <aside class="side">
-        <div class="panel"><div class="panel-title">AGORA NO JOGO</div><h2 id="action">Aguardando o primeiro lance</h2><p id="last-text">Avance a demonstração para acompanhar a sequência simulada.</p>
+        <div class="panel"><div class="panel-title">AGORA NO JOGO</div><h2 id="action">Aguardando o primeiro lance</h2><p id="last-confirmed-event" class="confirmed-event">Nenhum evento confirmado na demo</p><p id="last-text">Avance a demonstração para acompanhar a sequência simulada.</p>
           <div class="facts"><div><span>Posse provável</span><strong id="possession">Desconhecida</strong></div><div><span>Jogador provável</span><strong id="player">Desconhecido</strong></div><div><span>Confiança da zona</span><strong id="confidence">Sem evidência</strong></div></div></div>
         <div class="panel"><div class="panel-title">CONTROLES DA DEMONSTRAÇÃO</div><p class="muted">Dois narradores simulados, comercial, replay e expiração. Nenhum download ou modelo ASR é necessário.</p>
           <div class="controls"><button id="next">Próximo relato <span>→</span></button><button id="reset" class="secondary">Reiniciar</button></div><div class="progress"><span id="progress">0 / 8 relatos</span><span>Modo sintético</span></div></div>
@@ -195,6 +195,7 @@
   </main>
   <script src="/static/field_geometry.js" defer></script>
   <script src="/static/pitch_presentation.js" defer></script>
+  <script src="/static/demo_scoreboard.js" defer></script>
   <script src="/static/app.js" defer></script>
 </body>
 </html>

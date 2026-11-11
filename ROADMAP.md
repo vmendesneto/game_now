@@ -93,7 +93,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 - [x] **GN-070 [P0]** Desenhar campo responsivo via SVG, com 15 zonas, sentido do ataque e troca de lados; evidência: desktop/móvel.
 - [x] **GN-071 [P0]** Exibir posição/região estimada, indicador de incerteza e animação limitada ao que foi narrado; evidência: roteiro demonstrável.
-- [ ] **GN-072 [P0]** Exibir posse, placar, relógio, jogador provável e evento atual; evidência: UI em demo.
+- [x] **GN-072 [P0]** Exibir posse, placar, relógio, jogador provável e evento atual; evidência: UI em demo.
 - [ ] **GN-073 [P0]** Atualizar site por WebSocket sem transmitir mídia; evidência: dois navegadores sincronizados.
 - [ ] **GN-074 [P0]** Tela de configuração para partida, elencos e fontes (rádio/YouTube); evidência: fluxo sem editar código.
 - [ ] **GN-075 [P1]** Feed de transcrições, eventos e status de cada fonte, com explicação da confiança; evidência: inspeção UI.
@@ -177,3 +177,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### GN-071 integrada (2026-11-11)
 
 - **GN-071 [x]:** PR #27, destaque da região estimada, ocultação de posição/atleta/equipe quando incerta ou expirada, rótulos acessíveis e transição visual curta somente após evento novo com mudança explícita de região. `app/static/pitch_presentation.js`, testes Node/Python e ajuste do teste GN-070. CI https://github.com/vmendesneto/game_now/actions/runs/43051118268 (**402 passed, 2 skipped** Python 3.11/3.12). Visual somente sobre demo sintética; sem navegador móvel físico. **Próxima GN-072 [ ].**
+
+### GN-072 integrada (2026-11-11)
+
+- **GN-072 [x]:** PR #28, painel com posse/atleta provável de GN-071, placar e relógio da demo, narração atual separada do último lance confirmado, comercial/replay/análise e relatos duplicados distinguíveis sem gols artificiais. Testes `tests/test_demo_scoreboard.cjs` e `tests/test_demo_dashboard_ui.py` incluem a API sintética completa de 8 passos, CI https://github.com/vmendesneto/game_now/actions/runs/43051812981 (**405 passed, 2 skipped** Python 3.11/3.12). Não há partida ao vivo nem teste físico. **Próxima GN-073 [ ].**

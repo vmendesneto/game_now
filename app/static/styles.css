@@ -16,3 +16,6 @@
 .region-change{animation:region-evidence 320ms ease-out 1}
 @keyframes region-evidence{from{opacity:.45;stroke-width:2}to{opacity:1;stroke-width:4}}
 @media(prefers-reduced-motion:reduce){.region-change{animation:none}}
+
+/* GN-072: distinct last-confirmed-event context, never mistaken for a current play. */
+.confirmed-event{margin:4px 0 8px!important;font-size:12px!important;color:#a5f56b!important}
