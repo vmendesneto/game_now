@@ -8,7 +8,16 @@
   const eventNames={goal:"Gol",pass:"Passe",shot:"Chute",save:"Defesa",corner:"Escanteio",
     foul:"Falta",offside:"Impedimento",cross:"Cruzamento",throw_in:"Lateral",
     penalty:"Pênalti",goal_kick:"Tiro de meta",possession:"Posse",unknown:"Indefinido"};
-  function empty(){return {mode:"volatile_text_only",sources:[],entries:[]};}
+  function empty(){return {mode:"volatile_text_only",sources:[],entries:[],retention_seconds:null};}
+  function prune(previous, nowMs=Date.now()){
+    const ttl=previous && previous.retention_seconds;
+    if(!Number.isFinite(ttl) || ttl<=0)return previous;
+    const entries=previous.entries.filter(e=>{
+      const at=Date.parse(e.processed_at||"");
+      return Number.isFinite(at) && at<=nowMs && nowMs-at<=ttl*1000;
+    });
+    return entries.length===previous.entries.length?previous:{...previous,entries};
+  }
   function telemetryLabel(raw,nowMs=Date.now()){
     if(!raw || typeof raw!=="object")return " · PCM não monitorado";
     const last=Date.parse(raw.last_pcm_at||"");
@@ -38,6 +47,8 @@
       if(!data || data.mode!=="volatile_text_only" ||
          !Array.isArray(data.entries) || !Array.isArray(data.sources))return previous;
       return {mode:"volatile_text_only",
+        retention_seconds:Number.isFinite(data.retention_seconds)&&data.retention_seconds>0?
+          data.retention_seconds:null,
         sources:data.sources.filter(s=>s && allowed.has(s.source_id)).slice(0,8),
         entries:data.entries.filter(e=>e && allowed.has(e.source_id) &&
           typeof e.text==="string" && Number.isSafeInteger(e.sequence)).slice(-50)};
@@ -55,7 +66,8 @@
         return previous;
       }
       const entry={source_id:data.source_id,sequence:data.sequence,text:data.text,
-        captured_at:data.captured_at||null,narration_kind:data.narration_kind||"unknown",
+        captured_at:data.captured_at||null,processed_at:data.processed_at||null,
+        narration_kind:data.narration_kind||"unknown",
         classification_reason:data.classification_reason||"no_explicit_cue",
         eligible_for_live_state:data.eligible_for_live_state===true};
       const sources=data.telemetry && typeof data.telemetry==="object"?
@@ -77,7 +89,7 @@
         (info && info.last_error?" · "+info.last_error:"")+
         telemetryLabel(info && info.telemetry)};
     });
-    const entries=snapshot.entries.filter(e=>known.has(e.source_id) &&
+    const entries=prune(snapshot).entries.filter(e=>known.has(e.source_id) &&
       (!selected || e.source_id===selected)).slice(-50).reverse().map(e=>({
         title:known.get(e.source_id)+" · "+(kindNames[e.narration_kind]||kindNames.unknown),
         text:e.text,detail:"Regra: "+(e.classification_reason||"sem pista explícita")+
@@ -96,7 +108,7 @@
       });
     return {sources,entries,events:history};
   }
-  const api=Object.freeze({empty,apply,present});
+  const api=Object.freeze({empty,apply,present,prune});
   if(typeof module==="object" && module.exports)module.exports=api;
   else root.GameNowTranscript=api;
 })(typeof window!=="undefined"?window:globalThis);

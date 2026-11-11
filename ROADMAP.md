@@ -115,7 +115,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-091 [P0]** Documentadas instalação limpa, início/parada, atualização e diagnóstico local Windows em `docs/INSTALL_WINDOWS.md`; verificador read-only `scripts/windows_check.py` e `tests/test_windows_check.py` (10 passed em Linux simulando condições Windows). Checklist físico pronto para execução; GN-012/GN-085 seguem pendentes.
 - [x] **GN-092 [P1]** Backup/exportação/importação da partida e logs diagnósticos; evidência: restauração. `scripts/gn092_backup.py` + `docs/BACKUP_RESTORE.md`: snapshot SQLite e ZIP com SHA-256, logs opcionais e restauração protegida; testes reais de roundtrip SQLite, corrupção e ZIP malicioso, **586 passed/2 skipped** Python 3.11/3.12 no PR #42 (CI 43078344748). Windows físico ainda GN-085.
 - [ ] **GN-093 [P1]** Autenticação e HTTPS se abrir acesso pela rede/Internet; evidência: revisão de ameaça antes de exposição.
-- [ ] **GN-094 [P1]** Licenças das dependências, políticas das fontes e retenção configurável das transcrições; evidência: inventário/revisão.
+- [x] **GN-094 [P1]** Inventário de dependências diretas e pendências de redistribuição em `docs/GN-094.md`, checklist de autorização de fontes e retenção de texto configurável (TTL 60 s–7 dias, 1–500 entradas/fonte), com expiração lazy no backend e descarte na UI. Testes determinísticos; CI PR obrigatória. Revisão de binários, transitivas e fontes específicas permanece operacional.
 
 ## F10 — Depois do primeiro jogo validado
 

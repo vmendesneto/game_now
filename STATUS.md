@@ -1,5 +1,13 @@
 # STATUS — Game Now
 
+## GN-094 — política de fontes e retenção de transcrições (2026-11-11)
+
+- `docs/GN-094.md`: inventário de licenças das dependências **diretas** declaradas e executáveis opcionais com links oficiais, restrições de uso de fontes e lista explícita de pontos que exigem auditoria antes de redistribuir. Esta revisão não concede autorização para captar YouTube/rádio nem valida termos de binários instalados.
+- `app/retention_policy.py` define TTL 60..604800 segundos (padrão 3600) e limite 1..500 entradas por fonte (padrão 100) via ambiente, com validação estrita. O feed purga texto expirado ao consultar/publicar, sem gravá-lo no SQLite. A UI descarta textos vencidos e recebe `retention_seconds`. Logs, backups e registros persistidos têm ciclos de vida separados.
+- Testes novos: `tests/test_gn094_retention.py` e `tests/test_gn094_retention.cjs`; validação de integração Python 3.11/3.12 via CI do PR antes do merge. Testes não são parecer jurídico, captação real nem Windows físico.
+- Próximo trabalho independente: GN-016 (limpeza/recuperação de processos). GN-036 exige benchmark; GN-031/GN-083 e GN-085 continuam pendentes de autorização e/ou ensaio físico.
+
+
 ## GN-035 — telemetria diagnóstica por fonte (2026-11-11)
 
 - Implementação: `app/source_telemetry.py` acompanha somente metadados de PCM recebido e interpretação textual por fonte, com timeout e retenção limitada às fontes do feed. `AsyncSourceTranscriber.push` envia somente contagem de bytes, sem mídia; `TranscriptFeed` acrescenta metadados a HTTP e WebSocket. Painel GN-075 passa a apresentar disponibilidade observada de PCM, silêncio/ausência recente, comercial/narração prováveis e atraso captura→processamento.

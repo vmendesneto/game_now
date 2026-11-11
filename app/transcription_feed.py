@@ -10,9 +10,10 @@ from __future__ import annotations
 import asyncio
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from threading import RLock
 from uuid import uuid4
+from typing import Callable
 
 from app.asr_windows import WindowTranscript
 from app.narration_classifier import classify_narration
@@ -55,13 +56,21 @@ class TranscriptFeed:
     def __init__(
         self, *, max_matches: int = 16, max_sources_per_match: int = 8,
         max_entries_per_source: int = 100, queue_size: int = 32,
+        retention_seconds: int = 3600,
+        now: Callable[[], datetime] | None = None,
     ) -> None:
-        if min(max_matches, max_sources_per_match, max_entries_per_source, queue_size) < 1:
+        if min(max_matches, max_sources_per_match, max_entries_per_source,
+               queue_size, retention_seconds) < 1:
             raise ValueError("All feed capacities must be positive")
         self._max_matches = max_matches
         self._max_sources = max_sources_per_match
         self._max_entries = max_entries_per_source
         self._queue_size = queue_size
+        self._retention_seconds = retention_seconds
+        self._now = now or (lambda: datetime.now(timezone.utc))
+        timestamp = self._now()
+        if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+            raise ValueError("Retention clock must be timezone-aware")
         self._lock = RLock()
         self._records: dict[tuple[str, str], deque[FeedEntry]] = {}
         self._states: dict[tuple[str, str], dict[str, object]] = {}
@@ -81,10 +90,17 @@ class TranscriptFeed:
             self._states[key] = {
                 "match_id": match_id, "source_id": source_id,
                 "state": "idle", "last_error": None, "last_sequence": None,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": self._now().isoformat(),
             }
             self._records[key] = deque(maxlen=self._max_entries)
         return key
+
+    def _prune(self, key: tuple[str, str], now: datetime) -> None:
+        """Expire text lazily on read/write; bounded buffers avoid idle growth."""
+        records = self._records[key]
+        cutoff = now - timedelta(seconds=self._retention_seconds)
+        while records and records[0].processed_at < cutoff:
+            records.popleft()
 
     @staticmethod
     def _deliver(queue: asyncio.Queue, message: dict) -> None:
@@ -120,7 +136,7 @@ class TranscriptFeed:
                 self._telemetry.stop(match_id, source_id)
             info.update(
                 state=state, last_error=error_code,
-                updated_at=datetime.now(timezone.utc).isoformat(),
+                updated_at=self._now().isoformat(),
             )
             payload = {"kind": "status", "data": {
                 **info, "telemetry": self._telemetry.snapshot(match_id, source_id),
@@ -162,7 +178,7 @@ class TranscriptFeed:
         entry = FeedEntry(
             match_id=match_id, source_id=source_id,
             sequence=update.sequence, captured_at=captured_at,
-            processed_at=datetime.now(timezone.utc),
+            processed_at=self._now(),
             start_seconds=update.start_seconds,
             end_seconds=update.end_seconds, language=update.language,
             text=update.new_text.strip(),
@@ -173,7 +189,9 @@ class TranscriptFeed:
         with self._lock:
             key = self._register(match_id, source_id)
             previous = self._records[key]
-            if previous and entry.sequence <= previous[-1].sequence:
+            self._prune(key, entry.processed_at)
+            last_sequence = self._states[key]["last_sequence"]
+            if last_sequence is not None and entry.sequence <= last_sequence:
                 raise ValueError("Transcript window sequence cannot move backwards")
             previous.append(entry)
             self._telemetry.observe_text(
@@ -206,12 +224,16 @@ class TranscriptFeed:
                 {**self._states[key], "telemetry": self._telemetry.snapshot(*key)}
                 for key in sorted(keys)
             ]
+            now = self._now()
+            for key in keys:
+                self._prune(key, now)
             records = sorted(
                 (record for key in keys for record in self._records[key]),
                 key=lambda item: (item.processed_at, item.source_id, item.sequence),
             )[-limit:]
         return {
             "match_id": match_id, "mode": "volatile_text_only",
+            "retention_seconds": self._retention_seconds,
             "sources": statuses, "entries": [entry.as_dict() for entry in records],
         }
 

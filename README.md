@@ -68,6 +68,10 @@ python -m pytest -q
 
 O contrato reside em `app/contracts.py`, o schema exportado em `schemas/v1.schema.json`, fixtures em `fixtures/`, e a decisão de arquitetura em [docs/ADR-0001.md](docs/ADR-0001.md). Não edite o JSON schema manualmente: regenere com o script e revise o diff. Os testes verificam ambos.
 
+## Política de fontes e retenção das transcrições (GN-094)
+
+O uso de mídia pública depende de autorização e termos aplicáveis, independentemente de a aplicação não retransmitir o áudio. O inventário de licenças e o checklist de utilização estão em [docs/GN-094.md](docs/GN-094.md). O texto volátil do feed pode ser limitado por `GAME_NOW_TRANSCRIPT_TTL_SECONDS` (padrão 3600) e `GAME_NOW_TRANSCRIPT_MAX_ENTRIES` (padrão 100); reinicie o servidor após alterar as variáveis. Essas opções não apagam eventos, correções ou backups persistidos.
+
 ## FFmpeg (GN-030 — conversão de áudio em ferramenta de diagnóstico)
 
 Para o modo demo não é necessário instalar FFmpeg. A ferramenta GN-030 precisa de FFmpeg no PATH. A CI instala FFmpeg e testa decodificação real de fixtures MP3, AAC e HLS como PCM mono 16k (`tests/test_audio_capture.py`). Para testar sem acessar a internet:
