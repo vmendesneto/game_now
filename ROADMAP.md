@@ -74,7 +74,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-052 [P0]** Detectar posse e troca de posse com evidência explícita; evidência: testes de sequência e ambiguidades (PR #14, CI 43025807453).
 - [x] **GN-053 [P0]** Detectar regiões do campo (5 faixas × 3 corredores) e sentido de ataque; evidência: 30 combinações de faixas/corredores e lados, inversão no segundo tempo, negativos e API read-only (PR #15; CI 43027201520, 175 passed/2 skipped em 3.11 e 3.12).
 - [x] **GN-054 [P0]** Detectar passe, cruzamento, chute, defesa, gol, escanteio, lateral, impedimento, falta, pênalti e tiro de meta; evidência: 36 fixtures originais, negativas/conflitos e API read-only (PR #16; CI 43027994130, 218 passed/2 skipped, Python 3.11/3.12).
-- [ ] **GN-055 [P0]** Pontuar confiança por jogador, equipe, região, evento e atualidade; evidência: casos positivos/negativos.
+- [x] **GN-055 [P0]** Pontuar força heurística por jogador, equipe, região, evento e atualidade, explicitamente não calibrada; evidência: casos positivos/negativos, envelhecimento, conflitos e API read-only (PR #17; CI 43029006109, 234 passed/2 skipped em 3.11/3.12).
 - [ ] **GN-056 [P0]** Não mover bola em texto vago, comercial, replay ou ausência de evidência; evidência: testes conservadores.
 - [ ] **GN-057 [P1]** Resolver linguagem complexa com LLM local opcional e validação estrita do JSON; evidência: testes comparativos.
 - [ ] **GN-058 [P1]** Corpus real de português esportivo rotulado e versão de avaliação, respeitando direitos das fontes; evidência: conjunto documentado.

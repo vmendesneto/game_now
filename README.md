@@ -39,6 +39,7 @@ Abra http://127.0.0.1:8000 no navegador. Clique em **Próximo relato** para simu
 | `/api/matches/{id}/resolve-possession` | POST | Detectar posse/troca de posse com referência explícita no texto, sem persistir a hipótese (GN-052) |
 | `/api/matches/{id}/resolve-region` | POST | Identificar faixa 1–5 e corredor esquerdo/centro/direito com evidência textual, sem alterar a posição real/persistida (GN-053) |
 | `/api/matches/{id}/resolve-event` | POST | Identificar um único tipo de lance afirmativo do contrato v1 por evidência textual (GN-054; não grava eventos/placar) |
+| `/api/matches/{id}/resolve-confidence` | POST | Pontuar separadamente evidência de jogador, equipe, região, evento e atualidade (GN-055; heurística não calibrada) |
 | `/api/matches/{id}/flow` | GET | Período, titulares em campo, substituições, expulsões, acréscimos e histórico |
 | `/api/matches/{id}/actions` | POST | Registrar operação de jogo (GN-024) |
 | `/api/matches/{id}/corrections` | GET, POST | Corrigir placar, posse e eventos com auditoria (GN-025) |
@@ -250,3 +251,7 @@ Opcionalmente, o chamador pode fornecer `team_id` como contexto externo explíci
 ## GN-054 — identificação diagnóstica de eventos
 
 `POST /api/matches/{id}/resolve-event` recebe `{"text":"Bruno chutou forte"}` e pode responder `{"status":"explicit","kind":"shot","cue":"chutou","reason":"unique_affirmative_live_event_cue"}`. Os 11 tipos aceitos são `pass`, `cross`, `shot`, `save`, `goal`, `corner`, `throw_in`, `offside`, `foul`, `penalty`, `goal_kick`. São pistas de texto com regras explícitas, **não** certeza de que o lance ocorreu. Publicidade, replay, análise, tentativa, negação, gol anulado, período parado e frases com vários eventos explícitos retornam `unknown`. Não atribui jogador, hora ou zona, não mexe na bola/placar, não persiste eventos e não processa as fontes ao vivo. As 36 frases artificiais rotuladas ficam em `fixtures/events_labeled.json`. Validação: `python -m pytest -q tests/test_event_detection.py` e CI do PR #16.
+
+## GN-055 — qualidade heurística por componente (não probabilidade)
+
+`POST /api/matches/{id}/resolve-confidence` recebe `{"text":"João do Azul chuta na área adversária pela direita","observed_age_seconds":2}`. Consulta o elenco/partida existentes e devolve `player_id`, `team_id`, `zone`, `event_kind` e `scores` separados (`player`, `team`, `region`, `event`, `freshness`), acompanhados por `reasons`. Nenhum score mede porcentagem de acerto: `mode=heuristic_strength_not_calibrated_v1`. Evidência explícita e única vale 1.0; equipe passada apenas pelo chamador (`team_id`) permite no máximo 0.5 em equipe/região; sem pista/contradição é 0.0. Atualidade vale 1.0 se a idade declarada da observação for de 0 a 5 s, decai até 0.0 aos 30 s; sem idade conhecida é 0.0. **Nenhuma comparação com tempo do jogo/audio real é feita**. Publicidade, replay, análise e partida parada retornam todos os scores zerados. Não produz score agregado, alteração de bola/placar/evento ou escrita no feed/SQLite. Validação: `python -m pytest -q tests/test_confidence.py` e CI do PR #17.
