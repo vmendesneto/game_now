@@ -7,6 +7,7 @@ whether two spoken phrases really refer to the same real-world incident.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from math import isfinite
 from typing import Literal
 
 from pydantic import Field, model_validator
@@ -61,8 +62,12 @@ class EventDeduplicationRequest(StrictModel):
         for item in self.source_delays:
             if item.status == "reference" and item.relative_delay_seconds != 0:
                 raise ValueError("Reference delay must be zero")
-            if item.status == "aligned" and item.relative_delay_seconds is None:
-                raise ValueError("Aligned source requires a relative delay")
+            if item.status == "aligned":
+                if (item.relative_delay_seconds is None
+                        or not isfinite(item.relative_delay_seconds)
+                        or abs(item.relative_delay_seconds) > 900
+                        or item.common_events < 2):
+                    raise ValueError("Aligned source requires a bounded delay and two common events")
             if item.status not in ("reference", "aligned") and item.relative_delay_seconds is not None:
                 raise ValueError("Unaligned sources cannot provide an offset")
         return self
