@@ -1,0 +1,146 @@
+[
+  {
+    "text": "João do Azul passa a bola para Caio",
+    "expected": "pass"
+  },
+  {
+    "text": "Caio toca de primeira",
+    "expected": "pass"
+  },
+  {
+    "text": "Caio cruza na área",
+    "expected": "cross"
+  },
+  {
+    "text": "João cruza para a área",
+    "expected": "cross"
+  },
+  {
+    "text": "Bruno chutou forte",
+    "expected": "shot"
+  },
+  {
+    "text": "João finaliza",
+    "expected": "shot"
+  },
+  {
+    "text": "Goleiro defendeu o chute",
+    "expected": "save"
+  },
+  {
+    "text": "Defesa do goleiro",
+    "expected": "save"
+  },
+  {
+    "text": "Azul marcou o gol",
+    "expected": "goal"
+  },
+  {
+    "text": "Gooooool do Azul",
+    "expected": "goal"
+  },
+  {
+    "text": "Azul cobrou o escanteio",
+    "expected": "corner"
+  },
+  {
+    "text": "Escanteio para o Vermelho",
+    "expected": "corner"
+  },
+  {
+    "text": "Lateral para o Azul",
+    "expected": "throw_in"
+  },
+  {
+    "text": "É lateral para o Vermelho",
+    "expected": "throw_in"
+  },
+  {
+    "text": "Impedimento marcado para João",
+    "expected": "offside"
+  },
+  {
+    "text": "Impedimento marcado",
+    "expected": "offside"
+  },
+  {
+    "text": "Bruno comete a falta",
+    "expected": "foul"
+  },
+  {
+    "text": "Falta em João do Azul",
+    "expected": "foul"
+  },
+  {
+    "text": "Pênalti para o Vermelho",
+    "expected": "penalty"
+  },
+  {
+    "text": "Pênalti para o Azul",
+    "expected": "penalty"
+  },
+  {
+    "text": "Tiro de meta para o Azul",
+    "expected": "goal_kick"
+  },
+  {
+    "text": "Tiro de meta para o Vermelho",
+    "expected": "goal_kick"
+  },
+  {
+    "text": "No replay, Azul marcou o gol",
+    "expected": null
+  },
+  {
+    "text": "Oferecimento: pênalti para o Azul",
+    "expected": null
+  },
+  {
+    "text": "A minha opinião: o jogador deveria ter chutado",
+    "expected": null
+  },
+  {
+    "text": "Foi quase gol do Azul",
+    "expected": null
+  },
+  {
+    "text": "Não foi pênalti para o Azul",
+    "expected": null
+  },
+  {
+    "text": "O gol do Azul foi anulado",
+    "expected": null
+  },
+  {
+    "text": "João tentou chutar",
+    "expected": null
+  },
+  {
+    "text": "Azul com a bola",
+    "expected": null
+  },
+  {
+    "text": "O árbitro está em campo",
+    "expected": null
+  },
+  {
+    "text": "Azul chutou e o goleiro defendeu o chute",
+    "expected": null
+  },
+  {
+    "text": "Azul cruzou e João chutou",
+    "expected": null
+  },
+  {
+    "text": "O comentarista disse que foi gol do Azul",
+    "expected": null
+  },
+  {
+    "text": "Vamos rever o impedimento marcado",
+    "expected": null
+  },
+  {
+    "text": "Boa noite, falta em João",
+    "expected": null
+  }
+]

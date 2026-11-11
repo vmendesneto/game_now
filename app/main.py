@@ -20,6 +20,7 @@ from app.entities import ResolveRequest, ResolveResult, resolve_player
 from app.narration_entities import NarrationResolveRequest, NarrationResolution, resolve_narration
 from app.possession import PossessionRequest, PossessionEvidence, detect_possession
 from app.field_regions import RegionRequest, RegionEvidence, detect_region
+from app.event_detection import EventRequest, EventEvidence, detect_event
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
@@ -174,6 +175,11 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
             return detect_region(require_match(match_id), request)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @application.post("/api/matches/{match_id}/resolve-event", response_model=EventEvidence)
+    async def resolve_event(match_id: str, request: EventRequest):
+        # Diagnostics only: an inferred event never alters score or match history.
+        return detect_event(require_match(match_id), request)
 
     @application.get("/api/matches/{match_id}/flow")
     async def get_match_flow(match_id: str):
