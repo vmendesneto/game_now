@@ -112,7 +112,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ## F09 — Segurança e operacionalização
 
 - [x] **GN-090 [P0]** Servidor local por padrão, relay HTTP(S) efêmero com pinagem de DNS/IP e verificação de redirecionamentos e HLS; FFmpeg recebe só URI local. Evidência: `tests/test_secure_ingest.py` (22 passed em Linux, com FFmpeg), `tests/test_gn090_runtime.py` (validação CI pendente antes do merge).
-- [ ] **GN-091 [P0]** Instruções para instalar, iniciar, parar e atualizar no Windows; evidência: checklist de instalação limpa.
+- [x] **GN-091 [P0]** Documentadas instalação limpa, início/parada, atualização e diagnóstico local Windows em `docs/INSTALL_WINDOWS.md`; verificador read-only `scripts/windows_check.py` e `tests/test_windows_check.py` (10 passed em Linux simulando condições Windows). Checklist físico pronto para execução; GN-012/GN-085 seguem pendentes.
 - [ ] **GN-092 [P1]** Backup/exportação/importação da partida e logs diagnósticos; evidência: restauração.
 - [ ] **GN-093 [P1]** Autenticação e HTTPS se abrir acesso pela rede/Internet; evidência: revisão de ameaça antes de exposição.
 - [ ] **GN-094 [P1]** Licenças das dependências, políticas das fontes e retenção configurável das transcrições; evidência: inventário/revisão.
@@ -215,3 +215,9 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - **GN-090 [x]:** `app/secure_ingest.py` introduz relay exclusivamente em 127.0.0.1 para rádio e CDN de YouTube, com DNS validado/pinado a cada conexão, redirecionamentos limitados, playlists HLS reescritas e whitelist de protocolos de FFmpeg sem acesso direto HTTPS ou a arquivos.
 - Testes locais: `python -m pytest -q tests/test_secure_ingest.py` — **22 passed** (Linux e FFmpeg real sintetizado); o PR também valida `tests/test_gn090_runtime.py` e a suíte completa em 3.11/3.12. Sem teste Windows ou narração real.
 - **Próxima GN-091 [P0]** (instruções de instalação/operação no Windows); GN-083 [P0] espera narração autorizada.
+
+### GN-091 — guia operacional Windows e verificador (2026-11-11)
+
+- **GN-091 [x]:** `docs/INSTALL_WINDOWS.md` explica instalação, verificação de execução local, parada, backup SQLite, `git pull --ff-only`, diagnóstico de FFmpeg/yt-dlp e checklist físico ainda não preenchido. `scripts/windows_check.py` identifica prontidão separada para demo, rádio, YouTube e servidor `127.0.0.1` (sem download de mídia/modelos).
+- Prova local determinística: `python -m pytest -q tests/test_windows_check.py` — **10 passed**, Linux Python 3.13. CI em Python 3.11/3.12 deve passar antes do merge. **GN-012/GN-085** requerem execução física no Windows; não afirmar que este checklist foi realizado.
+- **Próxima GN-066 [P1]** (diagnóstico de fusão e ajuste de atraso) ou GN-092 [P1] (backup/exportação), após CI e merge. GN-083 continua condicionada à narração autorizada.
