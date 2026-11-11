@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Últimas concluídas:** GN-073 (dois clientes WebSocket com revisão e reconexão), GN-072 (painel), GN-071 (incerteza visual) e GN-070 (campo SVG). **Próxima tarefa prioritária: GN-074 — fluxo de configuração de partida, elencos e fontes na interface**; GN-066 [P1] permanece pendente. **GN-073 CI:** 408 passed, 2 skipped em Python 3.11/3.12 (run 43052978721); clientes simulados, sem navegador físico. GN-044/045 e GN-012/085 dependem de Windows ou áudio permitido; GN-090 precede ativação de captura real pelo site.
+**Últimas tarefas concluídas:** GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Últimas concluídas:** GN-074 (configuração guiada de partida, elencos e fontes), GN-073 (WebSocket versionado), GN-072 (painel demo). **Próxima tarefa: GN-075 — feed de transcrições e eventos no site**; GN-066 [P1] permanece pendente. GN-090 bloqueia ativação real de URLs; demonstração separada da partida registrada. GN-073 CI pós-merge: https://github.com/vmendesneto/game_now/actions/runs/43053811362. GN-074 requer validação da CI do PR.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -214,3 +214,9 @@
 - Testes novos: `tests/test_demo_websocket_sync.py` abre **dois clientes WebSocket** do FastAPI e observa relatos/reset idênticos, além de simular a recriação do processo; `tests/test_demo_sync.cjs` simula duas abas independentes, snapshots fora de ordem, HTTP atrasado e reconexão. São clientes/sessões simulados, **não** ensaio físico com dois navegadores reais.
 - A primeira CI falhou apenas pelo novo teste omitir o campo `schema_version` preexistente; teste corrigido. CI final: https://github.com/vmendesneto/game_now/actions/runs/43052978721 — **408 passed, 2 skipped** em Python 3.11 e 3.12, com Node.js nos testes. Sem transmissão de áudio/vídeo e sem validação de rede LAN ou Windows físico.
 - **Próxima GN-074 [P0]:** fluxo completo na interface para partida, elencos e fontes com teste integrado; GN-066 [P1] também pendente. GN-090 continua pré-requisito da captura real.
+
+## GN-074 — configuração guiada da partida (2026-11-11)
+
+- A interface já possuía CRUD de partida, atletas e fontes. Novo painel em 3 etapas mostra o progresso do cadastro sem confundir fonte habilitada com captura iniciada. `app/static/setup_progress.js` não acessa áudio/rede. Alterações no cadastro, elenco e fontes atualizam o resumo; criar nova partida zera a contagem.
+- Novos testes `tests/test_setup_progress.cjs` e `tests/test_configuration_flow_ui.py` exercitam contadores, cadastro de duas equipes, URLs de rádio/YouTube e persistência após reinício do SQLite. **Não há validação física em navegador/Windows nem captura de áudio integrada.**
+- **Próxima GN-075 [P1]**: UI do feed de transcrições e eventos; GN-066 [P1] pendente; GN-090 precede captura real.

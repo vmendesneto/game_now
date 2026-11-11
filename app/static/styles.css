@@ -19,3 +19,9 @@
 
 /* GN-072: distinct last-confirmed-event context, never mistaken for a current play. */
 .confirmed-event{margin:4px 0 8px!important;font-size:12px!important;color:#a5f56b!important}
+
+/* GN-074: progress of saved configuration, not a media capture status. */
+.setup-panel{margin-top:18px;display:grid;gap:10px}
+.setup-panel p{margin:0}.setup-list{display:grid;gap:9px;list-style:none;margin:0;padding:0}
+.setup-list li{padding:10px 12px;background:#172f27;border:1px solid #466252;border-radius:8px;font-size:13px;color:#d3e5d8}
+.setup-list li[data-complete="true"]{border-color:#87b56b;color:#c6f2b0}
