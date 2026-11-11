@@ -36,6 +36,7 @@ Abra http://127.0.0.1:8000 no navegador. Clique em **Próximo relato** para simu
 | `/api/matches/{id}/players` | GET, PUT | Elenco completo dos dois clubes, com posição, camisa, apelidos e titularidade |
 | `/api/matches/{id}/resolve-player` | POST | Resolver menção isolada (nome, apelido, camisa), retornando `resolved`, `ambiguous` ou `unknown` |
 | `/api/matches/{id}/resolve-narration` | POST | Resolver nomes de equipes/atletas, camisas e pronomes em texto livre sem alterar a partida (GN-051) |
+| `/api/matches/{id}/resolve-possession` | POST | Detectar posse/troca de posse com referência explícita no texto, sem persistir a hipótese (GN-052) |
 | `/api/matches/{id}/flow` | GET | Período, titulares em campo, substituições, expulsões, acréscimos e histórico |
 | `/api/matches/{id}/actions` | POST | Registrar operação de jogo (GN-024) |
 | `/api/matches/{id}/corrections` | GET, POST | Corrigir placar, posse e eventos com auditoria (GN-025) |
@@ -233,3 +234,7 @@ print(classify_narration("No replay vemos o gol novamente."))
 ```
 
 `fixtures/narration_labeled.json` contém **39 exemplos fictícios rotulados**. `python -m pytest -q tests/test_narration_classifier.py` compara cada exemplo com seu rótulo, inclui negativos, prioridade e proteção contra palavras parcialmente coincidentes. A classe interna `conversation` converte para `unknown` no contrato v1 para preservar compatibilidade. Nenhum evento/posição é criado pelo classificador, que ainda não é conectado ao fluxo real do feed. Isto é baseline de regras; avaliação em narração legítima e variada é GN-058, não um resultado obtido nesta etapa.
+
+## GN-052 — identificação diagnóstica de posse
+
+`POST /api/matches/{id}/resolve-possession` recebe `{"text":"Bruno do Vermelho com a bola","previous_team_id":"team-azul"}` e retorna `status=explicit`, `team_id`, `player_id` e `changed_team=true` apenas quando o texto de lance atual contém **evidência explícita de posse** vinculada sem ambiguidade a jogador/clube da escalação persistida. Frases como "Bola com o camisa nove do Azul" são aceitas; passe sem recepção explícita, nomes repetidos, comercial, replay, gol isolado ou relatos contraditórios retornam `unknown`. O identificador de posse anterior é fornecido pelo chamador e não é presumido como estado real. Esta API é **diagnóstica**; não altera o snapshot da bola nem registra eventos e ainda não processa áudio ao vivo automaticamente.
