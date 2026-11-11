@@ -17,7 +17,8 @@ def sample(source, event, captured, received=None):
     if received is None:
         received = captured + 5
     return SourceEventObservation(
-        source_id=source, common_event_id=event,
+        source_id=source,
+        common_event_id=event if len(event) >= 3 else f"evt-{event}",
         captured_at=T0 + timedelta(seconds=captured),
         received_at=T0 + timedelta(seconds=received),
     )
