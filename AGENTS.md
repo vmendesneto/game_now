@@ -87,3 +87,6 @@ O reconhecimento GN-040 foi testado com modelo real e fala sintética em portugu
 
 
 **GN-060/GN-061 — atualização 2026-11-11:** GN-060 foi **mesclada** pelo PR #20 (`398a152`), mas o run 43033600368 travou antes dos testes no setup FFmpeg; **não declarar CI aprovada**. GN-061 está implementada no PR #21, com `app/source_delay.py`, `tests/test_source_delay.py` e preview HTTP read-only; a CI do PR está pendente. O workflow evita `apt-get` quando FFmpeg já existe. Somente após a execução bem-sucedida da suíte Python 3.11/3.12 atualizar as checkboxes e os relatórios e mesclar GN-061. GN-062 vem em seguida. Nenhuma dessas etapas comprova sincronização de transmissões reais, áudio no Windows ou movimentação automática da bola.
+
+
+**GN-062 em revisão (2026-11-11):** PR #22 tem base no PR #21, e implementa apenas preview de agrupamento de candidatos tipados com timestamps de captura ajustados pelo atraso declarado da GN-061, evitando o mesmo lance duplicado em duas fontes. Não é fusão automática validada em transmissões, nem criação durável de eventos. A CI deve cobrir `tests/test_event_deduplication.py` antes de marcar GN-062 [x]. Após incorporar GN-061 na `main`, redirecionar PR #22 para `main`, validar e mesclar somente depois de verde; próxima GN-063.
