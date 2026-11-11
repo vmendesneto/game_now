@@ -166,3 +166,19 @@ Com `git pull --ff-only` na pasta Documentos, repita:
 ```
 
 A URL precisa continuar ao vivo e ter permissão para captura. Não divulgar URLs assinadas, cookies nem metadados completos de yt-dlp.
+
+## GN-040 — ASR local opcional (português, CPU)
+
+O **modo demonstração não instala nem carrega modelos**. Para transcrever uma amostra local em português, primeiro instale as dependências opcionais no mesmo venv (com Python 3.11/3.12):
+
+```powershell
+python -m pip install -r requirements-asr.txt
+python -m app.asr --file exemplo-16k-mono.wav --model tiny --cpu-threads 2
+```
+
+A entrada deve ser arquivo **WAV PCM s16le mono, 16.000 Hz**, de até 30 segundos por padrão (ajustável com `--max-seconds` até 120). Para converter uma amostra autorizada via FFmpeg: `ffmpeg -i origem.wav -vn -ac 1 -ar 16000 -c:a pcm_s16le exemplo-16k-mono.wav`. O arquivo pertence ao operador; **não é criado nem distribuído pelo servidor**. A saída é JSON com idioma `pt`, texto, tempo e segmentos, sem mídia. Esta CLI não ativa fontes nem alimenta o site.
+
+Os modelos disponíveis são `tiny` (padrão), `base`, `small` e `medium`. O primeiro uso do modelo baixa os pesos para o cache local do faster-whisper e exige Internet; execuções subsequentes podem utilizar o cache. A inferência roda exclusivamente na **CPU**, quantização `int8`. Memória e latência variam por modelo e computador; não há benchmark Windows/GPU ainda (GN-044). O endpoint `/health` só verifica se o pacote está instalado e **não** prova que os pesos estão baixados ou que houve transcrição.
+
+`tests/test_asr.py` valida o contrato de áudio sem download; `.github/workflows/asr-smoke.yml` realiza inferência de verdade com fala portuguesa sintetizada offline por `espeak-ng` e modelo `base`. Resultados do workflow, quando disponíveis, estão nas Actions do GitHub. A integração com janelas contínuas, múltiplas fontes e feed web pertence às GN-041/042/043; isso **não** significa áudio de rádio/YouTube já transcrito nem validado em Windows.
+
