@@ -49,7 +49,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ## F03 — Entradas de áudio: rádios e YouTube
 
 - [x] **GN-030 [P0]** Capturar URL de rádio MP3/AAC/HLS via FFmpeg, converter para PCM mono 16 kHz; evidência: arquivo/stream de teste.
-- [ ] **GN-031 [P0]** Capturar **somente áudio** de transmissões públicas YouTube Live via yt-dlp + FFmpeg; evidência: link de teste permitido e tratamento de indisponibilidade. Prova técnica de PCM de live real no Windows: 2026-11-11, 5 s / 160.000 bytes; autorização de uso da fonte ainda não verificada (ver STATUS).
+- [ ] **GN-031 [P0]** Capturar PCM de áudio de transmissões públicas YouTube ao vivo **ou gravações de partidas** via yt-dlp + FFmpeg; evidência: link permitido e tratamento de indisponibilidade. Prova técnica de PCM de live real no Windows: 2026-11-11, 5 s / 160.000 bytes; autorização de uso dessa fonte ainda não verificada. Aceitação de vídeos gravados implementada com testes sintéticos (ver STATUS), mas **não significa GN-031 concluída**.
 - [x] **GN-032 [P0]** Cadastrar, editar, ativar e desativar múltiplas fontes independentes; evidência: API/UI.
 - [x] **GN-033 [P0]** Detectar desconexão e reconectar com backoff, incluindo URLs de YouTube que expiram; evidência: simular perda e retomada.
 - [x] **GN-034 [P0]** Buffer de áudio por fonte com timestamps e limites de memória; evidência: teste de longas sessões.
@@ -104,7 +104,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-080 [P0]** Testes unitários de parsing, entidades, períodos e validação de estado; evidência: `tests/test_gn080_unit_matrix.py`, PR #33, CI 43057714416 (481 passed/2 skipped em Python 3.11/3.12; fixtures sintéticas).
 - [x] **GN-081 [P0]** Testes de integração API + WebSocket + SQLite; evidência: `tests/test_gn081_integration.py`, PR #34, CI 43058719362 (483 passed/2 skipped Python 3.11/3.12; `TestClient` e entradas sintéticas).
 - [x] **GN-082 [P0]** Simulador de duas rádios com comerciais, atrasos, contradições e silêncios; evidência: `python -m scripts.simulate_two_radios`, `tests/test_gn082_simulator.py`, PR #35 e CI 43059870772 (486 passed/2 skipped em Python 3.11/3.12; somente dados sintéticos).
-- [ ] **GN-083 [P0]** Testar cinco a dez minutos de narração brasileira e medir identificação da equipe, jogador e zona; evidência: métricas reais.
+- [ ] **GN-083 [P0]** Testar cinco a dez minutos de narração brasileira **autorizada, ao vivo ou gravada** e medir identificação da equipe, jogador e zona; evidência: métricas reais e gabarito, sem exigir transmissão ativa.
 - [ ] **GN-084 [P0]** Ensaiar uma partida inteira, medir latência fim a fim, cobertura e falhas de fonte; evidência: relatório com erros.
 - [ ] **GN-085 [P0]** Validar no Windows físico do usuário: FFmpeg, yt-dlp, modelos, áudio real e navegador; evidência: checklist executado pelo usuário.
 - [ ] **GN-086 [P1]** Medir memória/CPU em duas ou mais transcrições simultâneas, ajustar modelo e buffer; evidência: benchmark.
@@ -221,3 +221,10 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - **GN-091 [x]:** `docs/INSTALL_WINDOWS.md` explica instalação, verificação de execução local, parada, backup SQLite, `git pull --ff-only`, diagnóstico de FFmpeg/yt-dlp e checklist físico ainda não preenchido. `scripts/windows_check.py` identifica prontidão separada para demo, rádio, YouTube e servidor `127.0.0.1` (sem download de mídia/modelos).
 - Prova local determinística: `python -m pytest -q tests/test_windows_check.py` — **10 passed**, Linux Python 3.13. CI em Python 3.11/3.12 deve passar antes do merge. **GN-012/GN-085** requerem execução física no Windows; não afirmar que este checklist foi realizado.
 - **Próxima GN-066 [P1]** (diagnóstico de fusão e ajuste de atraso) ou GN-092 [P1] (backup/exportação), após CI e merge. GN-083 continua condicionada à narração autorizada.
+
+
+### GN-031 — vídeos gravados para testes reprodutíveis (2026-11-11)
+
+- **Subescopo implementado:** resolvedor de YouTube passa a aceitar `is_live`, `was_live` e `not_live`, além de metadados legados que indiquem vídeo encerrado com duração positiva; não exige transmissão ativa. Diagnóstico permite `--seconds 300` a `600` para cinco a dez minutos. `tests/test_youtube_capture.py` cobre vídeo comum, live arquivada, formatos áudio-only/alternativa A/V, falhas para vídeos ainda futuros, DRM/autenticação e saída JSON sem mídia.
+- **GN-031 e GN-083 permanecem [ ]:** a URL fornecida para o roteiro (https://www.youtube.com/watch?v=Ls4qkPrh4Tk) não foi efetivamente captada/transcrita neste ambiente, nem houve autorização específica confirmada ou métricas reais com gabarito. Não confundir o vídeo gravado com a categoria linguística `replay` de um lance narrado.
+- **Próxima entrega independente:** GN-066 [P1] e, depois, GN-092 [P1]; GN-083 pode prosseguir quando houver material permitido e dados de referência.

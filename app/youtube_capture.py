@@ -1,8 +1,8 @@
-"""GN-031 groundwork: resolve permitted public YouTube Live audio using yt-dlp.
+"""GN-031: resolve public YouTube live or recorded media via yt-dlp.
 
-Not marked complete until a permitted real live URL is tested. No cookies, DRM,
-logins or browser sessions are used. The resulting signed URL is ephemeral and
-is not stored or exposed through the web API.
+CLI diagnostics may process an authorized VOD/archived livestream without waiting
+for a live game. No cookies, DRM, logins or browser sessions are used; temporary
+signed CDN URLs are never saved or exposed via the web API.
 """
 from __future__ import annotations
 
@@ -22,6 +22,8 @@ from app.storage import StoreConflict
 
 @dataclass(frozen=True, slots=True)
 class ResolvedLiveAudio:
+    """Kept for backwards compatibility; now also represents recorded media."""
+
     url: str
     format_id: str
     headers: dict[str, str]
@@ -57,22 +59,45 @@ async def resolve_live_audio(
         except asyncio.TimeoutError as exc:
             process.kill()
             await process.wait()
-            raise CaptureError("YouTube live resolution timed out") from exc
+            raise CaptureError("YouTube media resolution timed out") from exc
         if process.returncode != 0:
-            raise CaptureError("YouTube Live unavailable or restricted; no login/DRM bypass attempted")
+            raise CaptureError("YouTube media unavailable or restricted; no login/DRM bypass attempted")
         if len(stdout) > 4_000_000:
             raise CaptureError("YouTube metadata response is too large")
         try:
             metadata = json.loads(stdout)
         except (ValueError, UnicodeDecodeError) as exc:
             raise CaptureError("yt-dlp returned invalid metadata") from exc
-        if metadata.get("is_live") is not True and metadata.get("live_status") != "is_live":
-            raise CaptureError("The YouTube broadcast is not currently live")
+        if not isinstance(metadata, dict):
+            raise CaptureError("yt-dlp returned invalid metadata")
+        # VOD is a first-class test source: standard recordings are not_live
+        # and archived live streams are was_live. Upcoming/processing videos
+        # are not decodable yet. If older yt-dlp versions omit live_status,
+        # require an explicit live flag or a positive finite VOD duration.
+        live_status = metadata.get("live_status")
+        if live_status in {"is_upcoming", "post_live"}:
+            raise CaptureError("The YouTube video is not yet available for playback")
+        duration = metadata.get("duration")
+        is_recording_without_status = (
+            live_status is None
+            and metadata.get("is_live") is False
+            and isinstance(duration, (int, float))
+            and not isinstance(duration, bool)
+            and 0 < duration < float("inf")
+        )
+        if live_status not in {"is_live", "was_live", "not_live"} and not (
+            live_status is None and metadata.get("is_live") is True
+        ) and not is_recording_without_status:
+            raise CaptureError("YouTube media is not a confirmed live or recorded video")
+        if metadata.get("has_drm") is True or metadata.get("availability") in {
+            "private", "premium_only", "subscriber_only", "needs_auth"
+        }:
+            raise CaptureError("YouTube media is restricted; no login/DRM bypass attempted")
         available = metadata.get("formats")
         if not isinstance(available, list):
             raise CaptureError("yt-dlp metadata has no valid formats list")
-        # Some public live HLS manifests expose audio only inside a
-        # combined video/audio rendition. Prefer separate audio if offered.
+        # Prefer audio-only for both VOD and live. Some live HLS manifests
+        # expose audio only inside a combined video/audio rendition.
         # In the fallback, FFmpeg -vn outputs PCM audio only; the input
         # transport can still transfer video bytes (never stored or served).
         def contains_audio(item: dict) -> bool:
@@ -162,7 +187,7 @@ async def youtube_pcm_chunks(
     source: AudioSource, *, yt_dlp_binary: str = "yt-dlp",
     ffmpeg_binary: str = "ffmpeg", chunk_ms: int = 500,
 ) -> AsyncIterator[bytes]:
-    """Decode only sound from an audio-only or combined public live stream."""
+    """Decode audio from a public live broadcast or recorded YouTube video."""
     live = await resolve_live_audio(source, yt_dlp_binary=yt_dlp_binary)
     audio_source = AudioSource(id=source.id, name=source.name, kind="radio",
                                url=live.url, enabled=True, status="offline")
@@ -177,8 +202,8 @@ async def youtube_diagnostic(
     ffmpeg_binary: str = "ffmpeg",
 ) -> dict:
     """Verify actual PCM decoding without saving or returning audio/media URLs."""
-    if not 0 < duration <= 60:
-        raise CaptureError("Diagnostic duration must be >0 and <=60 seconds")
+    if not 0 < duration <= 600:
+        raise CaptureError("Diagnostic duration must be >0 and <=600 seconds")
     target_bytes = int(duration * 16_000 * 2)
     received = 0
     blocks = 0
@@ -191,7 +216,7 @@ async def youtube_diagnostic(
             if received >= target_bytes:
                 break
     if received == 0:
-        raise CaptureError("YouTube Live delivered no PCM samples")
+        raise CaptureError("YouTube media delivered no PCM samples")
     return {
         "source_id": source.id, "captured_at": datetime.now(timezone.utc).isoformat(),
         "sample_rate": 16_000, "channels": 1, "format": "s16le",
@@ -201,18 +226,18 @@ async def youtube_diagnostic(
 
 
 def main() -> None:
-    """Explicit opt-in live capture smoke test; no API endpoint for media."""
+    """Explicit CLI diagnostic for permitted live or recorded audio, no API media."""
     import argparse
     parser = argparse.ArgumentParser(
-        description="GN-031: check permitted public YouTube Live audio (no playback)"
+        description="GN-031: check public YouTube live or recorded audio (no playback)"
     )
-    parser.add_argument("--url", required=True, help="Authorized public YouTube Live URL")
+    parser.add_argument("--url", required=True, help="Permitted public YouTube live/video URL")
     parser.add_argument("--seconds", type=float, default=5.0)
     parser.add_argument("--yt-dlp", default="yt-dlp")
     parser.add_argument("--ffmpeg", default="ffmpeg")
     args = parser.parse_args()
     source = AudioSource(
-        id="youtube-diagnostic", name="Live diagnostic", kind="youtube",
+        id="youtube-diagnostic", name="YouTube diagnostic", kind="youtube",
         url=args.url, enabled=True, status="offline",
     )
     try:
