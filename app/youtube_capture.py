@@ -75,10 +75,24 @@ async def resolve_live_audio(
         # combined video/audio rendition. Prefer separate audio if offered.
         # In the fallback, FFmpeg -vn outputs PCM audio only; the input
         # transport can still transfer video bytes (never stored or served).
+        def contains_audio(item: dict) -> bool:
+            codec = item.get("acodec")
+            if codec == "none":
+                return False  # Explicitly silent, including video-only variants.
+            if codec not in (None, ""):
+                return True
+            # YouTube HLS audio-only variants (e.g. format 233/234) can report
+            # acodec=None. yt-dlp correctly labels them "audio only" because
+            # vcodec="none". FFmpeg will verify the actual audio on decode.
+            return (
+                item.get("vcodec") == "none"
+                and item.get("protocol") in ("m3u8", "m3u8_native")
+            )
+
         sound_formats = [
             item for item in available
             if isinstance(item, dict) and not item.get("has_drm")
-            and item.get("acodec") not in (None, "none")
+            and contains_audio(item)
             and isinstance(item.get("url"), str)
         ]
         audio_only = [
@@ -100,7 +114,16 @@ async def resolve_live_audio(
                 return 0.0
 
         if audio_only:
-            selected = max(audio_only, key=lambda item: bitrate(item, "abr"))
+            # yt-dlp lists preferred qualities last; when HLS has no
+            # advertised bitrate, choose the last one (234 over 233).
+            selected = max(
+                enumerate(audio_only),
+                key=lambda pair: (
+                    bitrate(pair[1], "abr"),
+                    bitrate(pair[1], "tbr"),
+                    pair[0],
+                ),
+            )[1]
             input_has_video = False
         else:
             # Lowest reported combined bitrate limits unnecessary transfer.
@@ -139,7 +162,7 @@ async def youtube_pcm_chunks(
     source: AudioSource, *, yt_dlp_binary: str = "yt-dlp",
     ffmpeg_binary: str = "ffmpeg", chunk_ms: int = 500,
 ) -> AsyncIterator[bytes]:
-    """Resolve a live audio-only URL and pass it through GN-030's PCM converter."""
+    """Decode only sound from an audio-only or combined public live stream."""
     live = await resolve_live_audio(source, yt_dlp_binary=yt_dlp_binary)
     audio_source = AudioSource(id=source.id, name=source.name, kind="radio",
                                url=live.url, enabled=True, status="offline")

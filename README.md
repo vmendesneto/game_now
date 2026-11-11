@@ -153,3 +153,16 @@ Se a fonte não tiver áudio decodificável, não oferecer URL pública acessív
 ```
 
 Testes Linux verificam prioridade do áudio-only, fallback combinado, rejeição de fonte sem áudio/DRM e conversão FFmpeg de arquivo real com vídeo e áudio. A validação da URL enviada pelo usuário no Windows ainda precisará ser repetida após atualizar o código.
+
+
+### Correção dos formatos HLS YouTube Live 233/234 (Windows, 2026-11-11)
+
+Em algumas lives `yt-dlp -F` lista `233` e `234` como **audio only / m3u8 / codec unknown**. Nesses casos, os metadados podem conter `vcodec="none"` com `acodec` ausente ou `null`. A captura aceita essas variantes HLS sem codec identificado, porque são marcadas pelo extrator como exclusivamente de áudio; o FFmpeg verifica a presença real de áudio ao decodificar. Formatos com `acodec="none"`, DRM ou somente vídeo continuam rejeitados. O teste Linux simula exatamente essa combinação sem usar o YouTube real.
+
+Com `git pull --ff-only` na pasta Documentos, repita:
+
+```cmd
+.\.venv\Scripts\python.exe -m app.youtube_capture --yt-dlp ".\.venv\Scripts\yt-dlp.exe" --url "https://www.youtube.com/watch?v=SWEYimqD_50" --seconds 5
+```
+
+A URL precisa continuar ao vivo e ter permissão para captura. Não divulgar URLs assinadas, cookies nem metadados completos de yt-dlp.

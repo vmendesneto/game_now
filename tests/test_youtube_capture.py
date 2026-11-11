@@ -226,3 +226,50 @@ def test_audio_only_still_preferred_over_muxed(tmp_path):
     ))
     assert resolved.format_id == "audio"
     assert resolved.input_has_video is False
+
+
+def test_hls_audio_only_with_missing_codec_is_accepted(tmp_path):
+    """Real yt-dlp -F labels YouTube Live 233/234 as audio only, codec unknown."""
+    binary = fake_metadata_resolver(tmp_path, {
+        "is_live": True,
+        "formats": [
+            {"format_id": "233", "vcodec": "none", "acodec": None,
+             "protocol": "m3u8_native",
+             "url": "https://cdn.example.org/audio-233.m3u8"},
+            {"format_id": "234", "vcodec": "none",
+             "protocol": "m3u8_native",
+             "url": "https://cdn.example.org/audio-234.m3u8",
+             "http_headers": {"User-Agent": "UnitTest", "Cookie": "discard"}},
+            {"format_id": "269", "vcodec": "avc1.42C00B",
+             "protocol": "m3u8_native",
+             "url": "https://cdn.example.org/silent-video.m3u8"},
+        ],
+    })
+    resolved = asyncio.run(youtube_capture.resolve_live_audio(
+        source(), yt_dlp_binary=binary,
+    ))
+    assert resolved.format_id == "234"
+    assert resolved.input_has_video is False
+    assert resolved.url.endswith("audio-234.m3u8")
+    assert resolved.headers == {"User-Agent": "UnitTest"}
+
+
+@pytest.mark.parametrize("format_info", [
+    {"vcodec": "avc1.42C00B", "acodec": None, "protocol": "m3u8_native"},
+    {"vcodec": "none", "acodec": "none", "protocol": "m3u8_native"},
+    {"vcodec": "none", "acodec": None, "protocol": "https"},
+    {"vcodec": "none", "acodec": None, "protocol": "m3u8_native",
+     "has_drm": True},
+])
+def test_unknown_codec_not_accepted_without_audio_only_hls_evidence(
+    tmp_path, format_info,
+):
+    binary = fake_metadata_resolver(tmp_path, {
+        "is_live": True,
+        "formats": [{**format_info, "format_id": "blocked",
+                     "url": "https://cdn.example.org/blocked.m3u8"}],
+    })
+    with pytest.raises(CaptureError, match="containing audio"):
+        asyncio.run(youtube_capture.resolve_live_audio(
+            source(), yt_dlp_binary=binary,
+        ))
