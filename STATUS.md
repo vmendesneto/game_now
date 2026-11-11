@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Últimas concluídas:** GN-060 (relógio lógico), GN-061 (atraso por fonte) e GN-062 (deduplicação de candidatos). **Próxima tarefa independente: GN-063 — seleção da fonte ativa**. CI pós-merge de GN-062 aprovada: 341 passed, 2 skipped em Python 3.11 e 3.12 (run 43045479371). GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
+**Últimas tarefas concluídas:** GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Últimas concluídas:** GN-063 (seleção conservadora da fonte ativa), GN-062 (deduplicação de candidatos), GN-061 (atraso por fonte) e GN-060 (relógio lógico). **Próxima tarefa: GN-064 — contradições entre fontes**. GN-063: CI do PR #23 aprovada, 361 passed, 2 skipped em Python 3.11 e 3.12 (run 43047629361). GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -157,3 +157,11 @@
 - **CI pós-merge**: https://github.com/vmendesneto/game_now/actions/runs/43045479371 — **341 passed, 2 skipped, 1 warning em Python 3.11 e 3.12**. O ASR real CPU teve 2 testes aprovados em https://github.com/vmendesneto/game_now/actions/runs/43044664124, mas isso é um teste sintético separado.
 - **Limites**: GN-060/061/062 são diagnósticos/simulações, não alinhamento automático de rádio/YouTube em operação. Os IDs de eventos correspondentes e offsets são informados pelo chamador; relógios de captura precisam estar em domínio sincronizado. Não há prova de áudio real alinhado, inferência confiável ao vivo, persitência automática de eventos ou Windows validado nessas tarefas. GN-090 permanece bloqueio de segurança para ativação de fontes.
 - **Próxima tarefa: GN-063** — escolher fonte ativa por comercial, atualidade, confiança e saúde da conexão; criar cenários de transição e testes. Depois GN-064 e GN-065, respeitando dependências.
+
+## GN-063 — seleção conservadora da fonte ativa (2026-11-11)
+
+- `app/source_selection.py`: seleciona apenas fonte habilitada, conectada (`online`), com texto `live_play`, captura recente e força heurística mínima. Comercial, replay, análise, conexão ruim, captura velha, timestamps futuros ou sinal fraco excluem a fonte, independentemente de ranking.
+- Transições diagnósticas `selected/switched/retained/lost/none`; troca imediata quando a fonte atual fica inelegível; margem de histerese evita oscilações entre duas fontes válidas. Ranking combina força heurística e idade do momento de captura, não chegada do texto; empate determinístico.
+- `POST /api/matches/{id}/sources/selection/preview` é somente prévia: `persisted=false`, `eligible_for_state_update=false`; não ativa FFmpeg/ASR, não escreve SQLite, não muda bola, não garante sincronismo de streams. Os sinais de entrada são fornecidos pelo chamador e exigem relógio comum confiável. A força heurística NÃO é probabilidade calibrada.
+- `tests/test_source_selection.py`: comerciais, replay, saúde, atrasos de entrega, confiança, silêncio, mudança e retenção de fonte, validação estrita e API sem mutação. **CI PR #23: 361 passed, 2 skipped em Python 3.11 e 3.12**: https://github.com/vmendesneto/game_now/actions/runs/43047629361. O warning pré-existente não causou falha.
+- **Próxima: GN-064** (contradições entre fontes e monotonicidade), depois GN-065. GN-090 permanece bloqueio de captação real iniciada pelo site; GN-031 depende de fonte autorizada. Nenhum teste com rádio ou YouTube reais foi feito nesta tarefa.
