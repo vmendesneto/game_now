@@ -101,7 +101,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 ## F08 — Qualidade e prova real
 
-- [ ] **GN-080 [P0]** Testes unitários de parsing, entidades, períodos e validação de estado; evidência: suíte passando.
+- [x] **GN-080 [P0]** Testes unitários de parsing, entidades, períodos e validação de estado; evidência: `tests/test_gn080_unit_matrix.py`, PR #33, CI 43057714416 (481 passed/2 skipped em Python 3.11/3.12; fixtures sintéticas).
 - [ ] **GN-081 [P0]** Testes de integração API + WebSocket + SQLite; evidência: execução local/CI.
 - [ ] **GN-082 [P0]** Simulador de duas rádios com comerciais, atrasos, contradições e silêncios; evidência: cenário reproduzível.
 - [ ] **GN-083 [P0]** Testar cinco a dez minutos de narração brasileira e medir identificação da equipe, jogador e zona; evidência: métricas reais.
@@ -197,3 +197,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### GN-076 integrada (2026-11-11)
 
 - **GN-076 [x], escopo demo:** Controles locais para iniciar/pausar avanço automático da demonstração sintética, reinício global existente por HTTP/WebSocket e formulário preexistente de correções manuais auditadas para partidas SQLite. O timer não emite pedidos sobrepostos, aguarda requisição pendente antes do reset e pausa ao chegar ao último passo ou falhar; reiniciar sincroniza com outros navegadores. `app/static/demo_playback.js`, `tests/test_demo_playback.cjs` e `tests/test_demo_playback_controls.py`. **Não controla captação de áudio real nem pausa transcritores externos** (GN-090 e integração operacional pendentes). GN-066 [P1] continua aberta. Próximo trabalho GN-080 [P0] (testes de parsing e estado) ou GN-090 [P0] para segurança antes de ativar captura.
+
+### GN-080 integrada (2026-11-11)
+
+- **GN-080 [x]:** matriz paramétrica de regressões unitárias para parsing, nomes/camisas/pronomes, períodos/ações e integridade de referências do bundle v1, sem precisar de áudio real. Arquivo: `tests/test_gn080_unit_matrix.py`. CI pré-documentação: https://github.com/vmendesneto/game_now/actions/runs/43057714416 (**481 passed/2 skipped**, Python 3.11 e 3.12). Ainda não substitui os ensaios GN-081 (API + WebSocket + SQLite) ou GN-083–085 (narração/Windows real). **Próxima GN-081 [P0]**; GN-090 antes de fontes externas.

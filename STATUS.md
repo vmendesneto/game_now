@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Últimas concluídas:** GN-076 (iniciar/pausar/reiniciar demo e correções manuais persistidas), GN-075 (feed de diagnósticos), GN-074 (configuração em 3 etapas). **Próximo trabalho: GN-080 [P0] — testes de parsing e validação de estado**; GN-066 [P1] permanece pendente e GN-090 precede ativação de captura real. GN-075 pós-merge CI aprovada (https://github.com/vmendesneto/game_now/actions/runs/43055700028); GN-076 aguardará CI de PR.
+**Últimas tarefas concluídas:** GN-080, GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Últimas concluídas:** GN-080 (matriz unitária de parsing, entidades, períodos e invariantes do ContractBundle v1), GN-076 (controles da demo), GN-075 (feed), GN-074 (configuração). **Próximo trabalho: GN-081 [P0] — integração API + WebSocket + SQLite**. GN-066 [P1] continua pendente; GN-090 precede ativação de captura real. CI GN-080 https://github.com/vmendesneto/game_now/actions/runs/43057714416 (481 passed / 2 skipped em Python 3.11/3.12); CI GN-076 na main https://github.com/vmendesneto/game_now/actions/runs/43056694656.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -234,3 +234,10 @@
 - A edição auditada de placar, posse ou eventos de uma partida SQLite continua em formulário separado do campo sintético, com mensagem explicativa. `tests/test_demo_playback.cjs` cobre controle de timers, operação pendente e término; `tests/test_demo_playback_controls.py` cobre demo/reset e correção persistida sem confundir estado.
 - **Escopo limitado à interface/demo:** iniciar/pausar NÃO inicia nem interrompe a captura/ASR real; sem teste de navegador físico ou Windows. GN-090 e integração operacional ainda necessárias para operação ao vivo.
 - **Próximo GN-080 [P0]**; GN-066 [P1] permanece aberta.
+
+## GN-080 — regressões unitárias de interpretação e estado (2026-11-11)
+
+- `tests/test_gn080_unit_matrix.py` acrescenta 81 verificações unitárias/parametrizadas para classificação de texto, eventos, ambiguidades de jogadores/camisas, antecedentes por fonte e limite de tempo, períodos e esquema de ações, além de rejeição de referências inválidas, duplicadas e inconsistentes no `ContractBundle` v1. Testes usam fixtures sintéticas originais, sem serviços externos.
+- **Evidência executada antes de marcar concluída:** PR #33, commit `9c1da69`, CI https://github.com/vmendesneto/game_now/actions/runs/43057714416 — **481 passed, 2 skipped** em Python 3.11 e 3.12. Checagem do schema e sintaxe JavaScript também aprovadas.
+- **Limites:** não houve execução local/Windows físico, validação com rádio/YouTube real, nem ensaio integrado novo de API + WebSocket + SQLite. Esses critérios pertencem à GN-081/GN-083–085; GN-090 continua bloqueando ativação de fontes remotas pelo site.
+- **Próxima GN-081 [P0]:** testes de integração ponta a ponta da API, WebSocket e persistência SQLite com reinício, usando fontes e lances simulados. GN-066 [P1] segue aberta.
