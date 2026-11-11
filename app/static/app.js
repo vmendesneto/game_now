@@ -31,6 +31,7 @@ function drawPitch() {
 let previousRenderedEventId=null;
 let previousRenderedZoneKey=null;
 let lastDemoSnapshot=null;
+let demoPlayback=null;
 function render(snapshot) {
   lastDemoSnapshot=snapshot;
   const data=snapshot.data,match=data.match,ball=data.ball;
@@ -67,6 +68,8 @@ function render(snapshot) {
   previousRenderedZoneKey=view.zoneKey;
   $("progress").textContent=snapshot.step+" / "+snapshot.total_steps+" relatos";
   $("next").disabled=snapshot.step>=snapshot.total_steps;
+  if(demoPlayback)demoPlayback.observe(snapshot);
+  updateDemoControls();
   const feed=$("feed");
   feed.replaceChildren();
   if(!data.segments.length){const li=document.createElement("li");li.className="empty";li.textContent="Nenhuma narração ainda.";feed.append(li);}
@@ -95,16 +98,38 @@ async function command(action){
   try{
     const response=await fetch("/api/demo/"+action,{method:"POST"});
     if(!response.ok)throw new Error("HTTP "+response.status);
-    // WebSocket may already have delivered a newer version. Apply only in order.
-    demoSync.accept(await response.json());
-  }catch(e){
-    $("connection").textContent="Erro: "+e.message;
-    $("next").disabled=!!lastDemoSnapshot &&
-      lastDemoSnapshot.step>=lastDemoSnapshot.total_steps;
-  }
+    const snapshot=await response.json();
+    // A broadcast may already be newer than this response.
+    demoSync.accept(snapshot);
+    return snapshot;
+  }catch(error){
+    $("connection").textContent="Erro: "+error.message;
+    return null;
+  }finally{updateDemoControls();}
 }
+function updateDemoControls(){
+  const active=demoPlayback?.running()===true;
+  const ended=!!lastDemoSnapshot && lastDemoSnapshot.step>=lastDemoSnapshot.total_steps;
+  $("next").disabled=active || ended || !lastDemoSnapshot;
+  $("demo-start").disabled=active || ended || !lastDemoSnapshot;
+  $("demo-pause").disabled=!active;
+  $("demo-playback-state").textContent=active?
+    "Apresentação automática ativa apenas neste navegador.":
+    "Avanço automático pausado; outros navegadores ainda podem avançar a demo.";
+}
+demoPlayback=window.GameNowPlayback.create({
+  advance:()=>command("next"),
+  onChange:updateDemoControls,
+});
+$("demo-start").addEventListener("click",()=>demoPlayback.start());
+$("demo-pause").addEventListener("click",()=>demoPlayback.pause());
 $("next").addEventListener("click",()=>command("next"));
-$("reset").addEventListener("click",()=>command("reset"));
+$("reset").addEventListener("click",async()=>{
+  // Draining an in-flight advance prevents a late request from undoing reset.
+  await demoPlayback.pauseAndDrain();
+  await command("reset");
+});
+updateDemoControls();
 drawPitch();
 demoSync.start();
 

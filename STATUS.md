@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Últimas concluídas:** GN-075 (diagnóstico textual de fontes/transcrições/eventos), GN-074 (configuração em três etapas), GN-073 (WebSocket versionado). **Próxima tarefa: GN-076 — iniciar/pausar/reiniciar e correções manuais**; GN-066 [P1] pendente. GN-090 permanece pré-requisito de qualquer captura via site. GN-074 CI pós-merge: https://github.com/vmendesneto/game_now/actions/runs/43054930416. GN-075 requer validação da CI do PR.
+**Últimas tarefas concluídas:** GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Últimas concluídas:** GN-076 (iniciar/pausar/reiniciar demo e correções manuais persistidas), GN-075 (feed de diagnósticos), GN-074 (configuração em 3 etapas). **Próximo trabalho: GN-080 [P0] — testes de parsing e validação de estado**; GN-066 [P1] permanece pendente e GN-090 precede ativação de captura real. GN-075 pós-merge CI aprovada (https://github.com/vmendesneto/game_now/actions/runs/43055700028); GN-076 aguardará CI de PR.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -227,3 +227,10 @@
 - UI dedicada à partida cadastrada com status/erro safe-code por fonte, transcrições voláteis e eventos persistidos. API HTTP inicial e `/ws/matches/{id}/transcripts` para atualização; reconexão limitada e cancelamento ao trocar partida. Não influencia demo sintética nem move a bola.
 - `tests/test_transcript_diagnostics.cjs` verifica duas fontes, filtro, segurança, status, eventos; `tests/test_transcript_diagnostics_ui.py` cobre API/WebSocket com fala sintética injetada em memória. Sem teste físico de navegador/Windows nem áudio real.
 - **Próxima GN-076 [P1]**; GN-066 [P1] pendente, GN-090 bloqueia ativação de fontes externas pelo site.
+
+## GN-076 — controles de demo e correções da partida cadastrada (2026-11-11)
+
+- `app/static/demo_playback.js` implementa avanço automático sintético em intervalos de 2,5 s, botão iniciar/pausar e cancelamento da programação; para quando a demo termina/erro e aguarda qualquer comando em andamento antes de reiniciar. O botão reiniciar já usa a API compartilhada versionada e é visto pelos outros navegadores.
+- A edição auditada de placar, posse ou eventos de uma partida SQLite continua em formulário separado do campo sintético, com mensagem explicativa. `tests/test_demo_playback.cjs` cobre controle de timers, operação pendente e término; `tests/test_demo_playback_controls.py` cobre demo/reset e correção persistida sem confundir estado.
+- **Escopo limitado à interface/demo:** iniciar/pausar NÃO inicia nem interrompe a captura/ASR real; sem teste de navegador físico ou Windows. GN-090 e integração operacional ainda necessárias para operação ao vivo.
+- **Próximo GN-080 [P0]**; GN-066 [P1] permanece aberta.
