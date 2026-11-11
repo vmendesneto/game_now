@@ -61,7 +61,9 @@ Como continuar: comando/arquivo específico
 
 ## Próximo trabalho indicado
 
-**GN-031 [ ] continua bloqueada pela prova real autorizada de YouTube Live.** Agora `python -m app.youtube_capture --url URL_LIVE_PERMITIDA --seconds 5` invoca o resolvedor yt-dlp e o FFmpeg (yt-dlp precisa ser instalado opcionalmente); imprime somente metadados seguros, nunca mídia nem URLs temporárias. Não marcar GN-031 sem capturar link real permitido e documentar o resultado. Nunca recorrer a cookies, login ou contorno de DRM/bloqueios.
+**Prova técnica GN-031 realizada em 2026-11-11 no Windows.** O usuário forneceu log real da CLI após atualizar a main até `00a4846`: YouTube Live `SWEYimqD_50` gerou 160.000 bytes de PCM mono s16le 16 kHz em 10 chunks, correspondendo a 5 segundos; `audio_retransmitted=false`. Este teste comprova áudio decodificado de uma live real no Windows e não deve ser refeito sem necessidade. Entretanto, a autorização para captar o sinal dessa transmissão **não foi confirmada**, e o critério "link de teste permitido" exige manter **GN-031 [ ]** até essa confirmação. Não presumir autorização apenas por ser público e não tentar contornar autenticação ou DRM.
+
+**Próxima implementação independente: GN-040 (ASR CPU, faster-whisper)**; usar teste real de áudio em português quando disponível, sem marcar concluída por simulação. A execução em Windows e a validação da GN-031 estão documentadas em `STATUS.md`.
 
 **GN-033 [x]** tem supervisão Python e retentativas com backoff, timeout, parada imediata e re-resolução por tentativa, comprovadas por simulação em Python 3.11/3.12. **GN-037 [x]** assegura política inicial de URLs, não embutir players no site e desabilitar cache/download do yt-dlp; GN-090 ainda precisa cuidar de DNS, redirecionamentos e substreams. Os dois componentes não iniciam automaticamente a captura no painel.
 
