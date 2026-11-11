@@ -87,7 +87,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-063 [P0]** Selecionar fonte ativa considerando comercial, atualidade, confiança e saúde da conexão; evidência: transição entre fontes.
 - [x] **GN-064 [P0]** Tratar contradições sem “voltar no tempo” nem inventar coordenadas; evidência: teste de fontes conflitantes.
 - [x] **GN-065 [P0]** Expirar posição antiga/mostrar “posição incerta” quando faltar narração válida; evidência: teste de silêncio.
-- [ ] **GN-066 [P1]** Painel de diagnóstico das decisões da fusão e calibração manual do atraso; evidência: logs legíveis. Implementação candidata: API de fusão read-only com offsets temporários por fonte, painel e testes; permanece [ ] até validação em CI.
+- [x] **GN-066 [P1]** Painel de diagnóstico das decisões da fusão e calibração manual do atraso; evidência: logs legíveis. API read-only com offsets temporários por fonte, painel e testes Node/Python; CI PR #41 primeira rodada 577 passed/2 skipped Python 3.11/3.12 (run 43076830181); nenhuma medição real de atraso.
 
 ## F07 — Site e campo
 
