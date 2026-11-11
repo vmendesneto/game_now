@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Próxima tarefa independente:** **GN-050 — classificar narração de lance, comercial, conversa, análise e replay com corpus rotulado**. GN-044 exige benchmark no Windows e GN-045 áudio real autorizado. GN-090 é pré-requisito de segurança para ativação de fontes pelo site. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
+**Últimas tarefas concluídas:** GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Próxima tarefa independente:** **GN-051 — resolver atletas/equipes e referências em narração textual com contexto conservador**. GN-044 exige benchmark no Windows e GN-045 áudio real autorizado. GN-090 é pré-requisito de segurança para ativação de fontes pelo site. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -88,3 +88,11 @@
 - Testes determinísticos `tests/test_asr_vocabulary.py` cobrem conteúdo, limite e encaminhamento do prompt ao modelo real. CI geral: **109 passed, 2 skipped** em Python 3.11/3.12: https://github.com/vmendesneto/game_now/actions/runs/43019542054.
 - Teste A/B real e reprodutível em Linux: mesma fala pt-BR sintetizada por `espeak-ng`, mesmo modelo `base` CPU int8, com e sem contexto. Alvos "Otávio, Mendes, Caio, Ventura, Azul, escanteio"; **1/6** alvos presentes no resultado sem vocabulário e **6/6** com vocabulário. A inferência real e 2 testes pesados foram aprovados: https://github.com/vmendesneto/game_now/actions/runs/43019542053.
 - **Interpretação correta**: 1/6 → 6/6 demonstra benefício nesta **única amostra sintética**, não WER estatisticamente representativo, não narração de futebol real, não Windows ou garantia de acerto. O prompt pode enviesar nomes ausentes no sinal; GN-051 deverá manter resolução conservadora.
+
+## GN-050 — classificador de contexto de narração (2026-11-11)
+
+- `app/narration_classifier.py`: categorização textual determinística com seis classes internas (`live_play`, `ad`, `conversation`, `analysis`, `replay`, `unknown`), regras com prioridade de comercial/replay/análise sobre pistas de lance, normalização de acentos e limites de entrada. Retorna `matched_cue` como explicação de regra, **não confiança estatística**. Somente a classe `live_play` é elegível como candidato a análise de futebol; o módulo **não** gera evento, jogador, placar, posse ou zona.
+- O contrato v1 permanece congelado e não possui a categoria `conversation`: `to_contract_category` faz mapeamento seguro para `unknown`, sem schema novo.
+- `fixtures/narration_labeled.json` inclui **39 frases originais sintéticas em português**, com seis categorias e casos negativos; `tests/test_narration_classifier.py` verifica todos os rótulos, precedência, falsos positivos, palavras acentuadas e limites. Correção de alongamentos de "GOOOOOL" reproduzida no corpus.
+- Evidência: **115 passed, 2 skipped** em Python 3.11/3.12, run https://github.com/vmendesneto/game_now/actions/runs/43020798677; smoke real ASR permanece verde (run https://github.com/vmendesneto/game_now/actions/runs/43020798636).
+- Limitação: as 39 frases são inventadas e rotuladas para o teste; acerto nesse corpus não mede generalização a narradores reais ou ASR ruidoso. O classificador ainda não foi conectado ao feed ou à lógica que movimenta a bola. Avaliação real e refinamento dependerão de GN-058 (corpus autorizado).

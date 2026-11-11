@@ -218,3 +218,15 @@ Sem `--match-id`, o ASR funciona sem contexto, como antes. `GAME_NOW_DB_PATH` de
 
 **Comparação A/B reproduzível:** teste `tests/test_asr_vocabulary_real.py` (CI https://github.com/vmendesneto/game_now/actions/runs/43019542053) usou **o mesmo áudio português sintetizado**, com modelo `base` CPU int8: 1 dos 6 termos de referência apareceu na condição sem contexto, contra 6 de 6 com o contexto. Isso é **taxa de presença dos termos nessa única frase**, não WER, não um estudo estatístico nem garantia de melhora em jogo real. Nomes sugeridos pelo prompt podem aparecer incorretamente; a resolução de atletas deve continuar exigindo evidência contextual (GN-051).
 
+
+## GN-050 — distinguir o contexto da narração (núcleo conservador)
+
+`app.narration_classifier.classify_narration(text)` reconhece indícios explícitos de **lance atual, publicidade, conversa, análise, replay ou desconhecido**. Uma frase sem evidência fica `unknown`; comercial, replay e análise têm prioridade para que a simples presença de "gol" não dispare uma atualização no campinho. O resultado informa a regra que casou, **não** uma probabilidade calibrada.
+
+```python
+from app.narration_classifier import classify_narration
+print(classify_narration("No replay vemos o gol novamente."))
+# NarrationDecision(label=<NarrationLabel.REPLAY: 'replay'>, matched_cue='no replay')
+```
+
+`fixtures/narration_labeled.json` contém **39 exemplos fictícios rotulados**. `python -m pytest -q tests/test_narration_classifier.py` compara cada exemplo com seu rótulo, inclui negativos, prioridade e proteção contra palavras parcialmente coincidentes. A classe interna `conversation` converte para `unknown` no contrato v1 para preservar compatibilidade. Nenhum evento/posição é criado pelo classificador, que ainda não é conectado ao fluxo real do feed. Isto é baseline de regras; avaliação em narração legítima e variada é GN-058, não um resultado obtido nesta etapa.

@@ -1,0 +1,197 @@
+[
+  {
+    "id": "live-01",
+    "label": "live_play",
+    "text": "Caio recebe a bola no meio-campo."
+  },
+  {
+    "id": "live-02",
+    "label": "live_play",
+    "text": "O atacante finaliza na área do adversário."
+  },
+  {
+    "id": "live-03",
+    "label": "live_play",
+    "text": "Chutou de fora da área e o goleiro defendeu."
+  },
+  {
+    "id": "live-04",
+    "label": "live_play",
+    "text": "Escanteio para o Azul, agora na direita."
+  },
+  {
+    "id": "live-05",
+    "label": "live_play",
+    "text": "GOOOOOL do Vermelho! Placar aberto."
+  },
+  {
+    "id": "live-06",
+    "label": "live_play",
+    "text": "Lateral para a equipe da casa."
+  },
+  {
+    "id": "live-07",
+    "label": "live_play",
+    "text": "É pênalti para o Azul!"
+  },
+  {
+    "id": "live-08",
+    "label": "live_play",
+    "text": "A bola rolando no gramado agora."
+  },
+  {
+    "id": "ad-01",
+    "label": "ad",
+    "text": "Apoio cultural: ofertas desta semana!"
+  },
+  {
+    "id": "ad-02",
+    "label": "ad",
+    "text": "Oferecimento dos nossos patrocinadores: promoção especial!"
+  },
+  {
+    "id": "ad-03",
+    "label": "ad",
+    "text": "Compre agora e ganhe desconto na compra."
+  },
+  {
+    "id": "ad-04",
+    "label": "ad",
+    "text": "Este gol tem patrocínio da Padaria Central."
+  },
+  {
+    "id": "ad-05",
+    "label": "ad",
+    "text": "Use o cupom FUTEBOL na nossa loja."
+  },
+  {
+    "id": "ad-06",
+    "label": "ad",
+    "text": "Visite nossa loja e confira a promoção de hoje."
+  },
+  {
+    "id": "replay-01",
+    "label": "replay",
+    "text": "No replay vemos o gol novamente."
+  },
+  {
+    "id": "replay-02",
+    "label": "replay",
+    "text": "Na repetição, o atacante estava adiantado."
+  },
+  {
+    "id": "replay-03",
+    "label": "replay",
+    "text": "Vamos rever o lance anterior que levou ao gol."
+  },
+  {
+    "id": "replay-04",
+    "label": "replay",
+    "text": "Na reprise, vemos o goleiro."
+  },
+  {
+    "id": "replay-05",
+    "label": "replay",
+    "text": "Revendo o lance, parece que o defensor tocou antes."
+  },
+  {
+    "id": "replay-06",
+    "label": "replay",
+    "text": "O replay mostra que o escanteio foi mal marcado."
+  },
+  {
+    "id": "analysis-01",
+    "label": "analysis",
+    "text": "Na minha opinião, o treinador errou na escalação."
+  },
+  {
+    "id": "analysis-02",
+    "label": "analysis",
+    "text": "Taticamente, o Azul está mais organizado."
+  },
+  {
+    "id": "analysis-03",
+    "label": "analysis",
+    "text": "O treinador precisa mexer no meio-campo."
+  },
+  {
+    "id": "analysis-04",
+    "label": "analysis",
+    "text": "Deveria ter marcado melhor naquele lance."
+  },
+  {
+    "id": "analysis-05",
+    "label": "analysis",
+    "text": "O esquema tático não está funcionando."
+  },
+  {
+    "id": "analysis-06",
+    "label": "analysis",
+    "text": "Analisando a partida, o visitante mostra cansaço."
+  },
+  {
+    "id": "conversation-01",
+    "label": "conversation",
+    "text": "Boa noite, meu amigo, está tudo bem?"
+  },
+  {
+    "id": "conversation-02",
+    "label": "conversation",
+    "text": "Um abraço aos ouvintes da cidade."
+  },
+  {
+    "id": "conversation-03",
+    "label": "conversation",
+    "text": "Qual sua opinião, comentarista?"
+  },
+  {
+    "id": "conversation-04",
+    "label": "conversation",
+    "text": "Concordo com você sobre o resultado."
+  },
+  {
+    "id": "conversation-05",
+    "label": "conversation",
+    "text": "Alô torcida, mande seu recado!"
+  },
+  {
+    "id": "conversation-06",
+    "label": "conversation",
+    "text": "Obrigado pela audiência até aqui."
+  },
+  {
+    "id": "unknown-01",
+    "label": "unknown",
+    "text": "Não temos novas informações."
+  },
+  {
+    "id": "unknown-02",
+    "label": "unknown",
+    "text": "Silêncio no estádio."
+  },
+  {
+    "id": "unknown-03",
+    "label": "unknown",
+    "text": "Estamos acompanhando tudo."
+  },
+  {
+    "id": "unknown-04",
+    "label": "unknown",
+    "text": "Daqui a pouco mais notícias."
+  },
+  {
+    "id": "unknown-05",
+    "label": "unknown",
+    "text": "Ele está ali, perto de alguém."
+  },
+  {
+    "id": "unknown-06",
+    "label": "unknown",
+    "text": "Faz tempo que não vemos nada."
+  },
+  {
+    "id": "unknown-07",
+    "label": "unknown",
+    "text": "O goleiro comentou a técnica."
+  }
+]

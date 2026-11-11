@@ -69,7 +69,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 ## F05 — Interpretação do futebol
 
-- [ ] **GN-050 [P0]** Separar narração de lance atual, anúncio, conversa, análise e replay; evidência: corpus rotulado/testes.
+- [x] **GN-050 [P0]** Separar narração de lance atual, anúncio, conversa, análise e replay; evidência: corpus rotulado/testes.
 - [ ] **GN-051 [P0]** Resolver entidades de jogador, clube e referências (“ele”, “camisa nove”); evidência: testes de ambiguidade.
 - [ ] **GN-052 [P0]** Detectar posse e troca de posse com evidência explícita; evidência: testes de sequência.
 - [ ] **GN-053 [P0]** Detectar regiões do campo (5 faixas × 3 corredores) e sentido de ataque; evidência: frases em ambos os lados.
