@@ -182,3 +182,16 @@ Os modelos disponíveis são `tiny` (padrão), `base`, `small` e `medium`. O pri
 
 `tests/test_asr.py` valida o contrato de áudio sem download; `.github/workflows/asr-smoke.yml` realiza inferência de verdade com fala portuguesa sintetizada offline por `espeak-ng` e modelo `base`. Resultados do workflow, quando disponíveis, estão nas Actions do GitHub. A integração com janelas contínuas, múltiplas fontes e feed web pertence às GN-041/042/043; isso **não** significa áudio de rádio/YouTube já transcrito nem validado em Windows.
 
+
+## GN-041 — janelas contínuas (núcleo Python)
+
+`app/asr_windows.py` combina os chunks PCM 16 kHz mono da captura em janelas sobrepostas por fonte (padrão 6 segundos, 2 segundos de sobreposição). `RollingASRProcessor(CPUTranscriber(...))` produz `WindowTranscript` com `source_id`, sequência, início/fim relativo, idioma, texto bruto e `new_text` com repetição reduzida. A deduplicação é conservadora (2 ou mais palavras idênticas após normalização); não substitui alinhamento semântico ou fusão entre fontes. `finish(source_id)` libera o buffer. O `RollingASRProcessor` é **síncrono**; nunca chamar diretamente em um handler `async` FastAPI (GN-043).
+
+Teste de montagem, sem depender de modelo ou rede:
+
+```bash
+python -m scripts.benchmark_asr_windows
+python -m pytest -q tests/test_asr_windows.py
+```
+
+A CI também executa modelo ASR real sobre janelas de fala sintética portuguesa; o teste **não** usa rádio/YouTube e não prova o desempenho ou a qualidade em transmissões esportivas ao vivo. Referência: https://github.com/vmendesneto/game_now/actions/runs/43016880967. A disponibilização do feed no site e o agendamento assíncrono serão implementados nas GN-042/043.

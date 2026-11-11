@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Próxima tarefa de implementação:** **GN-041 — janelas contínuas com sobreposição e deduplicação**, após GN-040 validada em CPU Linux. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
+**Últimas tarefas concluídas:** GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Próxima tarefa de implementação:** **GN-042 — feed de transcrições independentes por fonte, timestamps e estados**; GN-043 fará o isolamento da inferência do loop FastAPI. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -66,3 +66,10 @@
 - Em seguida: GN-041 (janelas sobrepostas e deduplicação) e GN-042 (feed por fonte), sem presumir teste físico Windows.
 
 - Evidência de inferência real: https://github.com/vmendesneto/game_now/actions/runs/43016056292. Log: `REAL_CPU_ASR_RESULT: O jodo de futebol comeceu a guarda. A bola está no meio do campo. Ata-cante chuto e fez um globo.` O ASR reconheceu fala em português, com erros esperados do TTS sintético. **Não é benchmark de precisão/WER, nem validação de narração real/Windows**.
+
+## GN-041 — validada em CI Linux (2026-11-11)
+
+- `app/asr_windows.py`: montagem de janelas PCM de 6 s com 2 s de sobreposição (configuráveis), offsets relativos por fonte, memória limitada e isolamento; `TextOverlapDeduplicator` compara somente sequências de 2+ tokens coincidentes, preservando palavras únicas como "gol". `RollingASRProcessor` entrega texto incremental com idioma e intervalo relativo. Não injeta áudio no site nem é agendado pelo servidor.
+- Suíte de testes Python 3.11/3.12: **100 passed, 1 skipped** na CI (teste pesado opt-in ignorado pela suíte geral) em https://github.com/vmendesneto/game_now/actions/runs/43016881008. Teste pesado separado e real: **1 passed**, 3 janelas de fala sintetizada portuguesa com modelo `base` CPU em https://github.com/vmendesneto/game_now/actions/runs/43016880967.
+- Microbenchmark Linux Python 3.12 (somente montagem, não inferência): 2 fontes × 10 min de chunks; 149 janelas por fonte, 128.000 bytes de buffer restante por fonte, 0,0406 s de tempo de montagem. Script `python -m scripts.benchmark_asr_windows`. **Não** representa latência ASR real, Windows, WER ou transmissão esportiva.
+- Limitação observada: no teste real de fala sintética, diferentes janelas transcreveram as mesmas palavras de modo diferente; a deduplicação literal conservadora não remove todos os ecos. GN-044 continua responsável por benchmark de acurácia, GN-042 por feed e GN-043 por execução assíncrona.

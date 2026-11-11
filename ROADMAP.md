@@ -60,7 +60,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ## F04 — Transcrição pt-BR
 
 - [x] **GN-040 [P0]** Integrar faster-whisper com escolha de modelo e operação CPU; evidência: transcrever áudio em português.
-- [ ] **GN-041 [P0]** Processar blocos contínuos de áudio com sobreposição e deduplicação de texto; evidência: benchmark e testes.
+- [x] **GN-041 [P0]** Processar blocos contínuos de áudio com sobreposição e deduplicação de texto; evidência: benchmark e testes.
 - [ ] **GN-042 [P0]** Gerar transcrições independentes por fonte com timestamps, idioma e estado de processamento; evidência: feed acessível.
 - [ ] **GN-043 [P0]** Não bloquear API/site durante inferência; evidência: dois clientes recebendo updates simultâneos.
 - [ ] **GN-044 [P1]** Benchmark de modelos Whisper (tiny/base/small/medium) em Windows CPU e, se disponível, GPU; evidência: WER, latência, RAM.
