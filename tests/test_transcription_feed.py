@@ -98,6 +98,8 @@ def test_http_feed_and_two_websocket_clients_receive_same_text(tmp_path):
                 assert from_left == from_right
                 assert from_left["kind"] == "transcript"
                 assert from_left["data"]["text"] == "Bola na área"
+                left.send_text("close")
+                right.send_text("close")
         assert client.get(url).json()["entries"][0]["text"] == "Bola na área"
         # Internal entries for unregistered sources are never exposed via HTTP.
         feed.publish("match-001", "unknown", window("unknown", 0, "não autorizado"), captured_at=now)
@@ -238,6 +240,8 @@ def test_two_websocket_clients_and_http_remain_live_during_blocked_inference(tmp
                                 break
                         assert message["kind"] == "transcript"
                         assert message["data"]["text"] == "Gol do Azul"
+                    first.send_text("close")
+                    second.send_text("close")
                 finally:
                     release.set()
                     job.join(timeout=5)
