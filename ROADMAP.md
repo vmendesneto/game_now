@@ -81,9 +81,9 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 ## F06 — Fusão das rádios e relógio
 
-- [ ] **GN-060 [P0]** Implementar relógio lógico da partida, independente do instante em que chega o texto; evidência: teste de atrasos.
-- [ ] **GN-061 [P0]** Calcular atraso relativo por fonte usando eventos comuns e janela de observação; evidência: simulação com delays.
-- [ ] **GN-062 [P0]** Deduplicar o mesmo lance narrado por várias fontes; evidência: dois relatos geram um evento.
+- [x] **GN-060 [P0]** Implementar relógio lógico da partida, independente do instante em que chega o texto; evidência: teste de atrasos.
+- [x] **GN-061 [P0]** Calcular atraso relativo por fonte usando eventos comuns e janela de observação; evidência: simulação com delays.
+- [x] **GN-062 [P0]** Deduplicar o mesmo lance narrado por várias fontes; evidência: dois relatos geram um evento.
 - [ ] **GN-063 [P0]** Selecionar fonte ativa considerando comercial, atualidade, confiança e saúde da conexão; evidência: transição entre fontes.
 - [ ] **GN-064 [P0]** Tratar contradições sem “voltar no tempo” nem inventar coordenadas; evidência: teste de fontes conflitantes.
 - [ ] **GN-065 [P0]** Expirar posição antiga/mostrar “posição incerta” quando faltar narração válida; evidência: teste de silêncio.
@@ -151,9 +151,9 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - Repositório: https://github.com/vmendesneto/game_now
 
 
-### Entrega em validação (2026-11-11)
+### GN-060–062 validadas e integradas (2026-11-11)
 
-- GN-060: implementação mesclada na main via [PR #20](https://github.com/vmendesneto/game_now/pull/20), mas CI original ainda sem comprovação de aprovação; manter [ ] até resultado válido.
-- GN-061: estimativa diagnóstica de atraso por eventos explicitamente comuns, janela e testes de simulação no [PR #21](https://github.com/vmendesneto/game_now/pull/21); manter [ ] até CI aprovada e merge.
-
-- GN-062: deduplicação diagnóstica conservadora de dois relatos em um grupo no [PR #22](https://github.com/vmendesneto/game_now/pull/22), dependente do PR #21; manter [ ] até a CI da branch e a integração final.
+- **GN-060 [x]:** PR #20, relógio lógico por captura com atrasos simulados; validação incluída na suíte pós-merge.
+- **GN-061 [x]:** PR #21 (`a1a3d1f`), atraso relativo entre fontes com eventos comuns fornecidos pelo chamador, simulações e limites; CI 326 passed / 2 skipped em 3.11/3.12 (run 43043216756).
+- **GN-062 [x]:** PR #22 (`b4898d7`), agrupamento de dois relatos em um evento diagnóstico sem persistência; CI 341 passed / 2 skipped em 3.11/3.12 (run 43043274805).
+- **CI pós-merge na main:** https://github.com/vmendesneto/game_now/actions/runs/43045479371 — **341 passed, 2 skipped em Python 3.11 e 3.12**. Nenhuma dessas simulações comprova captação/alinhamento real de streams ou Windows. **Próxima: GN-063 [ ].**
