@@ -1,5 +1,13 @@
 # STATUS — Game Now
 
+## GN-036 — gate conservador de silêncio opcional (2026-11-11)
+
+- `app/silence_gate.py` oferece análise RMS por quadros de 30 ms e filtro opt-in de janelas de baixa energia; comerciais, música e torcida com energia são tratados como atividade, **nunca identificados como silêncio por conteúdo**. Sem downloads, sem alteração de PCM ou relógio.
+- `RollingASRProcessor` aceita `silence_gate=PCMSilenceGate()` opcional; padrão permanece desligado para não suprimir fala baixa real antes de ensaio autorizado. Janela suprimida mantém sequência/offset; deduplicador limpa contexto após silêncio.
+- `scripts/benchmark_gn036_silence.py` e `tests/test_gn036_silence.py` usam áudio PCM **sintético** de silêncio, tom análogo à narração e tom análogo a propaganda. O benchmark mede somente chamadas evitadas ao modelo falso, não qualidade ASR, fala ou conteúdo real. A CI Python 3.11/3.12 do PR deve validar antes do merge.
+- GN-083 continua [ ] sem prova de início automático em narração real; GN-031 e GN-085 aguardam autorização/evidência Windows. Próximo trabalho: GN-086 benchmark de múltiplas transcrições reais sob CPU/RAM (pode depender de máquina física), GN-093 segurança antes de eventual LAN.
+
+
 ## GN-016 — limpeza das sessões de captura (2026-11-11)
 
 - `CaptureSessionController` é dono das tarefas de captura, permite iniciar/parar por fonte e fecha os workers de forma cooperativa ou por cancelamento após timeout, aguardando `CaptureSupervisor.run` e seu encerramento final. Reinício recria novo controlador, sem restauração de workers/URLs assinadas.

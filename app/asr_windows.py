@@ -11,6 +11,7 @@ import unicodedata
 from typing import Protocol
 
 from app.asr import ASRResult, BYTES_PER_SECOND
+from app.silence_gate import PCMSilenceGate
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,8 +185,12 @@ class WindowTranscript:
 class RollingASRProcessor:
     """Runs sync inference over emitted windows, returning only text/metadata."""
 
-    def __init__(self, transcriber: Transcriber, settings: WindowSettings | None = None):
+    def __init__(
+        self, transcriber: Transcriber, settings: WindowSettings | None = None,
+        *, silence_gate: PCMSilenceGate | None = None,
+    ):
         self.settings = settings or WindowSettings()
+        self.silence_gate = silence_gate
         self.assembler = PCMWindowAssembler(self.settings)
         self.deduplicator = TextOverlapDeduplicator(
             max_history_words=self.settings.max_history_words
@@ -195,6 +200,11 @@ class RollingASRProcessor:
     def _transcribe(self, windows: tuple[SpeechWindow, ...]) -> tuple[WindowTranscript, ...]:
         updates = []
         for window in windows:
+            if self.silence_gate is not None and self.silence_gate.assess(window.pcm).skip_asr:
+                # Keep original sequence/time offsets: skip an inference, never
+                # delete PCM from the assembler or compress the match clock.
+                self.deduplicator.clear(window.source_id)
+                continue
             result = self.transcriber.transcribe_pcm(window.pcm)
             updates.append(WindowTranscript(
                 source_id=window.source_id, sequence=window.sequence,
