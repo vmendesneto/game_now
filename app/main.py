@@ -29,6 +29,7 @@ from app.source_delay import RelativeDelayRequest, RelativeDelayResponse, previe
 from app.event_deduplication import EventDeduplicationRequest, EventDeduplicationResponse, preview_event_deduplication
 from app.source_selection import SourceSelectionRequest, SourceSelectionResponse, preview_active_source
 from app.fusion_conflicts import FusionConflictRequest, FusionConflictResponse, preview_fusion_conflicts
+from app.fusion_diagnostics import FusionDiagnosticRequest, FusionDiagnosticResponse, preview_fusion_diagnostics
 from app.ball_freshness import BallFreshnessRequest, BallFreshnessResponse, preview_ball_freshness
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
@@ -258,6 +259,21 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         # GN-064: caller-provided aligned text, diagnostic only, never a state write.
         require_match(match_id)
         return preview_fusion_conflicts(request)
+
+    @application.post(
+        "/api/matches/{match_id}/fusion/diagnostics/preview",
+        response_model=FusionDiagnosticResponse,
+    )
+    async def preview_match_fusion_diagnostics(match_id: str, request: FusionDiagnosticRequest):
+        # GN-066: source-scoped diagnostic only; never activates audio or updates state.
+        require_match(match_id)
+        sources = store.get_sources(match_id) or []
+        try:
+            return preview_fusion_diagnostics(
+                request, registered_source_ids={source.id for source in sources},
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @application.post(
         "/api/matches/{match_id}/ball/freshness/preview",
