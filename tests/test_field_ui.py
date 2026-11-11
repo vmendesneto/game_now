@@ -21,7 +21,7 @@ def test_mobile_svg_uses_fixed_viewbox_and_loaded_geometry_before_render():
     assert "aspect-ratio:1000/620" in css
     assert "max-width:100%" in css
     assert "@media(max-width:600px)" in css
-    assert "zoneCellBounds(ball.zone,team.attack_direction)" in script
+    assert "zoneCellBounds(view.zone,view.direction)" in script
     assert 'data-grid-cell' in script
     assert "field.setAttribute(\"aria-label\"" in script
 
