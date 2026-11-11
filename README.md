@@ -367,3 +367,19 @@ Foi fornecida esta URL para servir como **referência de teste**: https://www.yo
 ```
 
 O argumento `--seconds` aceita **até 600 segundos (10 minutos)**; não é necessário alterar o código quando não houver partidas ao vivo. Ele inicia do começo do vídeo e apresenta somente a quantidade de PCM decodificada. **Isso não mede a identificação de equipes, jogadores e zonas:** GN-083 ainda exige transcrição + gabarito rotulado e métricas reais, além de confirmar autorização para usar a narração; GN-085 requer ensaio no Windows. Não presumir que um URL público implica licença de uso.
+
+
+### Diagnóstico de erro 5XX no relay com vídeos gravados (2026-11-11)
+
+No primeiro teste físico com `https://www.youtube.com/watch?v=Ls4qkPrh4Tk`, depois de atualizar até `1529df7`, o Windows respondeu `FFmpeg ... Server returned 5XX` — isto era erro **local** genérico do relay, e não demonstra que o YouTube respondeu HTTP 500. Um possível causador é o atraso de ativação de URLs `googlevideo.com/videoplayback` recém emitidas: o downloader do yt-dlp aguarda cerca de cinco segundos antes da primeira requisição, enquanto o resolvedor do Game Now só consultava metadados e iniciava FFmpeg imediatamente.
+
+O consumidor passou a aguardar 5,5 segundos **apenas** para essa classe de URL, antes da primeira requisição, e o relay informa códigos diagnósticos seguros quando uma resposta remota falha: `upstream_http_403` (acesso recusado), `destination_or_playlist_rejected` (filtro de segurança/playlist) ou `transport_error` (falha de conexão). Nenhum desses erros inclui URL assinada, cookie, token ou mídia. Não há tentativas de contornar restrições: se a origem retornar 403 depois da espera, o Game Now deve encerrar informando o código.
+
+Após a atualização, para testar **somente com fonte cuja captação seja permitida**, execute novamente:
+
+```powershell
+git pull --ff-only
+.\.venv\Scripts\python.exe -m app.youtube_capture --yt-dlp ".\.venv\Scripts\yt-dlp.exe" --url "https://www.youtube.com/watch?v=Ls4qkPrh4Tk" --seconds 5
+```
+
+Se falhar, compartilhe apenas o erro **sanitizado** do terminal; não publique URLs de CDN temporárias, headers, cookies ou `--dump-json` completos. A CI usa upstream falso, não YouTube real. A GN-031/GN-083 continua aguardando teste real permitido e, para GN-083, gabarito de narração.

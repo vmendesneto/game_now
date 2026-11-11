@@ -13,6 +13,7 @@ from dataclasses import dataclass
 import json
 import shutil
 from typing import AsyncIterator
+from urllib.parse import urlsplit
 
 from app.audio_capture import CaptureError, pcm_chunks
 from app.contracts import AudioSource
@@ -183,12 +184,29 @@ async def resolve_live_audio(
             await process.wait()
 
 
+def _needs_playback_wait(url: str) -> bool:
+    """Respect the wait yt-dlp uses for newly issued Googlevideo media URLs.
+
+    Some public videoplayback URLs return HTTP 403 during the first ~5 seconds
+    after extraction. This is not a retry or a workaround for restricted media.
+    """
+    parts = urlsplit(url)
+    host = (parts.hostname or "").lower()
+    return (parts.scheme == "https"
+            and (host == "googlevideo.com" or host.endswith(".googlevideo.com"))
+            and parts.path.rstrip("/").endswith("/videoplayback"))
+
+
 async def youtube_pcm_chunks(
     source: AudioSource, *, yt_dlp_binary: str = "yt-dlp",
     ffmpeg_binary: str = "ffmpeg", chunk_ms: int = 500,
 ) -> AsyncIterator[bytes]:
     """Decode audio from a public live broadcast or recorded YouTube video."""
     live = await resolve_live_audio(source, yt_dlp_binary=yt_dlp_binary)
+    if _needs_playback_wait(live.url):
+        # The yt-dlp downloader waits before its first network read, but our
+        # metadata-only resolver (--skip-download) would otherwise skip it.
+        await asyncio.sleep(5.5)
     audio_source = AudioSource(id=source.id, name=source.name, kind="radio",
                                url=live.url, enabled=True, status="offline")
     async with aclosing(pcm_chunks(audio_source, ffmpeg_binary=ffmpeg_binary,
