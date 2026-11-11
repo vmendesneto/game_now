@@ -21,6 +21,7 @@ from app.narration_entities import NarrationResolveRequest, NarrationResolution,
 from app.possession import PossessionRequest, PossessionEvidence, detect_possession
 from app.field_regions import RegionRequest, RegionEvidence, detect_region
 from app.event_detection import EventRequest, EventEvidence, detect_event
+from app.confidence import ConfidenceRequest, ConfidenceEvidence, assess_confidence
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
@@ -180,6 +181,14 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     async def resolve_event(match_id: str, request: EventRequest):
         # Diagnostics only: an inferred event never alters score or match history.
         return detect_event(require_match(match_id), request)
+
+    @application.post("/api/matches/{match_id}/resolve-confidence", response_model=ConfidenceEvidence)
+    async def resolve_confidence(match_id: str, request: ConfidenceRequest):
+        # Heuristic evidence strength: no calibration, capture or state mutation.
+        try:
+            return assess_confidence(require_match(match_id), request)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @application.get("/api/matches/{match_id}/flow")
     async def get_match_flow(match_id: str):
