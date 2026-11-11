@@ -1,0 +1,27 @@
+name: ASR pt-BR CPU real
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-portuguese:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install offline speech synthesizer and FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq espeak-ng ffmpeg
+      - name: Install testing and optional ASR dependencies
+        run: python -m pip install -r requirements-dev.txt -r requirements-asr.txt
+      - name: Transcribe generated Portuguese speech on CPU with real model
+        env:
+          GAME_NOW_REAL_ASR: "1"
+        run: python -m pytest -q -s tests/test_asr_real.py
