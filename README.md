@@ -8,6 +8,8 @@ Requer Python 3.11 ou 3.12. O modo demo não precisa de FFmpeg, GPU, modelo Whis
 
 **Windows:** execute `iniciar_windows.bat` na pasta do repositório. Ele cria `.venv`, instala as dependências e inicializa o servidor.
 
+**Instalação limpa, atualização, parada e diagnóstico:** siga [docs/INSTALL_WINDOWS.md](docs/INSTALL_WINDOWS.md), incluindo checklist de verificação física e `python -m scripts.windows_check --json`.
+
 **Terminal (Windows/macOS/Linux):**
 
 ```bash

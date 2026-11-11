@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-090, GN-082, GN-081, GN-080, GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Última conclusão:** GN-090 [P0] — relay temporário para rádio/HLS, com DNS/IP público verificado e conexão fixada ao IP, redirects limitados e FFmpeg sem URL externa. Testes locais `tests/test_secure_ingest.py`: 22 passed em Linux com FFmpeg. **Próxima GN-091 [P0]**, documentação operacional do Windows. GN-083 segue bloqueada até receber 5–10 min de narração brasileira autorizada e gabarito. GN-066 [P1] segue aberta. A validação Windows/fonte real não foi executada nesta etapa.
+**Últimas tarefas concluídas:** GN-091, GN-090, GN-082, GN-081, GN-080, GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Última conclusão:** GN-091 [P0] — documentação de instalação, início/parada, atualização, backup e diagnóstico em Windows, com `scripts/windows_check.py`; 10 testes locais Linux aprovados (simulação). **Próxima GN-066 [P1]**, painel de diagnóstico de fusão/calibração de atraso; GN-092 [P1] (backup/exportação) em seguida. GN-083 aguarda narração pt-BR autorizada e gabarito. GN-012/GN-085 permanecem dependentes de validação física do Windows.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -266,3 +266,11 @@
 - **Evidência local executada antes da entrega:** `python -m pytest -q tests/test_secure_ingest.py` — **22 passed** (Linux, Python 3.13, HLS sintetizado realmente decodificado pelo FFmpeg, além de testes de redirects/DNS/URI/header). `tests/test_gn090_runtime.py` e a suíte Python 3.11/3.12 dependem da CI do PR, e não foram afirmados como aprovados antecipadamente.
 - **Limites:** sem narração real autorizada, sem ensaio físico Windows, sem teste de CDN real ou 90 minutos; HLS incomuns podem ser rejeitados. O relay não é um firewall de saída do sistema operacional. O yt-dlp permanece restrito a URL pública YouTube para resolução de metadados; não confundir com captação do site.
 - **Próxima GN-091 [P0]:** revisar e documentar instalação, atualização, início e parada no Windows. GN-083 aguarda material autorizado; GN-066 [P1] segue aberta.
+
+## GN-091 — documentação operacional Windows (2026-11-11)
+
+- `docs/INSTALL_WINDOWS.md` reúne instalação limpa PowerShell/Python 3.11 ou 3.12, comandos de início/parada, verificação local `127.0.0.1:8000/health`, atualização por `git pull --ff-only`, cópia SQLite com servidor parado e troubleshooting. Checklist de aceitação física incluído e explicitamente **não preenchido**.
+- `scripts/windows_check.py` verifica dependências obrigatórias da demo versus ferramentas opcionais FFmpeg/yt-dlp/ASR, localiza executável yt-dlp ao lado do Python da `.venv`, não baixa modelos, não escreve arquivos e só consulta `127.0.0.1:8000` quando solicitado com `--health`; fornece resumo e `--json`.
+- **Evidência local executada:** `python -m pytest -q tests/test_windows_check.py` — **10 passed** no Linux/Python 3.13 (testes simulados de Windows, sem execução física); Python 3.11/3.12 e suíte completa serão verificados na CI. Sem alegar instalação limpa executada no Windows.
+- **Pendências físicas reais:** GN-012 (script Windows inicializar de verdade), GN-085 (FFmpeg/yt-dlp/ASR/navegador no Windows), GN-083 (narração autorizada, métricas reais) e GN-084 (partida inteira). GN-091 cobre somente preparo operacional e checklist.
+- **Próxima tarefa GN-066 [P1]** (painel diagnóstico de fusão + ajuste de atraso); GN-092 [P1] (backup/export/import) depois.
