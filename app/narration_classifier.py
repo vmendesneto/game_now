@@ -101,6 +101,10 @@ def classify_narration(text: str) -> NarrationDecision:
         for phrase in phrases:
             if " " + phrase + " " in padded:
                 return NarrationDecision(label, phrase)
+    # Elongated football calls such as "GOOOOOL" are variable-length;
+    # check after ads/replays to avoid moving the ball for a promotion.
+    if any(re.fullmatch(r"go{3,}l", word) for word in normalized.split()):
+        return NarrationDecision(NarrationLabel.LIVE_PLAY, "elongated_goal")
     return NarrationDecision(NarrationLabel.UNKNOWN, None)
 
 
