@@ -29,6 +29,7 @@ class ASRSettings:
     cpu_threads: int = 2
     beam_size: int = 3
     max_seconds: int = 30
+    initial_prompt: str | None = None
 
     def __post_init__(self) -> None:
         if self.model not in AVAILABLE_MODELS:
@@ -39,6 +40,10 @@ class ASRSettings:
             raise ValueError("beam_size must be between 1 and 10")
         if not 1 <= self.max_seconds <= 120:
             raise ValueError("max_seconds must be between 1 and 120")
+        if self.initial_prompt is not None:
+            if (not self.initial_prompt.strip() or len(self.initial_prompt) > 600
+                    or any(ord(char) < 32 for char in self.initial_prompt)):
+                raise ValueError("initial_prompt must be printable and at most 600 characters")
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,13 +132,14 @@ class CPUTranscriber:
         audio.seek(0)
         duration = len(pcm) / BYTES_PER_SECOND
         try:
-            segments, info = self._load_model().transcribe(
-                audio,
-                language="pt",
-                beam_size=self.settings.beam_size,
-                vad_filter=False,  # GN-036 will evaluate VAD independently.
-                condition_on_previous_text=False,
-            )
+            options = {
+                "language": "pt", "beam_size": self.settings.beam_size,
+                "vad_filter": False,  # GN-036 will evaluate VAD independently.
+                "condition_on_previous_text": False,
+            }
+            if self.settings.initial_prompt:
+                options["initial_prompt"] = self.settings.initial_prompt
+            segments, info = self._load_model().transcribe(audio, **options)
             # faster-whisper returns a generator: iteration performs inference.
             parsed: list[SpeechSegment] = []
             for segment in segments:
@@ -178,11 +184,21 @@ def main() -> None:
     parser.add_argument("--cpu-threads", type=int, default=2)
     parser.add_argument("--beam-size", type=int, default=3)
     parser.add_argument("--max-seconds", type=int, default=30)
+    parser.add_argument("--match-id", help="Use team/player vocabulary from a saved match")
     args = parser.parse_args()
     try:
+        initial_prompt = None
+        if args.match_id:
+            from app.asr_vocabulary import build_vocabulary_prompt
+            from app.storage import SQLiteStore
+            match = SQLiteStore().get_match(args.match_id)
+            if match is None:
+                raise ValueError("Match not found in SQLite; check GAME_NOW_DB_PATH")
+            initial_prompt = build_vocabulary_prompt(match)
         settings = ASRSettings(
             model=args.model, cpu_threads=args.cpu_threads,
             beam_size=args.beam_size, max_seconds=args.max_seconds,
+            initial_prompt=initial_prompt,
         )
         pcm = read_pcm_wav(args.file, max_seconds=settings.max_seconds)
         result = CPUTranscriber(settings).transcribe_pcm(pcm)
