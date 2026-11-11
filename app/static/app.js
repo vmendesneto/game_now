@@ -28,22 +28,21 @@ function drawPitch() {
     add("rect",{x:i?899:36,y:230,width:65,height:160,fill:"none",stroke:"#e4fbe8","stroke-width":3});
   });
 }
-const names={pass:"Passe",cross:"Cruzamento",shot:"Finalização",save:"Defesa",goal:"GOL!",corner:"Escanteio",throw_in:"Lateral",offside:"Impedimento",foul:"Falta",penalty:"Pênalti",goal_kick:"Tiro de meta",possession:"Posse identificada",unknown:"Evento incerto"};
 let previousRenderedEventId=null;
 let previousRenderedZoneKey=null;
 function render(snapshot) {
   const data=snapshot.data,match=data.match,ball=data.ball;
-  $("home-name").textContent=match.home.name;
-  $("away-name").textContent=match.away.name;
-  $("home-score").textContent=match.home_score;
-  $("away-score").textContent=match.away_score;
-  const m=Math.floor(match.match_seconds/60),s=Math.floor(match.match_seconds%60);
-  $("clock").textContent=String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")+" · "+({first_half:"1º tempo",half_time:"Intervalo",second_half:"2º tempo",finished:"Encerrado"}[match.period]||match.period);
-  $("direction").textContent=match.home.name+" ataca "+(match.home.attack_direction==="left_to_right"?"→":"←");
-  const active = data.events.at(-1);
-  const lastSegment=data.segments.at(-1);
-  $("action").textContent=active?names[active.kind]||active.kind:"Aguardando o primeiro lance";
-  $("last-text").textContent=lastSegment?lastSegment.text:"Avance a demonstração para acompanhar a sequência simulada.";
+  const summary=window.GameNowScoreboard.summary(snapshot);
+  $("home-name").textContent=summary.homeName;
+  $("away-name").textContent=summary.awayName;
+  $("home-score").textContent=summary.homeScore;
+  $("away-score").textContent=summary.awayScore;
+  $("clock").textContent=summary.clock;
+  $("direction").textContent=summary.direction;
+  $("action").textContent=summary.currentAction;
+  $("last-confirmed-event").textContent=summary.latestConfirmed;
+  $("last-text").textContent=summary.lastText;
+  const active=data.events.at(-1);
   const view=window.GameNowPresentation.presentBall(
     ball,match,active?.id??null,previousRenderedEventId,previousRenderedZoneKey);
   $("possession").textContent=view.teamName;
