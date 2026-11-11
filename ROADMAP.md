@@ -239,3 +239,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### Fixture local para GN-083 (2026-11-11)
 
 - Escalações das imagens fornecidas: 11 titulares e 12 reservas por clube. Cadastro local por `scripts/seed_cruzeiro_bahia.py`, idempotente, sem alterar GN-083 [ ]. Testes `tests/test_seed_cruzeiro_bahia.py` e guia `docs/GN-083.md`; execução no Windows e ASR real ainda pendentes.
+
+### Diagnóstico de falha Windows GN-083 (2026-11-11)
+
+- Instalação do faster-whisper no Windows/Python 3.12 confirmada; primeira inferência ASR retornou erro genérico e teardown de subprocesso incompleto. `scripts/gn083_asr_check.py`, `app/asr_diagnostics.py`, `--diagnose-asr` em `scripts/gn083_audit.py` e fechamento de pipes em `app/audio_capture.py` adicionados para descobrir causa com autoteste sintético e sem novo teste de captura de 300 s. **GN-083 [ ]** até evidência de ASR real autorizado e métricas com gabarito.

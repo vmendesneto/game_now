@@ -40,6 +40,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ffmpeg", default="ffmpeg", help="FFmpeg executable")
     parser.add_argument("--reference", type=Path, help="Independent human annotations JSON")
     parser.add_argument("--include-text", action="store_true", help="Include private ASR text")
+    parser.add_argument("--diagnose-asr", action="store_true",
+                        help="On failure, show sanitized native ASR error details locally")
     parser.add_argument("--output", type=Path, help="Optional local JSON report")
     args = parser.parse_args(argv)
     try:
@@ -100,6 +102,12 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(content, end="")
     except (ValueError, OSError, json.JSONDecodeError, ASRError, CaptureError, ValidationError) as exc:
+        if isinstance(exc, ASRError) and args.diagnose_asr:
+            from app.asr_diagnostics import asr_failure_details
+            import sys
+            print("GN-083 ASR diagnostic: " + json.dumps(
+                asr_failure_details(exc), ensure_ascii=False,
+            ), file=sys.stderr)
         parser.exit(2, f"GN-083: {exc}\n")
     return 0
 
