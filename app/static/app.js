@@ -846,7 +846,10 @@ async function loadTranscriptDiagnostics(){
   refreshTranscriptFilter();
   $("transcripts-panel").hidden=false;
   // Age PCM heartbeat locally even if an upstream feed falls silent.
-  transcriptStatusTimer=setInterval(renderTranscriptDiagnostics,3000);
+  transcriptStatusTimer=setInterval(()=>{
+    transcriptData=window.GameNowTranscript.prune(transcriptData);
+    renderTranscriptDiagnostics();
+  },3000);
   $("transcript-connection").textContent="Consultando diagnósticos textuais…";
   renderTranscriptDiagnostics();
   try{

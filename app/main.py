@@ -35,6 +35,7 @@ from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
 from app.transcription_feed import TranscriptFeed
+from app.retention_policy import TranscriptRetention
 from app.gn083_live import LiveObservation, LivePreviewRegistry
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -46,7 +47,11 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     store = SQLiteStore(database_path)
     flow = MatchFlowService(store)
     corrections = CorrectionService(store)
-    transcript_feed = TranscriptFeed()
+    retention = TranscriptRetention.from_environment()
+    transcript_feed = TranscriptFeed(
+        max_entries_per_source=retention.max_entries_per_source,
+        retention_seconds=retention.ttl_seconds,
+    )
     live_previews = LivePreviewRegistry()
     application.state.transcript_feed = transcript_feed
     application.state.store = store
