@@ -113,7 +113,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 - [x] **GN-090 [P0]** Servidor local por padrão, relay HTTP(S) efêmero com pinagem de DNS/IP e verificação de redirecionamentos e HLS; FFmpeg recebe só URI local. Evidência: `tests/test_secure_ingest.py` (22 passed em Linux, com FFmpeg), `tests/test_gn090_runtime.py` (validação CI pendente antes do merge).
 - [x] **GN-091 [P0]** Documentadas instalação limpa, início/parada, atualização e diagnóstico local Windows em `docs/INSTALL_WINDOWS.md`; verificador read-only `scripts/windows_check.py` e `tests/test_windows_check.py` (10 passed em Linux simulando condições Windows). Checklist físico pronto para execução; GN-012/GN-085 seguem pendentes.
-- [ ] **GN-092 [P1]** Backup/exportação/importação da partida e logs diagnósticos; evidência: restauração.
+- [ ] **GN-092 [P1]** Backup/exportação/importação da partida e logs diagnósticos; evidência: restauração. Implementação candidata em `scripts/gn092_backup.py` + `docs/BACKUP_RESTORE.md` com backup SQLite consistente, ZIP com manifesto SHA-256, logs opcionais, restore protegido e testes reais em SQLite local; [ ] até CI.
 - [ ] **GN-093 [P1]** Autenticação e HTTPS se abrir acesso pela rede/Internet; evidência: revisão de ameaça antes de exposição.
 - [ ] **GN-094 [P1]** Licenças das dependências, políticas das fontes e retenção configurável das transcrições; evidência: inventário/revisão.
 
