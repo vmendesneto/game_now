@@ -3,7 +3,7 @@
 **Atualizado:** 2026-11-11
 **Branch:** `main`
 **Últimas tarefas concluídas:** GN-091, GN-090, GN-082, GN-081, GN-080, GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Última tarefa concluída:** GN-066 [P1]. **GN-083 [P0] em andamento:** pipeline offline de transcrição PCM/WAV e avaliação com gabarito preparado, sem valores reais de acurácia. **GN-066 [P1] concluída (testes sintéticos):** painel de fusão/calibração manual com rastros legíveis, CI 577 passed/2 skipped Python 3.11 e 3.12 (PR #41, run 43076830181). **Próxima GN-092 [P1]**: backup/exportação/importação com recuperação testada. GN-083 requer áudio permitido e referência; GN-012/GN-085 requerem Windows físico.
+**Última tarefa concluída:** GN-092 [P1]. **GN-083 [P0] em andamento:** pipeline offline de transcrição PCM/WAV e avaliação com gabarito preparado, sem valores reais de acurácia. **GN-092 [P1] concluída:** snapshot SQLite com SHA-256, logs opcionais e restore seguro (PR #42, CI 43078344748: 586 passed/2 skipped Python 3.11/3.12). GN-066 [x] integrada no PR #41. **Próxima GN-035 [P1]**: telemetria de fontes; GN-036 [P1] precisa avaliação de VAD; GN-083/084/085 permanecem sujeitas a provas reais com autorização e gabarito. GN-083 requer áudio permitido e referência; GN-012/GN-085 requerem Windows físico.
 **Compatibilidade GN-031/GN-083:** o diagnóstico YouTube aceita gravações concluídas e amostras de até 600 s. **Prova física informada pelo usuário em 2026-11-11:** `Ls4qkPrh4Tk` capturado no Windows por **300 s / 9.600.000 bytes de PCM / 600 blocos** (`audio_retransmitted=false`). O áudio não foi fornecido a este ambiente e a permissão específica de uso tampouco foi confirmada; portanto ainda não houve reconhecimento de voz real, medição humana ou gabarito. GN-031 e GN-083 permanecem [ ].
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
@@ -310,3 +310,11 @@
 - Testes criados: tests/test_gn066_fusion_diagnostics.py e tests/test_fusion_diagnostics.cjs (alinhamento e conflito, fontes isoladas por partida, validação, imutabilidade, UI).
 - **Validação confirmada:** PR #41, run 43076830181, **577 passed/2 skipped** em Python 3.11 e 3.12; testes Node do modelo visual integrados ao pytest. Ajustes de intervalo e decisões foram simulados; **nenhum offset foi medido em transmissão real**.
 - **GN-066 [x]**. Próxima GN-092 [P1] (backup/exportação/importação), GN-083 [ ] até áudio permitido e gabarito.
+
+
+### GN-092 — exportação e recuperação SQLite (2026-11-11)
+
+- Candidata: scripts/gn092_backup.py exporta banco SQLite consistente via API sqlite3.backup, com ZIP de manifesto e hashes SHA-256. Inclui logs rotativos opcionalmente e **nunca inclui áudio**. Restore verifica schema, integridade, chaves e referências antes de trocar banco de destino; recusa sobrescrita por padrão e WAL/SHM residuais. Guia docs/BACKUP_RESTORE.md e referência em docs/INSTALL_WINDOWS.md.
+- Testes de restauração real de SQLite com fontes, escalação, metadados e integridade; rejeição de arquivos maliciosos, ZIP alterado, logs e sobrescrita. Arquivo: tests/test_gn092_backup.py.
+- **Validação aprovada:** CI PR #42, run 43078344748, **586 passed/2 skipped** Python 3.11 e 3.12, incluindo recuperação real de SQLite, rosters/fontes, SHA-256, logs opcionais e rejeição de ZIP malicioso. GN-092 **[x]**. Não foi feita restauração física no Windows do usuário; GN-085 ainda pendente.
+- **Próxima GN-035 [P1]** (telemetria por fonte), GN-036 [P1] (VAD apenas depois de benchmark), GN-084/085 (ensaios reais); GN-083 [ ] aguarda áudio autorizado e gabarito.

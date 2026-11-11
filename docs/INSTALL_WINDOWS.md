@@ -63,7 +63,7 @@ A resposta contém apenas estatísticas JSON de PCM, não reproduz mídia. Se `y
 
 **Reiniciar:** execute `.\iniciar_windows.bat` na pasta do projeto. Caso a porta 8000 esteja ocupada, confira se há uma instância anterior aberta.
 
-**Atualizar:** pare o servidor, confirme que `git status --short` não revela mudanças locais inesperadas, e copie o SQLite **com o servidor parado**. Depois:
+**Atualizar:** pare o servidor, confirme que `git status --short` não revela mudanças locais inesperadas, e faça backup do SQLite. O utilitário GN-092 documentado em [BACKUP_RESTORE.md](BACKUP_RESTORE.md) exporta uma cópia validada de todas as partidas com SHA-256 e restauração protegida, com logs opcionais. A cópia manual abaixo permanece uma alternativa simples quando o servidor está parado. Depois:
 
 ~~~powershell
 Copy-Item .\data\game_now.sqlite3 "$HOME\Documents\game_now-backup.sqlite3" -ErrorAction SilentlyContinue
