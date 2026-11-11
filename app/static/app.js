@@ -3,6 +3,7 @@
 const ns = "http://www.w3.org/2000/svg";
 const $ = (id) => document.getElementById(id);
 const field = $("field");
+const {fieldCells, zoneCellBounds} = window.GameNowField;
 const add = (tag, attrs, parent = field) => {
   const el = document.createElementNS(ns, tag);
   Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, String(v)));
@@ -14,12 +15,10 @@ function drawPitch() {
   // Field coordinates are drawing-space geometry, NOT a claimed ball coordinate.
   add("rect",{x:0,y:0,width:1000,height:620,fill:"#1a6648"});
   for(let c=0;c<10;c++) add("rect",{x:c*100,y:0,width:100,height:620,fill:c%2?"#ffffff05":"#00000008"});
-  for(let band=0;band<5;band++){
-    for(let lane=0;lane<3;lane++){
-      add("rect",{x:band*200,y:lane*(620/3),width:200,height:620/3,
-        fill:"none",stroke:"#d0f8db24","stroke-width":1,"data-zone":band+"-"+lane});
-    }
-  }
+  fieldCells().forEach(({column,row,x,y,width,height}) => {
+    add("rect",{x,y,width,height,fill:"none",stroke:"#d0f8db24",
+      "stroke-width":1,"data-grid-cell":column+"-"+row});
+  });
   add("rect",{x:36,y:36,width:928,height:548,fill:"none",stroke:"#e4fbe8","stroke-width":3});
   add("line",{x1:500,y1:36,x2:500,y2:584,stroke:"#e4fbe8","stroke-width":3});
   add("circle",{cx:500,cy:310,r:80,fill:"none",stroke:"#e4fbe8","stroke-width":3});
@@ -28,12 +27,6 @@ function drawPitch() {
     add("rect",{x:i?800:36,y:165,width:164,height:290,fill:"none",stroke:"#e4fbe8","stroke-width":3});
     add("rect",{x:i?899:36,y:230,width:65,height:160,fill:"none",stroke:"#e4fbe8","stroke-width":3});
   });
-}
-function zoneToGrid(zone, direction){
-  // Relative to a team's own attack: the left corridor reverses on changing sides.
-  const right = direction === "left_to_right";
-  return {column:right ? zone.band-1 : 5-zone.band,
-          row:zone.lane==="center"?1:zone.lane==="left"?(right?0:2):(right?2:0)};
 }
 const names={pass:"Passe",cross:"Cruzamento",shot:"Finalização",save:"Defesa",goal:"GOL!",corner:"Escanteio",throw_in:"Lateral",offside:"Impedimento",foul:"Falta",penalty:"Pênalti",goal_kick:"Tiro de meta",possession:"Posse identificada",unknown:"Evento incerto"};
 function render(snapshot) {
@@ -57,11 +50,17 @@ function render(snapshot) {
   $("ball-status").textContent=ball.uncertainty==="expired"?"Região expirada":ball.zone?"Região aproximada":"Posição desconhecida";
   drawPitch();
   if(ball.zone && team && ball.uncertainty==="estimated"){
-    const {column,row}=zoneToGrid(ball.zone,team.attack_direction);
-    add("rect",{x:column*200+4,y:row*(620/3)+4,width:192,height:620/3-8,
+    // A zone fills a whole cell; the field never asserts a pixel-level ball position.
+    const cell=zoneCellBounds(ball.zone,team.attack_direction);
+    add("rect",{x:cell.x+4,y:cell.y+4,width:cell.width-8,height:cell.height-8,
       rx:8,fill:"#c2f76d66",stroke:"#deff9e","stroke-width":4});
-    add("text",{x:column*200+100,y:row*(620/3)+620/6,fill:"#f4ffe7",
-      "font-size":24,"font-weight":800,"text-anchor":"middle"},field).textContent="REGIÃO";
+    add("text",{x:cell.x+cell.width/2,y:cell.y+cell.height/2,
+      fill:"#f4ffe7","font-size":24,"font-weight":800,
+      "dominant-baseline":"middle","text-anchor":"middle"},field).textContent="REGIÃO";
+    field.setAttribute("aria-label","Campo de futebol com 15 zonas. Região provável "+
+      ball.zone.band+" / "+ball.zone.lane+" para "+team.name+".");
+  }else{
+    field.setAttribute("aria-label","Campo de futebol com 15 zonas. Posição da bola incerta.");
   }
   $("progress").textContent=snapshot.step+" / "+snapshot.total_steps+" relatos";
   $("next").disabled=snapshot.step>=snapshot.total_steps;

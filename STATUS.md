@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Últimas concluídas:** GN-063 (seleção conservadora da fonte ativa), GN-062 (deduplicação de candidatos), GN-061 (atraso por fonte) e GN-060 (relógio lógico). **Próxima tarefa prioritária: GN-070 — campo SVG responsivo; GN-066 [P1] continua pendente.** GN-063: CI do PR #23 aprovada, 361 passed, 2 skipped em Python 3.11 e 3.12 (run 43047629361). GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
+**Últimas tarefas concluídas:** GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Últimas concluídas:** GN-063 (seleção conservadora da fonte ativa), GN-062 (deduplicação de candidatos), GN-061 (atraso por fonte) e GN-060 (relógio lógico). **Próxima tarefa prioritária: GN-071 — região e incerteza em campo; GN-066 [P1] continua pendente.** GN-063: CI do PR #23 aprovada, 361 passed, 2 skipped em Python 3.11 e 3.12 (run 43047629361). GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -181,3 +181,11 @@
 - `POST /api/matches/{id}/ball/freshness/preview` é apenas prévia; sempre `persisted=false` e `eligible_for_state_update=false`. Não inicia relógio contínuo, não liga captura, não escreve SQLite, não altera bola real, e ainda não atualiza visualização do site — integração de UI nas GN-070/071.
 - `tests/test_ball_freshness.py` valida bordas exatas 5 s/15 s, silêncio, troca de fonte, ausência de lance, ressurgimento com evidência nova, rejeição de futuro e API sem mutação. **CI PR #25: 397 passed, 2 skipped em Python 3.11 e 3.12**: https://github.com/vmendesneto/game_now/actions/runs/43049429978.
 - **Próxima prioritária GN-070** (campo SVG responsivo), seguida GN-071 (render de incerteza). GN-066 [P1] permanece aberto; GN-090 continua bloqueando integração de fontes reais pelo site.
+
+## GN-070 — campo SVG responsivo e inversão de lados (2026-11-11)
+
+- O frontend já tinha um SVG e grade rudimentar; GN-070 reutilizou essa base sem reescrever o site. `app/static/field_geometry.js` agora define `fieldCells`, `zoneToGrid` e `zoneCellBounds` testáveis isoladamente para as 15 zonas físicas (5 faixas × 3 corredores). A mesma zona relativa ao ataque percorre colunas/linhas invertidas quando as direções mudam no 2º tempo (o backend de GN-024 já inverte as equipes).
+- `app/static/app.js` usa os cálculos centrais para destacar somente um retângulo de região, nunca ponto exato da bola. SVG com `viewBox` e descrição `aria-label` para região conhecida/incerta; `index.html` carrega módulo antes da UI; `styles.css` preserva a proporção 1000×620 e evita transbordo em telas pequenas.
+- `tests/test_field_geometry.cjs` verifica 15 zonas sem sobreposição, todos os 15 mapeamentos únicos para ambas as direções, inversão de eixos, escalonamento 1000 px/320 px e inputs inválidos. `tests/test_field_ui.py` integra esses testes no pytest usando Node disponível na CI e verifica layout/ordem de scripts. Testes não substituem validação visual real em navegador móvel.
+- A primeira CI identificou teste de comparação de ponto flutuante excessivamente estrita, corrigido com tolerância; **CI final PR #26: 400 passed, 2 skipped em Python 3.11 e 3.12**, mais 6 testes Node passando: https://github.com/vmendesneto/game_now/actions/runs/43050305053.
+- **Próxima GN-071**: integração/animação da posição estimada e indicação visual de incerteza, com roteiro demonstrável. GN-066 P1 permanece pendente; o SVG ainda lê a demo separada e não captação real (GN-090).
