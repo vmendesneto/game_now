@@ -84,7 +84,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-060 [P0]** Implementar relógio lógico da partida, independente do instante em que chega o texto; evidência: teste de atrasos.
 - [x] **GN-061 [P0]** Calcular atraso relativo por fonte usando eventos comuns e janela de observação; evidência: simulação com delays.
 - [x] **GN-062 [P0]** Deduplicar o mesmo lance narrado por várias fontes; evidência: dois relatos geram um evento.
-- [ ] **GN-063 [P0]** Selecionar fonte ativa considerando comercial, atualidade, confiança e saúde da conexão; evidência: transição entre fontes.
+- [x] **GN-063 [P0]** Selecionar fonte ativa considerando comercial, atualidade, confiança e saúde da conexão; evidência: transição entre fontes.
 - [ ] **GN-064 [P0]** Tratar contradições sem “voltar no tempo” nem inventar coordenadas; evidência: teste de fontes conflitantes.
 - [ ] **GN-065 [P0]** Expirar posição antiga/mostrar “posição incerta” quando faltar narração válida; evidência: teste de silêncio.
 - [ ] **GN-066 [P1]** Painel de diagnóstico das decisões da fusão e calibração manual do atraso; evidência: logs legíveis.
@@ -157,3 +157,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - **GN-061 [x]:** PR #21 (`a1a3d1f`), atraso relativo entre fontes com eventos comuns fornecidos pelo chamador, simulações e limites; CI 326 passed / 2 skipped em 3.11/3.12 (run 43043216756).
 - **GN-062 [x]:** PR #22 (`b4898d7`), agrupamento de dois relatos em um evento diagnóstico sem persistência; CI 341 passed / 2 skipped em 3.11/3.12 (run 43043274805).
 - **CI pós-merge na main:** https://github.com/vmendesneto/game_now/actions/runs/43045479371 — **341 passed, 2 skipped em Python 3.11 e 3.12**. Nenhuma dessas simulações comprova captação/alinhamento real de streams ou Windows. **Próxima: GN-063 [ ].**
+
+### GN-063 integrada (2026-11-11)
+
+- **GN-063 [x]:** PR #23, `app/source_selection.py` + endpoint de prévia e testes de failover de fonte, comerciais, atualidade, saúde, força heurística e histerese. CI 361 passed / 2 skipped Python 3.11 e 3.12: https://github.com/vmendesneto/game_now/actions/runs/43047629361. Seleção diagnóstica `persisted=false` e sem alterar estado da partida; sem captação real. **Próxima GN-064 [ ].**
