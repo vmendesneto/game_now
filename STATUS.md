@@ -1,5 +1,13 @@
 # STATUS — Game Now
 
+## GN-035 — telemetria diagnóstica por fonte (2026-11-11)
+
+- Implementação: `app/source_telemetry.py` acompanha somente metadados de PCM recebido e interpretação textual por fonte, com timeout e retenção limitada às fontes do feed. `AsyncSourceTranscriber.push` envia somente contagem de bytes, sem mídia; `TranscriptFeed` acrescenta metadados a HTTP e WebSocket. Painel GN-075 passa a apresentar disponibilidade observada de PCM, silêncio/ausência recente, comercial/narração prováveis e atraso captura→processamento.
+- Distinções importantes: `online` prova apenas PCM chegando ao transcritor, **não disponibilidade de rádio remota**; comercial e narração vêm de classificação heurística de transcrição; atraso é local captura→texto, não atraso entre rádios. Nenhuma transcrição ou observação move a bola. Quando a captura não está conectada ao feed, exibir `não observado`.
+- Testes: módulo puro validado localmente em Python 3.13 com **2 passed**; integração em `tests/test_gn035_telemetry.py` e painel Node em `tests/test_gn035_telemetry.cjs` aguardam CI Python 3.11/3.12 do PR. Não houve teste físico Windows nem fonte externa.
+- GN-083 permanece **[ ]**, aguardando teste real e gabarito. Próximo trabalho independente: GN-016 (encerramento/recuperação) ou GN-094 (políticas/retenção); GN-036 exige benchmark de VAD.
+
+
 **Atualizado:** 2026-11-11
 **Branch:** `main`
 **Últimas tarefas concluídas:** GN-091, GN-090, GN-082, GN-081, GN-080, GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.

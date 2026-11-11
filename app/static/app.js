@@ -231,7 +231,8 @@ let configuredMatches = [];
 let chosenMatch = null;
 let currentRoster = [];
 let registeredSources = [];
-let transcriptSocket=null,transcriptTimer=null,transcriptEpoch=0,transcriptAttempts=0;
+let transcriptSocket=null,transcriptTimer=null,transcriptStatusTimer=null,
+  transcriptEpoch=0,transcriptAttempts=0;
 let transcriptData=window.GameNowTranscript.empty();
 let persistedTranscriptEvents=[];
 let editingPlayerId = null;
@@ -754,6 +755,7 @@ $("source-form").addEventListener("submit",async event=>{
 function stopTranscriptDiagnostics(){
   transcriptEpoch+=1;
   if(transcriptTimer!==null){clearTimeout(transcriptTimer);transcriptTimer=null;}
+  if(transcriptStatusTimer!==null){clearInterval(transcriptStatusTimer);transcriptStatusTimer=null;}
   const socket=transcriptSocket;transcriptSocket=null;
   if(socket)socket.close();
   transcriptData=window.GameNowTranscript.empty();
@@ -843,6 +845,8 @@ async function loadTranscriptDiagnostics(){
   const epoch=transcriptEpoch,matchId=chosenMatch.id;
   refreshTranscriptFilter();
   $("transcripts-panel").hidden=false;
+  // Age PCM heartbeat locally even if an upstream feed falls silent.
+  transcriptStatusTimer=setInterval(renderTranscriptDiagnostics,3000);
   $("transcript-connection").textContent="Consultando diagnósticos textuais…";
   renderTranscriptDiagnostics();
   try{

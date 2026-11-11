@@ -53,7 +53,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-032 [P0]** Cadastrar, editar, ativar e desativar múltiplas fontes independentes; evidência: API/UI.
 - [x] **GN-033 [P0]** Detectar desconexão e reconectar com backoff, incluindo URLs de YouTube que expiram; evidência: simular perda e retomada.
 - [x] **GN-034 [P0]** Buffer de áudio por fonte com timestamps e limites de memória; evidência: teste de longas sessões.
-- [ ] **GN-035 [P1]** Telemetria por fonte: online, sem áudio, comercial, narrando, atraso estimado; evidência: painel atualizado.
+- [x] **GN-035 [P1]** Telemetria por fonte no feed HTTP/WebSocket e painel: PCM recebido/ausente/encerrado, classificação provável comercial/narração e atraso captura→texto (não atraso entre rádios), com expiração, isolamento e testes determinísticos. Não ativa captura pelo site; CI PR obrigatória.
 - [ ] **GN-036 [P1]** VAD/silêncio com Silero ou alternativa: medir benefício sem confundir propaganda com silêncio; evidência: benchmark.
 - [x] **GN-037 [P1]** Política de URLs, ausência de transmissão embutida no site e limpeza de arquivos temporários; evidência: testes e inspeção.
 

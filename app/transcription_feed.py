@@ -16,6 +16,7 @@ from uuid import uuid4
 
 from app.asr_windows import WindowTranscript
 from app.narration_classifier import classify_narration
+from app.source_telemetry import SourceTelemetry
 
 _ALLOWED_STATES = frozenset({"idle", "buffering", "processing", "ready", "error", "stopped"})
 
@@ -64,6 +65,7 @@ class TranscriptFeed:
         self._lock = RLock()
         self._records: dict[tuple[str, str], deque[FeedEntry]] = {}
         self._states: dict[tuple[str, str], dict[str, object]] = {}
+        self._telemetry = SourceTelemetry()
         self._subscribers: dict[str, dict[str, tuple[asyncio.AbstractEventLoop, asyncio.Queue]]] = {}
 
     def _register(self, match_id: str, source_id: str) -> tuple[str, str]:
@@ -114,12 +116,28 @@ class TranscriptFeed:
         with self._lock:
             key = self._register(match_id, source_id)
             info = self._states[key]
+            if state == "stopped":
+                self._telemetry.stop(match_id, source_id)
             info.update(
                 state=state, last_error=error_code,
                 updated_at=datetime.now(timezone.utc).isoformat(),
             )
-            payload = {"kind": "status", "data": dict(info)}
+            payload = {"kind": "status", "data": {
+                **info, "telemetry": self._telemetry.snapshot(match_id, source_id),
+            }}
         self._notify(match_id, payload)
+
+    def observe_pcm(self, match_id: str, source_id: str, byte_count: int) -> None:
+        """Only byte counts enter telemetry; no PCM bytes or URLs are retained."""
+        with self._lock:
+            key = self._register(match_id, source_id)
+            changed = self._telemetry.observe_pcm(match_id, source_id, byte_count)
+            info = self._states[key]
+            payload = {"kind": "status", "data": {
+                **info, "telemetry": self._telemetry.snapshot(match_id, source_id),
+            }}
+        if changed:
+            self._notify(match_id, payload)
 
     def publish(
         self, match_id: str, source_id: str,
@@ -158,11 +176,17 @@ class TranscriptFeed:
             if previous and entry.sequence <= previous[-1].sequence:
                 raise ValueError("Transcript window sequence cannot move backwards")
             previous.append(entry)
+            self._telemetry.observe_text(
+                match_id, source_id, entry.narration_kind,
+                captured_at=captured_at, processed_at=entry.processed_at,
+            )
             self._states[key].update(
                 state="ready", last_error=None, last_sequence=entry.sequence,
                 updated_at=entry.processed_at.isoformat(),
             )
-        self._notify(match_id, {"kind": "transcript", "data": entry.as_dict()})
+            payload = {**entry.as_dict(),
+                       "telemetry": self._telemetry.snapshot(match_id, source_id)}
+        self._notify(match_id, {"kind": "transcript", "data": payload})
         return entry
 
     def snapshot(
@@ -178,7 +202,10 @@ class TranscriptFeed:
                 and (source_id is None or key[1] == source_id)
                 and (allowed_sources is None or key[1] in allowed_sources)
             ]
-            statuses = [dict(self._states[key]) for key in sorted(keys)]
+            statuses = [
+                {**self._states[key], "telemetry": self._telemetry.snapshot(*key)}
+                for key in sorted(keys)
+            ]
             records = sorted(
                 (record for key in keys for record in self._records[key]),
                 key=lambda item: (item.processed_at, item.source_id, item.sequence),
@@ -206,6 +233,7 @@ class TranscriptFeed:
 
     def clear_match(self, match_id: str) -> None:
         with self._lock:
+            self._telemetry.clear_match(match_id)
             for key in list(self._states):
                 if key[0] == match_id:
                     self._states.pop(key, None)
