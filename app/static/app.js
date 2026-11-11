@@ -112,7 +112,17 @@ demoSync.start();
 let configuredMatches = [];
 let chosenMatch = null;
 let currentRoster = [];
+let registeredSources = [];
 let editingPlayerId = null;
+function updateSetupProgress(){
+  const result=window.GameNowSetup.describe(chosenMatch,currentRoster,registeredSources);
+  $("setup-progress").textContent=result.completed+" de 3 etapas cadastradas.";
+  for(let i=0;i<3;i++){
+    const el=$(["setup-match","setup-roster","setup-sources"][i]);
+    el.textContent=result.steps[i].text;
+    el.dataset.complete=String(result.steps[i].complete);
+  }
+}
 const configValue = id => $(id).value;
 const makeId = prefix => prefix+"-"+crypto.randomUUID();
 function formNotice(element, message, error=false) {
@@ -131,7 +141,7 @@ async function configApi(path, method="GET", body) {
   return response.status===204?null:response.json();
 }
 function blankMatch() {
-  chosenMatch=null;currentRoster=[];editingPlayerId=null;
+  chosenMatch=null;currentRoster=[];registeredSources=[];editingPlayerId=null;
   $("match-form").reset();
   $("home-input").value="Azul";$("away-input").value="Vermelho";
   $("home-short").value="AZU";$("away-short").value="VER";
@@ -147,6 +157,7 @@ function blankMatch() {
   currentFlow=null;
   formNotice("resolve-message","");
   formNotice("match-message","Nova partida: informe os dois clubes e salve.");
+  updateSetupProgress();
 }
 function showMatch(match) {
   chosenMatch=match;
@@ -191,6 +202,7 @@ async function chooseMatch(id) {
   await loadMatchFlow();
   await loadMatchCorrections();
   await loadSavedSources();
+  updateSetupProgress();
   formNotice("match-message","Partida carregada do SQLite.");
 }
 async function refreshMatches(wanted=null) {
@@ -288,6 +300,7 @@ async function persistRoster(roster) {
   const saved=await configApi("/api/matches/"+encodeURIComponent(chosenMatch.id)+"/players","PUT",roster);
   currentRoster=saved;
   resetPlayerForm();showRoster();
+  updateSetupProgress();
   await loadMatchFlow();
   await loadMatchCorrections();
 }
@@ -315,6 +328,7 @@ async function removePlayer(id) {
   }catch(error){formNotice("player-message","Não foi possível excluir: "+error.message,true);}
 }
 $("player-cancel").addEventListener("click",resetPlayerForm);
+updateSetupProgress();
 refreshMatches().catch(error=>formNotice("match-message","Não foi possível abrir cadastro: "+error.message,true));
 
 $("resolve-form").addEventListener("submit",async event=>{
@@ -512,7 +526,6 @@ $("correction-form").addEventListener("submit",async event=>{
 });
 
 /* GN-032: metadata only; no playback, captured streams or embedded media. */
-let registeredSources = [];
 let editingSourceId = null;
 function resetSourceForm(){
   editingSourceId=null;
@@ -566,6 +579,7 @@ async function loadSavedSources(){
   $("sources-panel").hidden=false;
   resetSourceForm();
   showSavedSources();
+  updateSetupProgress();
 }
 async function persistSavedSources(next){
   if(!chosenMatch)throw new Error("Selecione uma partida.");
@@ -573,6 +587,7 @@ async function persistSavedSources(next){
     "/api/matches/"+encodeURIComponent(chosenMatch.id)+"/sources","PUT",next);
   resetSourceForm();
   showSavedSources();
+  updateSetupProgress();
 }
 function editSavedSource(source){
   editingSourceId=source.id;

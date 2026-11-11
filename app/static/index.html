@@ -41,6 +41,16 @@
         <h2 id="configuration-title">Partidas e elencos</h2>
         <p>Cadastre a partida e os atletas no SQLite local. O campo acima continua sendo uma <strong>demo sintética separada</strong>; suas narrações não alteram os jogos cadastrados.</p>
       </div></div>
+      <div class="panel setup-panel" id="setup-panel" aria-labelledby="setup-title">
+        <div class="panel-title" id="setup-title">CONFIGURAÇÃO EM 3 ETAPAS</div>
+        <p id="setup-progress" role="status" aria-live="polite">0 de 3 etapas cadastradas.</p>
+        <ol class="setup-list">
+          <li id="setup-match" data-complete="false">1. Salve a partida.</li>
+          <li id="setup-roster" data-complete="false">2. Cadastre os elencos.</li>
+          <li id="setup-sources" data-complete="false">3. Cadastre rádio ou YouTube.</li>
+        </ol>
+        <p class="muted">O cadastro fica no SQLite e não inicia a captura de áudio. O campo acima permanece uma demonstração independente.</p>
+      </div>
       <div class="config-grid">
         <form id="match-form" class="panel config-form">
           <div class="panel-title">CADASTRO / EDIÇÃO DA PARTIDA</div>
@@ -171,7 +181,7 @@
       </div>
       <div class="panel config-form" id="sources-panel" hidden>
         <div class="panel-title">GN-032 · FONTES DE NARRAÇÃO</div>
-        <p class="muted">Cadastre rádios HTTP(S) e links públicos de YouTube. As fontes ficam salvas no SQLite, mas a captura de áudio ainda não está implementada.</p>
+        <p class="muted">Cadastre rádios HTTP(S) e links públicos de YouTube. As fontes ficam salvas no SQLite; a captura não é iniciada pelo site nesta etapa.</p>
         <form id="source-form">
           <div class="form-pair">
             <label>Nome da fonte<input id="source-name" maxlength="120" required></label>
@@ -197,6 +207,7 @@
   <script src="/static/pitch_presentation.js" defer></script>
   <script src="/static/demo_scoreboard.js" defer></script>
   <script src="/static/demo_sync.js" defer></script>
+  <script src="/static/setup_progress.js" defer></script>
   <script src="/static/app.js" defer></script>
 </body>
 </html>
