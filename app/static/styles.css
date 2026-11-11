@@ -11,3 +11,8 @@
 #field{width:100%;height:100%;max-width:100%;display:block}
 .club{overflow-wrap:anywhere}
 @media(max-width:600px){.scoreboard{gap:6px}.score{font-size:clamp(21px,7vw,28px)}.meta{gap:10px;flex-wrap:wrap}.club{font-size:clamp(11px,3.5vw,13px)}}
+
+/* GN-071: a short fade inside one confirmed zone, never ball movement across cells. */
+.region-change{animation:region-evidence 320ms ease-out 1}
+@keyframes region-evidence{from{opacity:.45;stroke-width:2}to{opacity:1;stroke-width:4}}
+@media(prefers-reduced-motion:reduce){.region-change{animation:none}}

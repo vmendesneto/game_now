@@ -92,7 +92,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ## F07 — Site e campo
 
 - [x] **GN-070 [P0]** Desenhar campo responsivo via SVG, com 15 zonas, sentido do ataque e troca de lados; evidência: desktop/móvel.
-- [ ] **GN-071 [P0]** Exibir posição/região estimada, indicador de incerteza e animação limitada ao que foi narrado; evidência: roteiro demonstrável.
+- [x] **GN-071 [P0]** Exibir posição/região estimada, indicador de incerteza e animação limitada ao que foi narrado; evidência: roteiro demonstrável.
 - [ ] **GN-072 [P0]** Exibir posse, placar, relógio, jogador provável e evento atual; evidência: UI em demo.
 - [ ] **GN-073 [P0]** Atualizar site por WebSocket sem transmitir mídia; evidência: dois navegadores sincronizados.
 - [ ] **GN-074 [P0]** Tela de configuração para partida, elencos e fontes (rádio/YouTube); evidência: fluxo sem editar código.
@@ -173,3 +173,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### GN-070 integrada (2026-11-11)
 
 - **GN-070 [x]:** PR #26, campo SVG responsivo de 15 zonas com geometria isolada e testada em Node, inversão conforme o sentido de ataque, rótulos acessíveis e layout móvel. CI https://github.com/vmendesneto/game_now/actions/runs/43050305053 (**400 passed, 2 skipped** em Python 3.11/3.12 + 6 testes Node); houve uma falha inicial de arredondamento numérico corrigida. Não houve inspeção visual em navegador físico. **Próxima GN-071 [ ].**
+
+### GN-071 integrada (2026-11-11)
+
+- **GN-071 [x]:** PR #27, destaque da região estimada, ocultação de posição/atleta/equipe quando incerta ou expirada, rótulos acessíveis e transição visual curta somente após evento novo com mudança explícita de região. `app/static/pitch_presentation.js`, testes Node/Python e ajuste do teste GN-070. CI https://github.com/vmendesneto/game_now/actions/runs/43051118268 (**402 passed, 2 skipped** Python 3.11/3.12). Visual somente sobre demo sintética; sem navegador móvel físico. **Próxima GN-072 [ ].**

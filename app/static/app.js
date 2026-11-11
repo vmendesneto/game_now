@@ -29,6 +29,8 @@ function drawPitch() {
   });
 }
 const names={pass:"Passe",cross:"Cruzamento",shot:"Finalização",save:"Defesa",goal:"GOL!",corner:"Escanteio",throw_in:"Lateral",offside:"Impedimento",foul:"Falta",penalty:"Pênalti",goal_kick:"Tiro de meta",possession:"Posse identificada",unknown:"Evento incerto"};
+let previousRenderedEventId=null;
+let previousRenderedZoneKey=null;
 function render(snapshot) {
   const data=snapshot.data,match=data.match,ball=data.ball;
   $("home-name").textContent=match.home.name;
@@ -42,26 +44,26 @@ function render(snapshot) {
   const lastSegment=data.segments.at(-1);
   $("action").textContent=active?names[active.kind]||active.kind:"Aguardando o primeiro lance";
   $("last-text").textContent=lastSegment?lastSegment.text:"Avance a demonstração para acompanhar a sequência simulada.";
-  const team=[match.home,match.away].find(t=>t.id===ball.team_id);
-  const player=match.players.find(p=>p.id===ball.player_id);
-  $("possession").textContent=team?team.name:"Desconhecida";
-  $("player").textContent=player?player.name:"Desconhecido";
-  $("confidence").textContent=ball.zone?Math.round(ball.confidences.zone*100)+"% (estimativa)":"Sem evidência";
-  $("ball-status").textContent=ball.uncertainty==="expired"?"Região expirada":ball.zone?"Região aproximada":"Posição desconhecida";
+  const view=window.GameNowPresentation.presentBall(
+    ball,match,active?.id??null,previousRenderedEventId,previousRenderedZoneKey);
+  $("possession").textContent=view.teamName;
+  $("player").textContent=view.playerName;
+  $("confidence").textContent=view.strength;
+  $("ball-status").textContent=view.status;
   drawPitch();
-  if(ball.zone && team && ball.uncertainty==="estimated"){
-    // A zone fills a whole cell; the field never asserts a pixel-level ball position.
-    const cell=zoneCellBounds(ball.zone,team.attack_direction);
+  if(view.visible){
+    // Only an explicitly narrated *region* is highlighted, never an exact ball coordinate.
+    const cell=zoneCellBounds(view.zone,view.direction);
     add("rect",{x:cell.x+4,y:cell.y+4,width:cell.width-8,height:cell.height-8,
-      rx:8,fill:"#c2f76d66",stroke:"#deff9e","stroke-width":4});
+      rx:8,fill:"#c2f76d66",stroke:"#deff9e","stroke-width":4,
+      "class":view.animate?"region-highlight region-change":"region-highlight"});
     add("text",{x:cell.x+cell.width/2,y:cell.y+cell.height/2,
       fill:"#f4ffe7","font-size":24,"font-weight":800,
       "dominant-baseline":"middle","text-anchor":"middle"},field).textContent="REGIÃO";
-    field.setAttribute("aria-label","Campo de futebol com 15 zonas. Região provável "+
-      ball.zone.band+" / "+ball.zone.lane+" para "+team.name+".");
-  }else{
-    field.setAttribute("aria-label","Campo de futebol com 15 zonas. Posição da bola incerta.");
   }
+  field.setAttribute("aria-label",view.ariaLabel);
+  previousRenderedEventId=active?.id??null;
+  previousRenderedZoneKey=view.zoneKey;
   $("progress").textContent=snapshot.step+" / "+snapshot.total_steps+" relatos";
   $("next").disabled=snapshot.step>=snapshot.total_steps;
   const feed=$("feed");
