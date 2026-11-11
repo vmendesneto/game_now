@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSoc
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.asr import asr_diagnostics
 from app.configuration import MatchConfig, RosterPlayer
 from app.corrections import CorrectionService, ManualCorrection
 from app.contracts import AudioSource, ContractBundle, Match
@@ -74,7 +75,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
             "status": "ok", "mode": "synthetic_demo",
             "ffmpeg": {"available": shutil.which("ffmpeg") is not None,
                        "path": shutil.which("ffmpeg")},
-            "asr": "not_installed_or_configured",
+            "asr": asr_diagnostics(),
             "storage": "sqlite_persistent",
             "demo_state": "volatile_memory_only",
             "sources": "synthetic_only",
