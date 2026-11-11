@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
+from dataclasses import replace
 import struct
 import time
 from threading import Event, Thread
@@ -15,7 +16,17 @@ from app.asr_windows import RollingASRProcessor, WindowSettings, WindowTranscrip
 from app.main import create_app
 from app.transcription_feed import TranscriptFeed
 from app.transcription_runtime import AsyncSourceTranscriber
-from tests.test_configuration import config
+
+def config(match_id="match-001"):
+    return {
+        "id": match_id,
+        "home": {"id": "club-a", "name": "Azul", "short_name": "AZU",
+                 "color": "#1122FF", "attack_direction": "left_to_right"},
+        "away": {"id": "club-b", "name": "Vermelho", "short_name": "VER",
+                 "color": "#FF2211", "attack_direction": "right_to_left"},
+        "period": "first_half", "match_seconds": 0,
+        "home_score": 0, "away_score": 0,
+    }
 
 
 def window(source: str, sequence: int, text: str) -> WindowTranscript:
@@ -63,10 +74,7 @@ def test_feed_rejects_untrusted_codes_ids_and_backwards_sequences():
     feed.publish("match", "radio", window("radio", 1, "ok"), captured_at=now)
     with pytest.raises(ValueError, match="backwards"):
         feed.publish("match", "radio", window("radio", 1, "same"), captured_at=now)
-    assert feed.publish("match", "radio", window("radio", 2, "  ").__class__(
-        source_id="radio", sequence=2, start_seconds=8, end_seconds=14,
-        language="pt", raw_text="repeat", new_text=""
-    ), captured_at=now) is None
+    assert feed.publish("match", "radio", replace(window("radio", 2, "repeat"), new_text=""), captured_at=now) is None
 
 
 def test_http_feed_and_two_websocket_clients_receive_same_text(tmp_path):
@@ -77,6 +85,9 @@ def test_http_feed_and_two_websocket_clients_receive_same_text(tmp_path):
         assert client.get("/api/matches/missing/transcripts").status_code == 404
         feed = client.app.state.transcript_feed
         now = datetime.now(timezone.utc)
+        source = {"id": "radio-01", "name": "Rádio", "kind": "radio",
+                  "url": None, "enabled": True, "status": "offline"}
+        assert client.put("/api/matches/match-001/sources", json=[source]).status_code == 200
         with client.websocket_connect("/ws/matches/match-001/transcripts") as left:
             with client.websocket_connect("/ws/matches/match-001/transcripts") as right:
                 assert left.receive_json()["kind"] == "snapshot"
@@ -87,12 +98,10 @@ def test_http_feed_and_two_websocket_clients_receive_same_text(tmp_path):
                 assert from_left == from_right
                 assert from_left["kind"] == "transcript"
                 assert from_left["data"]["text"] == "Bola na área"
-        # A source not configured in the match cannot be exposed by HTTP.
-        assert client.get(url).json()["entries"] == []
-        source = {"id": "radio-01", "name": "Rádio", "kind": "radio",
-                  "url": None, "enabled": True, "status": "offline"}
-        assert client.put("/api/matches/match-001/sources", json=[source]).status_code == 200
         assert client.get(url).json()["entries"][0]["text"] == "Bola na área"
+        # Internal entries for unregistered sources are never exposed via HTTP.
+        feed.publish("match-001", "unknown", window("unknown", 0, "não autorizado"), captured_at=now)
+        assert [entry["source_id"] for entry in client.get(url).json()["entries"]] == ["radio-01"]
         assert client.get(url + "?source_id=missing").status_code == 404
         assert client.get(url + "?limit=1000").status_code == 422
 
