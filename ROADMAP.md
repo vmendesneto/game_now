@@ -252,3 +252,17 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### GN-083 — isolamento CPU/ingestão e diagnóstico 403 (2026-11-11)
 
 - O usuário concluiu ASR físico de 6s em Cruzeiro x Bahia com `tiny`, mas `base`/300s encontrou `upstream_http_403` de mídia. `--capture-first` opcional coleta até 600s PCM (19,2MB) só na RAM antes de transcrever, para evitar pausas do stream por inferência CPU; erro 403 permanece definitivo, com registro do PCM recebido. Testes determinísticos cobrem modo e recusa sem retry, guia `docs/GN-083.md`. **GN-083 [ ]** ainda sem 300s real ou gabarito de qualidade.
+
+
+### GN-083 — subescopo automático, sem validação física (2026-11-11)
+
+- Implementação textual e testes sintéticos: fases pre_game, probable_start,
+  in_play, half_time, second_half; proteção de comentários, anúncios,
+  históricos, futuro e replay; monitor contínuo PCM/ASR, API de prévia
+  efêmera e campinho de partida selecionada. Arquivos e comandos em
+  docs/GN-083.md, tests/test_gn083_match_start.py e tests/test_gn083_live.py.
+- **GN-083 [ ]** ainda depende de teste Windows com áudio de uso permitido,
+  apito/intervalo anotados e métricas reais com gabarito independente.
+  A prévia não atualiza estado persistido e não representa rastreamento real.
+- **--seconds** é opcional no monitor, somente para teste curto; sem ele
+  acompanha o pré-jogo por tempo indeterminado até o fluxo terminar.

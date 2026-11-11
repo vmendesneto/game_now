@@ -328,3 +328,26 @@
 - Novo app/gn083_stream.py e opção --youtube-url em scripts/gn083_audit.py: GN-031/GN-090 transmite PCM somente em memória, GN-041 processa janelas, inferência ASR em thread, e classificadores textuais geram relatório; usa --yt-dlp, --seconds e --permission-confirmed para fonte pública autorizada. Nenhuma revalidação de captura realizada, nenhuma mídia gravada ou exposta.
 - Testes unitários tests/test_gn083_stream.py usam capturador e ASR **falsos** para checar limite de duração, fechamento do stream, recusa de URL privada, formato PCM, exigência de permissão e relatório sem áudio/URL.
 - **Validação inicial pendente de CI** nesta alteração; ainda não foi executado ASR real do vídeo de referência por falta de permissão específica/gabarito, e GN-083 [ ] permanece pendente.
+
+
+## GN-083 — subescopo de detector contínuo (2026-11-11)
+
+- **Implementação entregue para testes/CI:** app/match_start_detection.py,
+  app/gn083_live.py e scripts/gn083_live.py: fases inferidas por evidências
+  independentes, sem início manual, bloqueio de falso início, áudio contínuo
+  com PCM limitado e ASR em worker. Campinho alterna para prévia efêmera via
+  app/main.py e app/static/app.js quando o monitor da partida está ativo.
+- API de ingestão textual restrita ao loopback; nenhuma mídia, evento,
+  placar, cronômetro ou posição é persistido. Posição só aparece com texto
+  explícito e após confirmação da fase, expirando em 8 segundos. A força
+  da regra não é confiança calibrada; atraso real ainda não foi verificado.
+- Regressões sintéticas adicionadas: tests/test_gn083_match_start.py e
+  tests/test_gn083_live.py. Conferir CI Python 3.11 e 3.12 no PR antes de
+  alegar resultados aprovados.
+- **GN-083 [ ]**: falta validar início/intervalo/retomada com narração
+  real autorizada e um gabarito anotado, além de métricas de 5–10 minutos.
+  Evidência anterior de 300 s / 9.600.000 bytes PCM demonstra apenas
+  decodificação. relatorio083.json não está versionado.
+- **Como continuar:** docs/GN-083.md contém comandos do monitor para Windows;
+  observar falsos disparos, relógio, estabilidade, atraso e métricas reais
+  sem repetir a prova já realizada de decodificação de PCM. GN-084/085 depois.

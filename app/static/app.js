@@ -32,8 +32,101 @@ let previousRenderedEventId=null;
 let previousRenderedZoneKey=null;
 let lastDemoSnapshot=null;
 let demoPlayback=null;
+let activeLivePreview=null,livePollTimer=null,livePollEpoch=0;
+const livePhaseNames={
+  pre_game:"Pré-jogo",probable_start:"Início provável (aguardando confirmação)",
+  in_play:"Jogo em andamento",half_time:"Intervalo",second_half:"Segundo tempo"
+};
+const liveConfidenceNames={none:"sem evidência",low:"baixa",medium:"moderada",high:"alta"};
+function paintLivePreview(live){
+  if(!chosenMatch)return;
+  const game=chosenMatch;
+  const phase=live.active?live.phase:"sem atualizações recentes";
+  $("live-monitor-state").hidden=false;
+  $("live-monitor-state").textContent="GN-083 · "+(livePhaseNames[phase]||phase)+
+    " · confiança heurística "+(liveConfidenceNames[live.confidence]||"não medida");
+  $("home-name").textContent=game.home.name;
+  $("away-name").textContent=game.away.name;
+  $("home-score").textContent=game.home_score;
+  $("away-score").textContent=game.away_score;
+  $("clock").textContent="Relógio real não confirmado";
+  $("direction").textContent="Prévia textual · placar cadastrado";
+  $("action").textContent=livePhaseNames[phase]||phase;
+  $("last-confirmed-event").textContent=
+    "Narração analisada; nenhum evento/placar confirmado automaticamente.";
+  $("last-text").textContent=live.ball?
+    "Região estimada exclusivamente por posse e zona explícitas na narração.":
+    "Aguardando evidências suficientes de início e de posse + região.";
+  $("possession").textContent="Desconhecida";
+  $("player").textContent="Desconhecido";
+  $("confidence").textContent="Sem região";
+  drawPitch();
+  const ball=live.active&&live.ball_updates_allowed?live.ball:null;
+  if(ball&&ball.zone){
+    const team=[game.home,game.away].find(t=>t.id===ball.team_id);
+    if(team){
+      let direction=team.attack_direction;
+      if(live.phase==="second_half")direction=direction==="left_to_right"?
+        "right_to_left":"left_to_right";
+      const cell=zoneCellBounds(ball.zone,direction);
+      add("rect",{x:cell.x+4,y:cell.y+4,width:cell.width-8,height:cell.height-8,
+        rx:8,fill:"#c2f76d66",stroke:"#deff9e","stroke-width":4,"class":"region-highlight"});
+      add("text",{x:cell.x+cell.width/2,y:cell.y+cell.height/2,
+        fill:"#f4ffe7","font-size":24,"font-weight":800,
+        "dominant-baseline":"middle","text-anchor":"middle"}).textContent="REGIÃO";
+      $("possession").textContent=team.name;
+      const player=game.players.find(p=>p.id===ball.player_id);
+      $("player").textContent=player?.name||"Não identificado";
+      $("confidence").textContent="Regra textual (não calibrada)";
+    }
+  }
+  const hasBall=!!(ball&&ball.zone);
+  $("ball-status").textContent=hasBall?"Zona textual estimada":"Zona desconhecida";
+  field.setAttribute("aria-label",hasBall?
+    "Região aproximada inferida de narração; não é rastreamento óptico":
+    "Campo sem região confiável durante "+phase);
+  $("progress").textContent="Áudio desde captura: "+Math.floor(live.last_audio_seconds)+" s";
+  $("feed").replaceChildren();
+  const li=document.createElement("li");li.className="empty";
+  li.textContent="Monitor local: áudio não reproduzido; transcrição não exibida.";
+  $("feed").append(li);
+}
+async function refreshLivePreview(matchId,epoch){
+  try{
+    const response=await fetch("/api/matches/"+encodeURIComponent(matchId)+"/live/preview");
+    if(!response.ok)throw new Error("Monitor HTTP "+response.status);
+    const next=await response.json();
+    if(epoch!==livePollEpoch||chosenMatch?.id!==matchId)return;
+    if(next){
+      activeLivePreview=next;
+      paintLivePreview(next);
+    }else if(activeLivePreview){
+      activeLivePreview=null;
+      $("live-monitor-state").hidden=true;
+      if(lastDemoSnapshot)render(lastDemoSnapshot);
+    }
+  }catch(error){
+    if(epoch===livePollEpoch){
+      $("live-monitor-state").hidden=false;
+      $("live-monitor-state").textContent="Monitor local indisponível: "+error.message;
+    }
+  }
+}
+function stopLivePolling(){
+  livePollEpoch++;
+  if(livePollTimer!==null){clearInterval(livePollTimer);livePollTimer=null;}
+  activeLivePreview=null;
+  $("live-monitor-state").hidden=true;
+}
+function startLivePolling(matchId){
+  stopLivePolling();
+  const epoch=livePollEpoch;
+  refreshLivePreview(matchId,epoch);
+  livePollTimer=setInterval(()=>refreshLivePreview(matchId,epoch),1500);
+}
 function render(snapshot) {
   lastDemoSnapshot=snapshot;
+  if(activeLivePreview&&chosenMatch){paintLivePreview(activeLivePreview);return;}
   const data=snapshot.data,match=data.match,ball=data.ball;
   const summary=window.GameNowScoreboard.summary(snapshot);
   $("home-name").textContent=summary.homeName;
@@ -169,6 +262,8 @@ async function configApi(path, method="GET", body) {
   return response.status===204?null:response.json();
 }
 function blankMatch() {
+  stopLivePolling();
+  if(lastDemoSnapshot)render(lastDemoSnapshot);
   stopTranscriptDiagnostics();
   chosenMatch=null;currentRoster=[];registeredSources=[];editingPlayerId=null;
   $("transcripts-panel").hidden=true;
@@ -230,6 +325,7 @@ async function chooseMatch(id) {
   if(!match){blankMatch();return;}
   stopTranscriptDiagnostics();
   showMatch(match);
+  startLivePolling(id);
   currentRoster=await configApi("/api/matches/"+encodeURIComponent(id)+"/players");
   editingPlayerId=null;
   $("player-form").reset();
