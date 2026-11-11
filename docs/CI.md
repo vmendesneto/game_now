@@ -35,3 +35,13 @@ ao ler a fixture HLS/MPEG-TS. O workflow passa a usar 0.8.1; esta
 versao deve ser validada com a mesma fixture na CI e nao permite ignorar
 falhas de codecs. O job de limpeza reconsulta estados finalizados e
 repete cancelamentos quando a API responder transitoriamente com erro.
+
+## Geracao de fala sintetica no smoke real (11/11/2026)
+
+O teste ASR real nao usa mais `apt-get` para `espeak-ng`, porque o
+mirror Ubuntu falhou por DNS/timeout ate na imagem 24.04. O workflow instala
+`espeakng-loader==0.2.4` (biblioteca + dados de voz) via PyPI e usa
+`scripts/synthetic_tts.py` para gerar PCM/WAV por callback nativo do
+espeak-ng; FFmpeg 0.8.1 do wheel normaliza para 16 kHz. Nada e transmitido
+a servico TTS remoto. O modelo faster-whisper real ainda depende do download
+autorizado dos pesos e a execucao permanece opt-in em mudancas ASR ou manual.
