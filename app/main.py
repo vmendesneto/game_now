@@ -18,6 +18,7 @@ from app.contracts import AudioSource, ContractBundle, Match
 from app.demo import DemoEngine
 from app.entities import ResolveRequest, ResolveResult, resolve_player
 from app.narration_entities import NarrationResolveRequest, NarrationResolution, resolve_narration
+from app.possession import PossessionRequest, PossessionEvidence, detect_possession
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
@@ -156,6 +157,14 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     async def resolve_narration_text(match_id: str, request: NarrationResolveRequest):
         # Read-only diagnostic: no event, possession, ball or transcript mutation.
         return resolve_narration(require_match(match_id), request)
+
+    @application.post("/api/matches/{match_id}/resolve-possession", response_model=PossessionEvidence)
+    async def resolve_possession(match_id: str, request: PossessionRequest):
+        # Explicit text evidence only. No state change, even if a turnover is detected.
+        try:
+            return detect_possession(require_match(match_id), request)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     @application.get("/api/matches/{match_id}/flow")
     async def get_match_flow(match_id: str):
