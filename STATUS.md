@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Últimas concluídas:** GN-063 (seleção conservadora da fonte ativa), GN-062 (deduplicação de candidatos), GN-061 (atraso por fonte) e GN-060 (relógio lógico). **Próxima tarefa: GN-065 — expiração da posição antiga**. GN-063: CI do PR #23 aprovada, 361 passed, 2 skipped em Python 3.11 e 3.12 (run 43047629361). GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
+**Últimas tarefas concluídas:** GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Últimas concluídas:** GN-063 (seleção conservadora da fonte ativa), GN-062 (deduplicação de candidatos), GN-061 (atraso por fonte) e GN-060 (relógio lógico). **Próxima tarefa prioritária: GN-070 — campo SVG responsivo; GN-066 [P1] continua pendente.** GN-063: CI do PR #23 aprovada, 361 passed, 2 skipped em Python 3.11 e 3.12 (run 43047629361). GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -173,3 +173,11 @@
 - Endpoint `POST /api/matches/{id}/events/fusion/preview`: `accepted_for_preview` é apenas consistência hipotética, sempre `persisted=false` e `eligible_for_state_update=false`. Sem alterações de partidas, bola, relógio ou SQLite.
 - `tests/test_fusion_conflicts.py` cobre múltiplas contradições, retrocesso, falta de zona/equipe, tempo, classificação, integração com seleção GN-063 e API somente leitura. **PR #24, CI: 380 passed, 2 skipped em Python 3.11 e 3.12**: https://github.com/vmendesneto/game_now/actions/runs/43048616845. Um warning de dependência já conhecido permanece.
 - **Próxima: GN-065**, expirar informação de bola após silêncio. Integração com áudio/ASR reais continua pendente e sujeita à GN-090; nenhuma fonte real foi testada na GN-064.
+
+## GN-065 — expiração de região após silêncio de narração (2026-11-11)
+
+- `app/ball_freshness.py` usa `FusionPlay` (último lance explícito com timestamp alinhado) e fonte ativa GN-063 fornecida pelo chamador para construir prévia de apresentação. Até 5 s após o lance, com a mesma fonte ainda ativa, devolve `estimated`; depois de 5 s de silêncio, `uncertain` e a etiqueta `posição incerta`; após 15 s, `expired`. Limites são configuráveis e têm validação estrita.
+- Perda ou troca da fonte ativa invalida imediatamente a exibição de coordenadas; quando o estado é incerto/expirado, `zone`, `team_id` e `player_id` são devolvidos como `null` (sem reutilizar posição velha). Não há recomputação por hora de chegada ou requisição HTTP.
+- `POST /api/matches/{id}/ball/freshness/preview` é apenas prévia; sempre `persisted=false` e `eligible_for_state_update=false`. Não inicia relógio contínuo, não liga captura, não escreve SQLite, não altera bola real, e ainda não atualiza visualização do site — integração de UI nas GN-070/071.
+- `tests/test_ball_freshness.py` valida bordas exatas 5 s/15 s, silêncio, troca de fonte, ausência de lance, ressurgimento com evidência nova, rejeição de futuro e API sem mutação. **CI PR #25: 397 passed, 2 skipped em Python 3.11 e 3.12**: https://github.com/vmendesneto/game_now/actions/runs/43049429978.
+- **Próxima prioritária GN-070** (campo SVG responsivo), seguida GN-071 (render de incerteza). GN-066 [P1] permanece aberto; GN-090 continua bloqueando integração de fontes reais pelo site.
