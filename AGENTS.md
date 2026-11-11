@@ -74,3 +74,5 @@ O reconhecimento GN-040 foi testado com modelo real e fala sintética em portugu
 
 
 **GN-052 [x] (2026-11-11):** `app/possession.py` + `POST /api/matches/{id}/resolve-possession` geram apenas hipótese de posse e mudança de equipe com âncora textual explícita e elenco resolvido, nunca mutando o estado persistido. Passes vagos, anúncios, replay, múltiplas pistas e jogadores ambíguos retornam desconhecido. `tests/test_possession.py`; https://github.com/vmendesneto/game_now/actions/runs/43025807453 (129 passed/2 skipped em Python 3.11/3.12). **Continuar GN-053**, sem ligar áudio e sem afirmar posição da bola.
+
+**GN-053 [x] (2026-11-11):** `app/field_regions.py` + `POST /api/matches/{id}/resolve-region`: faixas 1..5 × corredores 3 relativos à direção do ataque, somente para narração de lance atual com contexto de equipe inequívoco; sem estado automático. CI Python 3.11/3.12: 175 passed/2 skipped (run 43027201520). **Continuar GN-054**, detecção conservadora dos tipos de lance por texto e fixtures. GN-090 ainda bloqueia ativação de fontes sem revisão de SSRF.

@@ -1,6 +1,6 @@
 # ROADMAP — Game Now
 
-> **Fonte oficial do planejamento.** Atualizado em **2026-11-10**. Antes de trabalhar, ler [STATUS.md](STATUS.md), este arquivo e [AGENTS.md](AGENTS.md).
+> **Fonte oficial do planejamento.** Atualizado em **2026-11-11**. Antes de trabalhar, ler [STATUS.md](STATUS.md), este arquivo e [AGENTS.md](AGENTS.md).
 >
 > Regra: `[x]` significa **implementado + evidência verificável**; `[ ]` significa pendente. Não marcar como concluído só por ter escrito código. Atualizar `STATUS.md` e `ROADMAP.md` no mesmo commit em que a tarefa é concluída.
 
@@ -72,7 +72,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-050 [P0]** Separar narração de lance atual, anúncio, conversa, análise e replay; evidência: corpus rotulado/testes.
 - [x] **GN-051 [P0]** Resolver entidades de jogador, clube e referências (“ele”, “camisa nove”); evidência: testes de ambiguidade (PR #13, CI 43024972166).
 - [x] **GN-052 [P0]** Detectar posse e troca de posse com evidência explícita; evidência: testes de sequência e ambiguidades (PR #14, CI 43025807453).
-- [ ] **GN-053 [P0]** Detectar regiões do campo (5 faixas × 3 corredores) e sentido de ataque; evidência: frases em ambos os lados.
+- [x] **GN-053 [P0]** Detectar regiões do campo (5 faixas × 3 corredores) e sentido de ataque; evidência: 30 combinações de faixas/corredores e lados, inversão no segundo tempo, negativos e API read-only (PR #15; CI 43027201520, 175 passed/2 skipped em 3.11 e 3.12).
 - [ ] **GN-054 [P0]** Detectar passe, cruzamento, chute, defesa, gol, escanteio, lateral, impedimento, falta, pênalti e tiro de meta; evidência: fixtures.
 - [ ] **GN-055 [P0]** Pontuar confiança por jogador, equipe, região, evento e atualidade; evidência: casos positivos/negativos.
 - [ ] **GN-056 [P0]** Não mover bola em texto vago, comercial, replay ou ausência de evidência; evidência: testes conservadores.

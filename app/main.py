@@ -19,6 +19,7 @@ from app.demo import DemoEngine
 from app.entities import ResolveRequest, ResolveResult, resolve_player
 from app.narration_entities import NarrationResolveRequest, NarrationResolution, resolve_narration
 from app.possession import PossessionRequest, PossessionEvidence, detect_possession
+from app.field_regions import RegionRequest, RegionEvidence, detect_region
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
@@ -163,6 +164,14 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         # Explicit text evidence only. No state change, even if a turnover is detected.
         try:
             return detect_possession(require_match(match_id), request)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @application.post("/api/matches/{match_id}/resolve-region", response_model=RegionEvidence)
+    async def resolve_region(match_id: str, request: RegionRequest):
+        # Text-only diagnostic, never updates the persistent ball, events or feed.
+        try:
+            return detect_region(require_match(match_id), request)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
