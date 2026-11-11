@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+import asyncio
 import shutil
 import time
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -19,6 +20,7 @@ from app.entities import ResolveRequest, ResolveResult, resolve_player
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
+from app.transcription_feed import TranscriptFeed
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -29,6 +31,8 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     store = SQLiteStore(database_path)
     flow = MatchFlowService(store)
     corrections = CorrectionService(store)
+    transcript_feed = TranscriptFeed()
+    application.state.transcript_feed = transcript_feed
     application.state.store = store
     logger = request_logger()
     clients: set[WebSocket] = set()
@@ -119,6 +123,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     async def remove_match(match_id: str):
         if not store.delete_match(match_id):
             raise HTTPException(status_code=404, detail="Partida não encontrada")
+        transcript_feed.clear_match(match_id)
         return Response(status_code=204)
 
     @application.get("/api/matches/{match_id}/players", response_model=list[RosterPlayer])
@@ -196,6 +201,63 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         if result is None:
             raise HTTPException(status_code=404, detail="Partida não encontrada")
         return result
+
+    @application.get("/api/matches/{match_id}/transcripts")
+    async def get_transcripts(
+        match_id: str,
+        source_id: str | None = None,
+        limit: int = Query(default=50, ge=1, le=200),
+    ):
+        require_match(match_id)
+        registered = {source.id for source in store.get_sources(match_id) or []}
+        if source_id is not None and source_id not in registered:
+            raise HTTPException(status_code=404, detail="Fonte não encontrada")
+        return transcript_feed.snapshot(
+            match_id, source_id=source_id, limit=limit,
+            allowed_sources=registered,
+        )
+
+    @application.websocket("/ws/matches/{match_id}/transcripts")
+    async def transcript_websocket(match_id: str, socket: WebSocket):
+        if store.get_match(match_id) is None:
+            await socket.close(code=1008)
+            return
+        await socket.accept()
+        token, queue = transcript_feed.subscribe(match_id)
+        allowed = {source.id for source in store.get_sources(match_id) or []}
+        await socket.send_json({
+            "kind": "snapshot",
+            "data": transcript_feed.snapshot(match_id, allowed_sources=allowed),
+        })
+        receive_task = asyncio.create_task(socket.receive_text())
+        try:
+            while True:
+                update_task = asyncio.create_task(queue.get())
+                done, _ = await asyncio.wait(
+                    {update_task, receive_task},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if receive_task in done:
+                    update_task.cancel()
+                    await asyncio.gather(update_task, return_exceptions=True)
+                    message_from_client = receive_task.result()  # may raise WebSocketDisconnect
+                    if message_from_client == "close":
+                        break
+                    receive_task = asyncio.create_task(socket.receive_text())
+                    continue
+                message = update_task.result()
+                allowed = {source.id for source in store.get_sources(match_id) or []}
+                if message["data"]["source_id"] in allowed:
+                    await socket.send_json(message)
+        except (WebSocketDisconnect, RuntimeError, OSError, asyncio.CancelledError):
+            pass
+        finally:
+            if 'update_task' in locals() and not update_task.done():
+                update_task.cancel()
+                await asyncio.gather(update_task, return_exceptions=True)
+            receive_task.cancel()
+            await asyncio.gather(receive_task, return_exceptions=True)
+            transcript_feed.unsubscribe(match_id, token)
 
     @application.get("/api/matches/{match_id}/state", response_model=ContractBundle)
     async def get_persisted_state(match_id: str):

@@ -195,3 +195,12 @@ python -m pytest -q tests/test_asr_windows.py
 ```
 
 A CI também executa modelo ASR real sobre janelas de fala sintética portuguesa; o teste **não** usa rádio/YouTube e não prova o desempenho ou a qualidade em transmissões esportivas ao vivo. Referência: https://github.com/vmendesneto/game_now/actions/runs/43016880967. A disponibilização do feed no site e o agendamento assíncrono serão implementados nas GN-042/043.
+
+## GN-042/GN-043 — feed textual e workers assíncronos
+
+Após cadastrar uma partida e suas fontes, consulte `GET /api/matches/{id}/transcripts` (opcional: `?source_id=radio-01&limit=50`). Resposta contém `mode=volatile_text_only`, `sources` com estado de processamento e `entries` com `source_id`, texto, `language=pt`, sequência e horários UTC. O WebSocket `/ws/matches/{id}/transcripts` envia `snapshot` inicial e mensagens `status`/`transcript`, sem mídia. Uma fonte não cadastrada não aparece no feed HTTP/WS.
+
+O motor Python `AsyncSourceTranscriber` em `app/transcription_runtime.py` usa `asyncio.to_thread` para não executar o reconhecimento bloqueante dentro do loop FastAPI. Cada fonte mantém sua própria ordem, com locking por fonte; os listeners WebSocket têm filas limitadas e, se atrasarem, podem perder mensagens intermediárias. Para publicar, um futuro controlador de captura deverá instanciar o worker com `RollingASRProcessor(CPUTranscriber(...))`, fornecer blocos PCM e timestamp de captura. **Isso ainda não ocorre automaticamente.** Não há endpoints de upload de áudio, nem start/stop de rádio/YouTube; será adicionada ativação operacional controlada após tratar as restrições de rede (GN-090) e supervisão da sessão (GN-074).
+
+A CI verifica duas conexões WebSocket recebendo o mesmo texto enquanto a CPU é artificialmente bloqueada e confirma que HTTP continua respondendo. O teste separado com Whisper real permanece exclusivo ao CPU Linux e ao áudio sintetizado. Evidência: https://github.com/vmendesneto/game_now/actions/runs/43018620370.
+

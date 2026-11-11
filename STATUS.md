@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Próxima tarefa de implementação:** **GN-042 — feed de transcrições independentes por fonte, timestamps e estados**; GN-043 fará o isolamento da inferência do loop FastAPI. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
+**Últimas tarefas concluídas:** GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Próxima tarefa independente:** **GN-046 — vocabulário de atletas, clubes e termos com teste A/B**. GN-044 requer benchmark real no Windows, GN-045 narração real autorizada; ativação operacional das fontes ainda não foi realizada. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -73,3 +73,11 @@
 - Suíte de testes Python 3.11/3.12: **100 passed, 1 skipped** na CI (teste pesado opt-in ignorado pela suíte geral) em https://github.com/vmendesneto/game_now/actions/runs/43016881008. Teste pesado separado e real: **1 passed**, 3 janelas de fala sintetizada portuguesa com modelo `base` CPU em https://github.com/vmendesneto/game_now/actions/runs/43016880967.
 - Microbenchmark Linux Python 3.12 (somente montagem, não inferência): 2 fontes × 10 min de chunks; 149 janelas por fonte, 128.000 bytes de buffer restante por fonte, 0,0406 s de tempo de montagem. Script `python -m scripts.benchmark_asr_windows`. **Não** representa latência ASR real, Windows, WER ou transmissão esportiva.
 - Limitação observada: no teste real de fala sintética, diferentes janelas transcreveram as mesmas palavras de modo diferente; a deduplicação literal conservadora não remove todos os ecos. GN-044 continua responsável por benchmark de acurácia, GN-042 por feed e GN-043 por execução assíncrona.
+
+## GN-042/GN-043 — feed textual e CPU fora do loop HTTP (2026-11-11)
+
+- `app/transcription_feed.py`: guarda transcrições **somente de texto** em memória com limite de partidas/fontes/entradas, timestamps UTC de captura/processamento, início/fim relativo de janelas, idioma, sequência e estado por fonte (`idle/buffering/processing/ready/error/stopped`). Filtra fontes não cadastradas para clientes. O feed é **volátil** e ainda não alimenta snapshots duráveis das partidas.
+- `app/main.py`: `GET /api/matches/{id}/transcripts` com filtro `source_id` e limite 1..200; `/ws/matches/{id}/transcripts` transmite snapshots e atualizações em tempo real. O canal só envia metadados e texto; não expõe PCM, áudio, vídeo nem URLs.
+- `app/transcription_runtime.py`: `AsyncSourceTranscriber.push/finish` chama `RollingASRProcessor` em `asyncio.to_thread` com lock por fonte. HTTP segue atendendo mesmo durante inferência lenta; filas por cliente são limitadas e descartam atualizações antigas quando saturam.
+- Testes `tests/test_transcription_feed.py` verificam duas fontes isoladas, limite de retenção, URLs de erro não vazadas, HTTP/WebSocket para dois clientes, latência da API com inferência sintética deliberadamente bloqueada e fechamento/cancelamento seguro. **106 passed, 1 skipped** em Python 3.11/3.12: https://github.com/vmendesneto/game_now/actions/runs/43018620370. Smoke real GN-040/041 continua: https://github.com/vmendesneto/game_now/actions/runs/43018616281.
+- **Limite fundamental:** a captura real ainda NÃO é iniciada pela interface nem conectada ao `AsyncSourceTranscriber`. A prova GN-043 usa modelo lento artificial, não garante inferência de Whisper durante uma partida real ou comportamento em Windows. Integração da captura, controles de start/stop e segurança de rede devem ser realizadas nas GN-074/GN-090, sem reabrir o risco SSRF prematuramente. GN-031 ainda depende de fonte permitida.
