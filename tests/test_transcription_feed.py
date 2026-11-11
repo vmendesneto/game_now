@@ -178,3 +178,68 @@ def test_worker_errors_are_safe_and_stopping_is_idempotent():
             await session.push(struct.pack("<h", 1) * 16_000,
                                captured_at=datetime.now(timezone.utc))
     asyncio.run(scenario())
+
+
+def test_two_websocket_clients_and_http_remain_live_during_blocked_inference(tmp_path):
+    """GN-043: the real event loop keeps serving while a CPU worker waits."""
+    started = Event()
+    release = Event()
+
+    class PausedModel:
+        def transcribe_pcm(self, block):
+            started.set()
+            assert release.wait(timeout=8), "CPU model not released by test"
+            return ASRResult(model="tiny", language="pt", seconds=1,
+                             text="Gol do Azul", segments=())
+
+    with TestClient(create_app(tmp_path / "two-clients.sqlite3")) as client:
+        assert client.post("/api/matches", json=config()).status_code == 201
+        source = {"id": "radio-01", "name": "Rádio", "kind": "radio",
+                  "url": None, "enabled": True, "status": "offline"}
+        assert client.put("/api/matches/match-001/sources", json=[source]).status_code == 200
+        feed = client.app.state.transcript_feed
+        session = AsyncSourceTranscriber(
+            "match-001", "radio-01",
+            RollingASRProcessor(PausedModel(), WindowSettings(
+                window_ms=1000, overlap_ms=250,
+            )), feed,
+        )
+        now = datetime.now(timezone.utc)
+        pcm = struct.pack("<h", 400) * 16_000
+        exception = []
+
+        async def run_asr():
+            await session.push(pcm, captured_at=now)
+
+        def launch():
+            try:
+                client.portal.call(run_asr)
+            except BaseException as exc:
+                exception.append(exc)
+
+        with client.websocket_connect("/ws/matches/match-001/transcripts") as first:
+            with client.websocket_connect("/ws/matches/match-001/transcripts") as second:
+                assert first.receive_json()["kind"] == "snapshot"
+                assert second.receive_json()["kind"] == "snapshot"
+                job = Thread(target=launch, daemon=True)
+                job.start()
+                try:
+                    assert started.wait(timeout=3)
+                    # These HTTP routes must be serviced BEFORE the ASR is released.
+                    assert client.get("/health").status_code == 200
+                    assert client.get("/api/matches/match-001/transcripts").status_code == 200
+                    assert job.is_alive()
+                    release.set()
+                    for websocket in (first, second):
+                        # Status messages may precede transcript text.
+                        for _ in range(4):
+                            message = websocket.receive_json()
+                            if message["kind"] == "transcript":
+                                break
+                        assert message["kind"] == "transcript"
+                        assert message["data"]["text"] == "Gol do Azul"
+                finally:
+                    release.set()
+                    job.join(timeout=5)
+                assert not exception
+                assert not job.is_alive()
