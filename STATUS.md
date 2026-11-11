@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Próxima tarefa independente:** **GN-050 — classificar narração de lance, comercial, conversa, análise e replay com corpus rotulado**. GN-044 exige benchmark no Windows e GN-045 áudio real autorizado. GN-090 é pré-requisito de segurança para ativação de fontes pelo site. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
+**Últimas tarefas concluídas:** GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Próxima tarefa independente:** **GN-051 — resolver menções de atleta, equipe, pronomes e camisas com ambiguidade conservadora**. GN-044 exige benchmark no Windows e GN-045 áudio real autorizado. GN-090 é pré-requisito de segurança para ativação de fontes pelo site. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -54,7 +54,7 @@
 ## Continuar
 1. Ler `STATUS.md`, `ROADMAP.md` e `AGENTS.md`; verificar HEAD de `main` e testes.
 2. **GN-031:** o teste técnico real no Windows já passou e não precisa ser repetido. Verificar a autorização de captação da fonte para cumprir o critério de aceite do ROADMAP; até lá, manter [ ]. Não contornar autenticação/DRM.
-3. GN-033 já implementa reconexão em workers simulados, mas NÃO é iniciado pelo cadastro nem pelo site, e GN-037 estabeleceu política inicial sem gravação de mídia. Próximo trabalho independente é ASR em CPU (GN-040) e, depois, integração operacional; GN-012 exige teste do Windows físico em seus próprios critérios.
+3. GN-033 já implementa reconexão em workers simulados, mas NÃO é iniciado pelo cadastro nem pelo site, e GN-037 estabeleceu política inicial sem gravação de mídia. Próximo trabalho independente após GN-050 é resolução de entidades no texto (GN-051) e, depois, integração operacional; GN-012 exige teste do Windows físico em seus próprios critérios.
 4. Para rodar CI local: `python -m pip install -r requirements-dev.txt && python scripts/export_schema.py && python -m pytest -q`. Testes GN-030 precisam FFmpeg no PATH.
 5. Servidor: `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`. Logs em `data/game_now.log`, registro JSON sem corpo das requisições.
 
@@ -88,3 +88,11 @@
 - Testes determinísticos `tests/test_asr_vocabulary.py` cobrem conteúdo, limite e encaminhamento do prompt ao modelo real. CI geral: **109 passed, 2 skipped** em Python 3.11/3.12: https://github.com/vmendesneto/game_now/actions/runs/43019542054.
 - Teste A/B real e reprodutível em Linux: mesma fala pt-BR sintetizada por `espeak-ng`, mesmo modelo `base` CPU int8, com e sem contexto. Alvos "Otávio, Mendes, Caio, Ventura, Azul, escanteio"; **1/6** alvos presentes no resultado sem vocabulário e **6/6** com vocabulário. A inferência real e 2 testes pesados foram aprovados: https://github.com/vmendesneto/game_now/actions/runs/43019542053.
 - **Interpretação correta**: 1/6 → 6/6 demonstra benefício nesta **única amostra sintética**, não WER estatisticamente representativo, não narração de futebol real, não Windows ou garantia de acerto. O prompt pode enviesar nomes ausentes no sinal; GN-051 deverá manter resolução conservadora.
+
+## GN-050 — classificação textual conservadora (2026-11-11)
+
+- `app/narration_classifier.py`: regras pt-BR explicáveis para `live_play`, `ad`, `conversation`, `analysis`, `replay` e `unknown`, com precedência para contextos não-live; segmentos ambíguos não ficam elegíveis a atualizar o estado. `conversation` é metadado volátil e não altera ContractBundle v1.
+- `app/transcription_feed.py` acrescenta `narration_kind`, `classification_reason` e `eligible_for_live_state` a cada transcrição text-only publicada, preservando fonte, conteúdo, timestamps e protocolo existente; nenhuma dessas decisões altera placar, posse ou bola.
+- Corpus `fixtures/narration_corpus_v1.json`: 50 frases sintéticas originais, rotuladas em seis classes (10 live e 8 de cada outra). `tests/test_narration_classifier.py` inclui checagens de rótulo, precedência adversarial e duas fontes.
+- **CI Linux validada**: **170 passed, 2 skipped, 1 warning** nos dois Python 3.11/3.12 (https://github.com/vmendesneto/game_now/actions/runs/43021883387). Workflow separado real Portuguese ASR também passou (https://github.com/vmendesneto/game_now/actions/runs/43021883417).
+- **Limitação:** acerto dos 50 exemplos escritos para teste não é avaliação de fala de rádio/YouTube, robustez estatística ou Windows. Regras léxicas podem ter falsos positivos/negativos. GN-058/083 e GN-051 a GN-056 permanecem pendentes. **Próxima: GN-051.**

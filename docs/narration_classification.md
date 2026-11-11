@@ -11,3 +11,7 @@ O feed volátil (`GET /api/matches/{id}/transcripts` e WebSocket) passa a inclui
 ## Limitações declaradas
 
 Regras lexicais têm cobertura restrita e **não fornecem probabilidade estatística**. Acurácia em 50 frases criadas para teste não é acurácia em transmissões reais; não substituir GN-058 (corpus real licenciado), nem GN-083 (validação). Uma frase com indicação explícita de propaganda/replay/análise/conversa prevalece sobre lances no mesmo segmento. Um `live_play` é apenas candidato à análise: GN-051 a GN-056 precisam confirmar entidades, lances, tempo e posição. Em caso de dúvida classificar como `unknown` e não atualizar o estado. Nenhum áudio, URL assinada ou credencial aparece nos metadados de classificação.
+
+## Evidência de CI (2026-11-11)
+
+Workflow completo Python 3.11/3.12: **170 passed, 2 skipped, 1 warning**, incluindo o corpus novo e compatibilidade com o feed, em https://github.com/vmendesneto/game_now/actions/runs/43021883387. Smoke ASR real separado: https://github.com/vmendesneto/game_now/actions/runs/43021883417. O teste do classificador usa somente frases sintéticas, sem validação com transmissão real.

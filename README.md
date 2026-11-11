@@ -218,3 +218,7 @@ Sem `--match-id`, o ASR funciona sem contexto, como antes. `GAME_NOW_DB_PATH` de
 
 **Comparação A/B reproduzível:** teste `tests/test_asr_vocabulary_real.py` (CI https://github.com/vmendesneto/game_now/actions/runs/43019542053) usou **o mesmo áudio português sintetizado**, com modelo `base` CPU int8: 1 dos 6 termos de referência apareceu na condição sem contexto, contra 6 de 6 com o contexto. Isso é **taxa de presença dos termos nessa única frase**, não WER, não um estudo estatístico nem garantia de melhora em jogo real. Nomes sugeridos pelo prompt podem aparecer incorretamente; a resolução de atletas deve continuar exigindo evidência contextual (GN-051).
 
+
+## GN-050 — classificador conservador da narração
+
+Sem dependências extras, `app/narration_classifier.py` separa lance atual de propaganda, conversa, comentário tático, replay e texto desconhecido. Cada nova entrada no feed HTTP/WS de transcrição contém `narration_kind`, `classification_reason` e `eligible_for_live_state`; **nenhum rótulo move a bola ou altera o placar sozinho**. A classificação é lexical, não estima confiança estatística, e não altera o ContractBundle v1. O corpus sintético possui 50 frases originais e a suíte GN-050 foi validada em Python 3.11/3.12 (170 passed, 2 skipped: https://github.com/vmendesneto/game_now/actions/runs/43021883387). Consulte [documentação e limitações](docs/narration_classification.md). A avaliação com narração real continua pendente (GN-058/083).
