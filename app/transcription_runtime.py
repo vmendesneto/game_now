@@ -43,6 +43,8 @@ class AsyncSourceTranscriber:
             if self._closed:
                 raise RuntimeError("ASR source session has stopped")
             self.feed.set_state(self.match_id, self.source_id, "processing")
+            # Metadata only; the PCM is passed to the ASR, never into telemetry.
+            self.feed.observe_pcm(self.match_id, self.source_id, len(pcm))
             try:
                 updates = await asyncio.to_thread(self.processor.push, self.source_id, pcm)
                 self._publish(updates, captured_at)

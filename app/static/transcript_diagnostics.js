@@ -9,6 +9,27 @@
     foul:"Falta",offside:"Impedimento",cross:"Cruzamento",throw_in:"Lateral",
     penalty:"Pênalti",goal_kick:"Tiro de meta",possession:"Posse",unknown:"Indefinido"};
   function empty(){return {mode:"volatile_text_only",sources:[],entries:[]};}
+  function telemetryLabel(raw,nowMs=Date.now()){
+    if(!raw || typeof raw!=="object")return " · PCM não monitorado";
+    const last=Date.parse(raw.last_pcm_at||"");
+    const fresh=Number.isFinite(last) && nowMs>=last &&
+      nowMs-last<=1000*(Number.isFinite(raw.stale_after_seconds)?
+        Math.max(0,Math.min(60,raw.stale_after_seconds)):8);
+    const signal=raw.signal==="online" && !fresh?"no_audio":raw.signal;
+    const signs={online:"PCM recebido",no_audio:"Sem PCM recente",
+      unobserved:"PCM não observado",stopped:"Processamento encerrado"};
+    const contents={narrating:"Narração provável por texto",commercial:"Comercial provável por texto",
+      other:"Outro conteúdo textual",unknown:"Conteúdo não identificado"};
+    const content=signal==="online" && nowMs-last<=20000 &&
+      Object.hasOwn(contents,raw.content)?raw.content:"unknown";
+    const latency=typeof raw.processing_delay_seconds==="number" &&
+      Number.isFinite(raw.processing_delay_seconds) &&
+      raw.processing_delay_seconds>=0 && raw.processing_delay_seconds<=3600?
+      raw.processing_delay_seconds.toFixed(2).replace(".",",")+" s":"n/d";
+    return " · "+(signs[signal]||"PCM não monitorado")+
+      " · "+contents[content]+" · Atraso captura→texto: "+latency+
+      " (não é atraso entre rádios)";
+  }
   function apply(previous,message,registered){
     const allowed=new Set((Array.isArray(registered)?registered:[]).map(s=>s.id));
     if(!message || typeof message!=="object")return previous;
@@ -26,7 +47,7 @@
     if(message.kind==="status" && Object.hasOwn(stateNames,data.state)){
       return {...previous,sources:[...previous.sources.filter(s=>s.source_id!==data.source_id),
         {source_id:data.source_id,state:data.state,last_error:data.last_error||null,
-         updated_at:data.updated_at||null}].slice(-8)};
+         updated_at:data.updated_at||null,telemetry:data.telemetry||null}].slice(-8)};
     }
     if(message.kind==="transcript" && typeof data.text==="string" && data.text.trim() &&
        Number.isSafeInteger(data.sequence) && data.sequence>=0){
@@ -37,7 +58,11 @@
         captured_at:data.captured_at||null,narration_kind:data.narration_kind||"unknown",
         classification_reason:data.classification_reason||"no_explicit_cue",
         eligible_for_live_state:data.eligible_for_live_state===true};
-      return {...previous,entries:[...previous.entries,entry].slice(-50)};
+      const sources=data.telemetry && typeof data.telemetry==="object"?
+        [...previous.sources.filter(s=>s.source_id!==data.source_id),
+          {source_id:data.source_id,state:"ready",last_error:null,
+           telemetry:data.telemetry}].slice(-8):previous.sources;
+      return {...previous,sources,entries:[...previous.entries,entry].slice(-50)};
     }
     return previous;
   }
@@ -49,7 +74,8 @@
     const sources=configured.filter(s=>!selected || s.id===selected).map(s=>{
       const info=states.get(s.id);
       return {label:s.name+" · "+(info && stateNames[info.state]||"Não iniciada")+
-        (info && info.last_error?" · "+info.last_error:"")};
+        (info && info.last_error?" · "+info.last_error:"")+
+        telemetryLabel(info && info.telemetry)};
     });
     const entries=snapshot.entries.filter(e=>known.has(e.source_id) &&
       (!selected || e.source_id===selected)).slice(-50).reverse().map(e=>({
