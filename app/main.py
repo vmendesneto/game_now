@@ -25,6 +25,7 @@ from app.confidence import ConfidenceRequest, ConfidenceEvidence, assess_confide
 from app.ball_guard import BallGuardRequest, BallGuardDecision, guard_ball_movement
 from app.llm_local import LLMCompareRequest, LLMComparison, compare_language
 from app.logical_clock import ClockPreviewRequest, ClockPreviewResponse, preview_clock
+from app.source_delay import RelativeDelayRequest, RelativeDelayResponse, preview_relative_delays
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
@@ -213,6 +214,15 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         # A bounded diagnostic, not live clock sync or a persisted event.
         match = require_match(match_id)
         return preview_clock(match.period, request)
+
+    @application.post(
+        "/api/matches/{match_id}/sources/delay/preview",
+        response_model=RelativeDelayResponse,
+    )
+    async def preview_source_delays(match_id: str, request: RelativeDelayRequest):
+        # GN-061: explicit paired events only; no writes or live source alignment.
+        require_match(match_id)
+        return preview_relative_delays(request)
 
     @application.get("/api/matches/{match_id}/flow")
     async def get_match_flow(match_id: str):

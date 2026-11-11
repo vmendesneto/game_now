@@ -3,7 +3,7 @@
 **Atualizado:** 2026-11-11
 **Branch:** `main`
 **Últimas tarefas concluídas:** GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Próxima tarefa independente:** **GN-060 — relógio lógico independente do instante de chegada do texto**, com simulação de atrasos. GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
+**GN-060:** código mesclado no PR #20 (commit `398a152`), porém aprovação de CI ainda não comprovada; **GN-061:** implementação de atraso relativo por eventos comuns em revisão no PR #21, com testes de CI ainda pendentes. Não marcar concluídas antes da validação. GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -148,3 +148,10 @@
 - `POST /api/matches/{id}/compare-language`: consulta o elenco atual e devolve `baseline` das regras e `suggestion` opcional identificada como **hipótese não verificada**, `eligible_for_state_update=false` em todos os casos. A chamada local roda fora do event loop HTTP. Não altera bola, placar, SQLite, feed, contrato v1 ou fontes reais.
 - `tests/test_llm_local.py` cobre comparação de frase complexa com baseline de regras, fake do modelo local, JSON malformado/duplicado/inesperado, região incompatível, IDs alucinados, rede indisponível sem vazamento de detalhes, localhost fixo, categorias proibidas e API SQLite read-only. **CI Linux:** 297 passed, 2 skipped, 1 warning em Python 3.11 e 3.12: https://github.com/vmendesneto/game_now/actions/runs/43032445652. Fluxo ASR CPU anterior permanece independente.
 - **Limites honestos:** testes do modelo são *doubles* determinísticos; não houve inferência Ollama real ou avaliação de desempenho/qualidade com narração de futebol, e nenhum palpite da IA atualiza o campo. Avaliação com áudio autorizado é GN-058/083. Próxima GN-060 (relógio lógico), depois GN-061..065.
+
+## GN-060/GN-061 — retomada e verificação (2026-11-11)
+
+- **GN-060:** PR #20 já foi mesclado em `main` (commit `398a152`); `app/logical_clock.py` e `tests/test_logical_clock.py` estão presentes. A CI original https://github.com/vmendesneto/game_now/actions/runs/43033600368 ficou presa na instalação de FFmpeg e não havia terminado quando esta nota foi criada. Código incorporado não equivale a testes aprovados; checkbox permanece [ ].
+- **GN-061:** PR #21 https://github.com/vmendesneto/game_now/pull/21 implementa `app/source_delay.py`, testes sintéticos `tests/test_source_delay.py` e endpoint diagnóstico `POST /api/matches/{id}/sources/delay/preview`. Apenas IDs de eventos explicitamente comuns são correlacionados; exige pelo menos dois pares, usa timestamp de captura, descarta fora da janela, recusa offsets conflitantes e NÃO altera SQLite, clock ou bola. Depende de timestamps no mesmo domínio de relógio; não foi testada com duas transmissões reais.
+- **CI:** o workflow no PR #21 agora usa FFmpeg do runner se disponível, evitando `apt-get` desnecessário, e usa timeout se instalação for necessária. A validação completa Python 3.11/3.12 permanece pendente antes de marcar GN-060/GN-061 [x] e mesclar o PR #21.
+- **Continuar:** conferir CI do PR #21; corrigir erros se houver; após aprovação, atualizar ROADMAP/STATUS/AGENTS/README no mesmo commit, mesclar #21 e avançar GN-062 (deduplicação multifuente). Não assumir sincronismo real nem ativar fontes antes de GN-090.

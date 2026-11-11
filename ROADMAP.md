@@ -149,3 +149,9 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [STATUS.md](STATUS.md): fotografia atual, pendências e próximo passo.
 - [AGENTS.md](AGENTS.md): instruções operacionais para Codex e qualquer novo chat.
 - Repositório: https://github.com/vmendesneto/game_now
+
+
+### Entrega em validação (2026-11-11)
+
+- GN-060: implementação mesclada na main via [PR #20](https://github.com/vmendesneto/game_now/pull/20), mas CI original ainda sem comprovação de aprovação; manter [ ] até resultado válido.
+- GN-061: estimativa diagnóstica de atraso por eventos explicitamente comuns, janela e testes de simulação no [PR #21](https://github.com/vmendesneto/game_now/pull/21); manter [ ] até CI aprovada e merge.

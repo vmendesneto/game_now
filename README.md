@@ -279,3 +279,24 @@ A idade informada é **não verificada**: esse gate é uma salvaguarda textual, 
 O servidor chama exclusivamente `127.0.0.1:11434/api/generate` via HTTP local, sem redirecionamentos nem configuração de URL arbitrária. Modelos não são baixados automaticamente. A saída é **objeto JSON obrigatório**: `status`, `team_id`, `player_id`, `zone`, `event_kind` e `reason`. Validação rejeita propriedades extras/duplicadas, tipos errados, regiões fora de 5×3, eventos desconhecidos, jogadores ausentes/pertencentes a outra equipe, contradições com as regras e JSON fora do limite. Comercial, replay e conversa não chegam sequer a consultar o modelo. Se o Ollama estiver desligado, a API retorna `unavailable` com o baseline e sem vazamento de detalhes da conexão.
 
 **A resposta nunca é um estado de jogo**: `eligible_for_state_update=false` inclusive quando há `suggestion`; a hipótese da IA não move bola, placar nem cria evento. O objetivo é observar diferenças entre regras e interpretação local sem alucinação operacional. Os testes `python -m pytest -q tests/test_llm_local.py` usam modelos e transporte *simulados* para verificar rigor e falhas, não aferem qualidade/velocidade de um Ollama real. CI geral: https://github.com/vmendesneto/game_now/actions/runs/43032445652 (297 passed/2 skipped, Python 3.11/3.12). O relógio/fusão da GN-060..065 segue pendente.
+
+
+## GN-060/GN-061 — relógio lógico e atrasos relativos (diagnóstico)
+
+`POST /api/matches/{id}/clock/preview` (GN-060) usa âncora explícita em segundos de jogo e instante **de captura** para projetar um relógio lógico monotônico em uma fonte. Atrasos de chegada não deslocam o relógio; observações regressivas são recusadas. Intervalo/fim congelam o tempo; o segundo tempo requer uma nova âncora. A API não grava dados. Código mesclado via PR #20; CI original ainda pendente na data da atualização.
+
+`POST /api/matches/{id}/sources/delay/preview` (GN-061, PR #21) recebe IDs de eventos **previamente associados pelo chamador** (não deduz se frases tratam do mesmo lance), ID da fonte de referência e instantes de captura/recebimento de cada observação. Exemplo em JSON:
+
+```json
+{
+  "reference_source_id": "radio-a",
+  "observations": [
+    {"source_id":"radio-a","common_event_id":"lance-1","captured_at":"2026-11-11T12:00:00Z","received_at":"2026-11-11T12:00:02Z"},
+    {"source_id":"youtube-b","common_event_id":"lance-1","captured_at":"2026-11-11T12:00:08Z","received_at":"2026-11-11T12:00:20Z"},
+    {"source_id":"radio-a","common_event_id":"lance-2","captured_at":"2026-11-11T12:01:00Z","received_at":"2026-11-11T12:01:01Z"},
+    {"source_id":"youtube-b","common_event_id":"lance-2","captured_at":"2026-11-11T12:01:08Z","received_at":"2026-11-11T12:01:18Z"}
+  ]
+}
+```
+
+O resultado diagnóstico da fonte `youtube-b` deverá indicar `relative_delay_seconds=8.0` e `status=aligned` (atraso positivo: lance apresentado oito segundos depois da referência). A estimativa usa apenas tempos de captura, exige pelo menos dois eventos em comum, janela padrão de dez minutos e concordância de até dois segundos; observações antigas, offsets inconsistentes ou excessivos não produzem alinhamento. Limites: 80 observações e oito fontes por chamada. **Instantes precisam estar no mesmo domínio de relógio**, por exemplo capturas realizadas numa única máquina; clocks não sincronizados podem gerar um offset falso. Não existe inferência de pares de eventos, fonte ativa, fusão automática ou validação de stream real nesta etapa. Nada é escrito no banco ou transmitido como mídia. Teste alvo: `python -m pytest -q tests/test_logical_clock.py tests/test_source_delay.py`. A GN-061 permanece pendente da CI no PR #21.
