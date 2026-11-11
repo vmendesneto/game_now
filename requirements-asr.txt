@@ -1,2 +1,6 @@
-# Optional: install only when you want local CPU speech recognition.
+# Optional local CPU ASR. Install with: python -m pip install -r requirements-asr.txt
+# faster-whisper 1.2.1 passes metadata_errors= to av.open; PyAV 18/19
+# compatibility differs. 17.1.0 supports this API on Windows Python 3.12.
+# Remove the pin only after validating the newer faster-whisper decoder.
 faster-whisper==1.2.1
+av==17.1.0
