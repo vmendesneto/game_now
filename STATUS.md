@@ -1,6 +1,6 @@
 # STATUS — Game Now
 
-**Atualizado:** 2026-11-10
+**Atualizado:** 2026-11-11
 **Branch:** `main`
 **Últimas tarefas concluídas:** GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
 **Próxima tarefa:** **GN-031 — repetir no Windows a captura de uma live pública permitida após atualizar o código**. Houve resolução de metadados, mas ainda não captura de PCM real; manter `[ ]`. Próxima implementação independente possível: GN-040 (ASR CPU, exige modelo real e benchmark).
@@ -16,6 +16,12 @@
 - **GN-025:** `app/corrections.py`; `GET/POST /api/matches/{id}/corrections`. Correções de placar, posse e evento com motivo, autor, estado anterior/posterior e histórico imutável via API. Transações rejeitam entidade ou ID inválido. Editor legado de placar e troca de snapshot por PUT também geram auditoria. Formulário no site.
 - **GN-032:** `app/source_validation.py`; cadastro/edição/ativação/desativação de fontes de rádio e YouTube pelo navegador e API existente. Persistência SQLite, URLs públicas básicas, rejeição de credenciais, esquemas inadequados e IPs locais. Não há captura nem reprodução de mídia no site.
 - GN-020, GN-021, GN-022, GN-023 permanecem implementados: CRUD de partidas, elenco, identificação conservadora e SQLite. Contrato `ContractBundle` v1 não mudou.
+
+## Diagnóstico adicional Windows — 2026-11-11
+- No Windows o Deno 2.9.8, o FFmpeg 9.0.2 e o `yt-dlp[default]` (com `yt-dlp-ejs`) estão instalados.
+- O `yt-dlp -F` para `SWEYimqD_50` listou formatos **233 e 234** (`mp4 audio only`, `m3u8`), com `ACODEC unknown`, mas a versão anterior do Game Now retornou `No publicly accessible format containing audio was offered`.
+- Causa reproduzida em teste Linux: `acodec=None` em variantes HLS exclusivamente de áudio era descartado apesar de `vcodec="none"`. O resolvedor agora considera este caso como candidato (sem aceitar `acodec="none"` explícito, fontes com DRM ou vídeo-only). Quando não há bitrate anunciado, prefere a variante posterior 234. FFmpeg ainda é responsável por verificar se o fluxo contém PCM decodificável.
+- **Ainda não foi executada uma captura real com esta correção no Windows.** Repetir o mesmo comando GN-031 após `git pull --ff-only`; manter GN-031 [ ] até receber estatísticas de PCM reais.
 
 ## Diagnóstico Windows informado pelo usuário — 2026-11-10
 - Clone em Documentos, Python 3.12, ambiente virtual e yt-dlp instalados. FFmpeg foi instalado via winget; a primeira sessão PowerShell não tinha o novo PATH, e nenhum resultado de decodificação de áudio real foi comprovado.
