@@ -255,3 +255,15 @@ Opcionalmente, o chamador pode fornecer `team_id` como contexto externo explíci
 ## GN-055 — qualidade heurística por componente (não probabilidade)
 
 `POST /api/matches/{id}/resolve-confidence` recebe `{"text":"João do Azul chuta na área adversária pela direita","observed_age_seconds":2}`. Consulta o elenco/partida existentes e devolve `player_id`, `team_id`, `zone`, `event_kind` e `scores` separados (`player`, `team`, `region`, `event`, `freshness`), acompanhados por `reasons`. Nenhum score mede porcentagem de acerto: `mode=heuristic_strength_not_calibrated_v1`. Evidência explícita e única vale 1.0; equipe passada apenas pelo chamador (`team_id`) permite no máximo 0.5 em equipe/região; sem pista/contradição é 0.0. Atualidade vale 1.0 se a idade declarada da observação for de 0 a 5 s, decai até 0.0 aos 30 s; sem idade conhecida é 0.0. **Nenhuma comparação com tempo do jogo/audio real é feita**. Publicidade, replay, análise e partida parada retornam todos os scores zerados. Não produz score agregado, alteração de bola/placar/evento ou escrita no feed/SQLite. Validação: `python -m pytest -q tests/test_confidence.py` e CI do PR #17.
+
+## GN-056 — guarda da movimentação da bola (apenas diagnóstico)
+
+`POST /api/matches/{id}/guard-ball` recebe, por exemplo:
+
+```json
+{"text":"Azul com a bola na própria área pela esquerda","observed_age_seconds":2}
+```
+
+A resposta é `decision: "candidate"` apenas para **lance atual afirmativo**, idade declarada de até cinco segundos, **posse textual inequívoca**, equipe explicitamente nomeada, faixa longitudinal e corredor exclusivos e evidência compatível com a GN-055. Nesse caso, `candidate_zone` contém a zona 5×3 *proposta* e `field_band/field_lane` orientam a exibição segundo o sentido de ataque. Em caso de anúncio, replay, análise, texto genérico, especulação, ausência de equipe/faixa/corredor, conflitos ou idade ausente/vencida, retorna `decision: "hold"`, `candidate_zone: null` e motivo legível. `current_ball` reflete sempre o estado persistido **sem modificação**; nem candidata nem rejeição alteram banco, placar, WebSocket ou áudio.
+
+A idade informada é **não verificada**: esse gate é uma salvaguarda textual, não atualização operacional. Relógio da fonte (GN-060/061), fusão (GN-062..065), ingestão (GN-074) e segurança (GN-090) continuam necessários antes de acionar o campinho real. Testes: `python -m pytest -q tests/test_ball_guard.py`. CI Linux Python 3.11/3.12: [263 passed, 2 skipped](https://github.com/vmendesneto/game_now/actions/runs/43031120226) na suíte completa, **sem** validação de rádio/YouTube/Windows reais.
