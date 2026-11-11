@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from uuid import uuid4
 import json
 
 from app.contracts import (
@@ -69,9 +70,12 @@ def interpret_demo_text(text: str) -> tuple[Category, EventKind | None, Zone | N
 
 class DemoEngine:
     def __init__(self) -> None:
+        self.stream_id = uuid4().hex
+        self._revision = -1
         self.reset()
 
     def reset(self) -> dict:
+        self._revision += 1
         fixture = json.loads((FIXTURES / "two_sources_delayed.json").read_text(encoding="utf-8"))
         self.match = Match.model_validate(fixture["match"]).model_copy(
             update={"home_score": 0, "away_score": 0, "match_seconds": 0}
@@ -89,7 +93,9 @@ class DemoEngine:
             match=self.match, sources=self.sources, segments=self.segments,
             events=self.events, ball=self.ball
         )
-        return {"mode": "synthetic_demo", "step": self.index, "total_steps": len(SCENARIO),
+        return {"mode": "synthetic_demo", "stream_id": self.stream_id,
+                "revision": self._revision,
+                "step": self.index, "total_steps": len(SCENARIO),
                 "data": bundle.model_dump(mode="json")}
 
     def step(self) -> dict:
@@ -97,6 +103,7 @@ class DemoEngine:
             return self.snapshot()
         item = SCENARIO[self.index]
         self.index += 1
+        self._revision += 1
         observed = datetime.now(UTC)
         category, kind, zone = interpret_demo_text(item["text"])
         segment = TranscriptSegment(
