@@ -243,3 +243,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### Diagnóstico de falha Windows GN-083 (2026-11-11)
 
 - Instalação do faster-whisper no Windows/Python 3.12 confirmada; primeira inferência ASR retornou erro genérico e teardown de subprocesso incompleto. `scripts/gn083_asr_check.py`, `app/asr_diagnostics.py`, `--diagnose-asr` em `scripts/gn083_audit.py` e fechamento de pipes em `app/audio_capture.py` adicionados para descobrir causa com autoteste sintético e sem novo teste de captura de 300 s. **GN-083 [ ]** até evidência de ASR real autorizado e métricas com gabarito.
+
+### GN-083 — correção da incompatibilidade PyAV/Whisper (2026-11-11)
+
+- Diagnóstico físico de `scripts.gn083_asr_check` revelou incompatibilidade entre `faster-whisper==1.2.1` e `av==19.0.2` (`metadata_errors`). Dependência opcional fixada em `av==17.1.0`, com teste de regressão `tests/test_gn083_asr_requirements.py` e guia de reparo. GN-083 permanece [ ] até execução real pós-atualização e métricas validadas.
