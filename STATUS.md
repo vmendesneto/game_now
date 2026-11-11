@@ -3,7 +3,7 @@
 **Atualizado:** 2026-11-11
 **Branch:** `main`
 **Últimas tarefas concluídas:** GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Últimas concluídas:** GN-063 (seleção conservadora da fonte ativa), GN-062 (deduplicação de candidatos), GN-061 (atraso por fonte) e GN-060 (relógio lógico). **Próxima tarefa prioritária: GN-074 — validar e completar o fluxo de configuração de partida, elencos e fontes na interface; GN-066 [P1] permanece pendente.** GN-063: CI do PR #23 aprovada, 361 passed, 2 skipped em Python 3.11 e 3.12 (run 43047629361). GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
+**Últimas concluídas:** GN-073 (dois clientes WebSocket com revisão e reconexão), GN-072 (painel), GN-071 (incerteza visual) e GN-070 (campo SVG). **Próxima tarefa prioritária: GN-074 — fluxo de configuração de partida, elencos e fontes na interface**; GN-066 [P1] permanece pendente. **GN-073 CI:** 408 passed, 2 skipped em Python 3.11/3.12 (run 43052978721); clientes simulados, sem navegador físico. GN-044/045 e GN-012/085 dependem de Windows ou áudio permitido; GN-090 precede ativação de captura real pelo site.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
