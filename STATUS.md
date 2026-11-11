@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Próxima tarefa independente:** **GN-057 — LLM local opcional com JSON estrito e comparação contra regras**, sem mover automaticamente a bola; GN-060 será o próximo P0 do relógio lógico. A GN-056 foi validada apenas em testes de texto sintético na CI Linux. GN-044 exige benchmark Windows, GN-045 narração real autorizada, GN-090 segurança das fontes antes de ativação no site; GN-031 segue pendente quanto à autorização.
+**Últimas tarefas concluídas:** GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Próxima tarefa independente:** **GN-060 — relógio lógico independente do instante de chegada do texto**, com simulação de atrasos. GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -141,3 +141,10 @@
 - `tests/test_ball_guard.py` valida cenários negativos e positivos, idade 0/5/5.001 s, inversão no segundo tempo, não reutilização de posição e integração HTTP/SQLite com snapshot idêntico antes/depois. **CI Linux:** 263 passed, 2 skipped, 1 warning em Python 3.11 e 3.12; schema, JS, FFmpeg aprovados: https://github.com/vmendesneto/game_now/actions/runs/43031120226. Smoke ASR real CPU também verde: https://github.com/vmendesneto/game_now/actions/runs/43031120176.
 - **Limites:** evidências são frases artificiais e idade informada pelo chamador, não sincronizada ao áudio. O resultado `candidate` não comprova nem altera localização real, e deve passar por tempo lógico/fusão GN-060..GN-065 antes de alimentar o site. GN-031 e testes físicos Windows ainda sujeitos aos critérios próprios.
 - **Próximo passo:** GN-057 (LLM local opcional / validação JSON), depois GN-060 (tempo lógico) e demais dependências do fluxo real. Não repetir GN-053..GN-055.
+
+## GN-057 — sugestão opcional com LLM local e JSON estrito (2026-11-11)
+
+- `app/llm_local.py`: comparação das regras textuais GN-050/052/053/054 com saída estruturada de modelo **Ollama local opt-in**, apenas em `127.0.0.1:11434/api/generate` usando `http.client` (sem seguir redirects, sem endpoint configurável, sem baixar modelos); `use_local_llm=false` por padrão. Limites de duração de 1..20s, corpo HTTP e saída JSON. Validação rígida de tipos, chaves duplicadas/extra, zona, eventos, IDs de equipe/jogador e conflitos com as regras explícitas; qualquer anomalia, replay ou comercial bloqueia/abstém.
+- `POST /api/matches/{id}/compare-language`: consulta o elenco atual e devolve `baseline` das regras e `suggestion` opcional identificada como **hipótese não verificada**, `eligible_for_state_update=false` em todos os casos. A chamada local roda fora do event loop HTTP. Não altera bola, placar, SQLite, feed, contrato v1 ou fontes reais.
+- `tests/test_llm_local.py` cobre comparação de frase complexa com baseline de regras, fake do modelo local, JSON malformado/duplicado/inesperado, região incompatível, IDs alucinados, rede indisponível sem vazamento de detalhes, localhost fixo, categorias proibidas e API SQLite read-only. **CI Linux:** 297 passed, 2 skipped, 1 warning em Python 3.11 e 3.12: https://github.com/vmendesneto/game_now/actions/runs/43032445652. Fluxo ASR CPU anterior permanece independente.
+- **Limites honestos:** testes do modelo são *doubles* determinísticos; não houve inferência Ollama real ou avaliação de desempenho/qualidade com narração de futebol, e nenhum palpite da IA atualiza o campo. Avaliação com áudio autorizado é GN-058/083. Próxima GN-060 (relógio lógico), depois GN-061..065.

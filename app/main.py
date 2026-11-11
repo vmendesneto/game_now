@@ -23,6 +23,7 @@ from app.field_regions import RegionRequest, RegionEvidence, detect_region
 from app.event_detection import EventRequest, EventEvidence, detect_event
 from app.confidence import ConfidenceRequest, ConfidenceEvidence, assess_confidence
 from app.ball_guard import BallGuardRequest, BallGuardDecision, guard_ball_movement
+from app.llm_local import LLMCompareRequest, LLMComparison, compare_language
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
@@ -199,6 +200,12 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         if state is None:
             raise HTTPException(status_code=404, detail="Partida não encontrada")
         return guard_ball_movement(state.match, state.ball, request)
+
+    @application.post("/api/matches/{match_id}/compare-language", response_model=LLMComparison)
+    async def compare_language_text(match_id: str, request: LLMCompareRequest):
+        # Opt-in only. Local model I/O is offloaded; result is always read-only.
+        match = require_match(match_id)
+        return await asyncio.to_thread(compare_language, match, request)
 
     @application.get("/api/matches/{match_id}/flow")
     async def get_match_flow(match_id: str):
