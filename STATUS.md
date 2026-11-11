@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Próxima tarefa de implementação:** **GN-040 — ASR CPU em português com faster-whisper**, com validação real de transcrição. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
+**Últimas tarefas concluídas:** GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Próxima tarefa de implementação:** **GN-041 — janelas contínuas com sobreposição e deduplicação**, após GN-040 validada em CPU Linux. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -58,9 +58,11 @@
 4. Para rodar CI local: `python -m pip install -r requirements-dev.txt && python scripts/export_schema.py && python -m pytest -q`. Testes GN-030 precisam FFmpeg no PATH.
 5. Servidor: `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`. Logs em `data/game_now.log`, registro JSON sem corpo das requisições.
 
-## GN-040 — implementação em revisão (2026-11-11)
+## GN-040 — validada em CI Linux (2026-11-11)
 
 - Branch `feat/gn040-asr-cpu`, PR #7: `app/asr.py` aceita WAV mono 16 kHz/PCM s16le com limites de duração, integra faster-whisper opcional, oferece modelos tiny/base/small/medium e CPU int8. `requirements-asr.txt` é opt-in.
 - O modo demo permanece sem modelo; o diagnóstico `/health` não faz download, nem inicia inferência. A CLI só imprime JSON com texto/segmentos; não guarda áudio e não acessa fontes remotas.
-- `tests/test_asr.py` usa modelo falso para validação determinística; o workflow `asr-smoke.yml` foi configurado para gerar **fala sintetizada em português** e executar o modelo real em CPU. **Só marcar GN-040 [x] após workflow real confirmado**.
+- `tests/test_asr.py` usa modelo falso para validação determinística; o workflow `asr-smoke.yml` foi configurado para gerar **fala sintetizada em português** e executar o modelo real em CPU. **GN-040 comprovada**: run 43016056292 (modelo real base/CPU, 1 teste aprovado), e run 43016091200 (suíte geral aprovada em Python 3.11/3.12).
 - Em seguida: GN-041 (janelas sobrepostas e deduplicação) e GN-042 (feed por fonte), sem presumir teste físico Windows.
+
+- Evidência de inferência real: https://github.com/vmendesneto/game_now/actions/runs/43016056292. Log: `REAL_CPU_ASR_RESULT: O jodo de futebol comeceu a guarda. A bola está no meio do campo. Ata-cante chuto e fez um globo.` O ASR reconheceu fala em português, com erros esperados do TTS sintético. **Não é benchmark de precisão/WER, nem validação de narração real/Windows**.
