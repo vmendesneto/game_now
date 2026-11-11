@@ -37,6 +37,7 @@ Abra http://127.0.0.1:8000 no navegador. Clique em **Próximo relato** para simu
 | `/api/matches/{id}/resolve-player` | POST | Resolver menção isolada (nome, apelido, camisa), retornando `resolved`, `ambiguous` ou `unknown` |
 | `/api/matches/{id}/resolve-narration` | POST | Resolver nomes de equipes/atletas, camisas e pronomes em texto livre sem alterar a partida (GN-051) |
 | `/api/matches/{id}/resolve-possession` | POST | Detectar posse/troca de posse com referência explícita no texto, sem persistir a hipótese (GN-052) |
+| `/api/matches/{id}/resolve-region` | POST | Identificar faixa 1–5 e corredor esquerdo/centro/direito com evidência textual, sem alterar a posição real/persistida (GN-053) |
 | `/api/matches/{id}/flow` | GET | Período, titulares em campo, substituições, expulsões, acréscimos e histórico |
 | `/api/matches/{id}/actions` | POST | Registrar operação de jogo (GN-024) |
 | `/api/matches/{id}/corrections` | GET, POST | Corrigir placar, posse e eventos com auditoria (GN-025) |
@@ -238,3 +239,9 @@ print(classify_narration("No replay vemos o gol novamente."))
 ## GN-052 — identificação diagnóstica de posse
 
 `POST /api/matches/{id}/resolve-possession` recebe `{"text":"Bruno do Vermelho com a bola","previous_team_id":"team-azul"}` e retorna `status=explicit`, `team_id`, `player_id` e `changed_team=true` apenas quando o texto de lance atual contém **evidência explícita de posse** vinculada sem ambiguidade a jogador/clube da escalação persistida. Frases como "Bola com o camisa nove do Azul" são aceitas; passe sem recepção explícita, nomes repetidos, comercial, replay, gol isolado ou relatos contraditórios retornam `unknown`. O identificador de posse anterior é fornecido pelo chamador e não é presumido como estado real. Esta API é **diagnóstica**; não altera o snapshot da bola nem registra eventos e ainda não processa áudio ao vivo automaticamente.
+
+## GN-053 — região estimada por evidência textual (diagnóstico)
+
+`POST /api/matches/{id}/resolve-region` com `{"text":"Azul com a bola na intermediária ofensiva pela direita"}` só responde `status=explicit` quando texto atual, equipe única, faixa e corredor são inequívocos. Retorna `zone: {"band":4,"lane":"right"}` para equipe atacando da esquerda para a direita, mais `attack_direction`, `field_band` e `field_lane` para a orientação fixa de exibição. `band=1` é próximo da própria linha de gol e `band=5` próximo da gol adversária; `lane` é sempre relativa ao sentido do ataque. Se a equipe ataca da direita para esquerda, o campo fixo inverte tanto a faixa (`6-band`) quanto esquerda/direita. O segundo tempo usa `attack_direction` já persistida pela virada da partida; não inverter de novo no frontend.
+
+Opcionalmente, o chamador pode fornecer `team_id` como contexto externo explícito para uma frase sem nome de clube; não é posse consultada ou deduzida do banco. Se houver menção conflitante à equipe, região ampla, corredor ausente, duas zonas conflitantes, comercial, replay ou jogo parado, `status=unknown`, `zone=null` e nenhuma coordenada são devolvidos. O endpoint não move a bola, não gera eventos e não conecta automaticamente a transcrição ao campo. Exemplo verificável: `python -m pytest -q tests/test_field_regions.py` (CI Linux, PR #15).
