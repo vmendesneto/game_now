@@ -155,3 +155,10 @@
 - **GN-061:** PR #21 https://github.com/vmendesneto/game_now/pull/21 implementa `app/source_delay.py`, testes sintéticos `tests/test_source_delay.py` e endpoint diagnóstico `POST /api/matches/{id}/sources/delay/preview`. Apenas IDs de eventos explicitamente comuns são correlacionados; exige pelo menos dois pares, usa timestamp de captura, descarta fora da janela, recusa offsets conflitantes e NÃO altera SQLite, clock ou bola. Depende de timestamps no mesmo domínio de relógio; não foi testada com duas transmissões reais.
 - **CI:** o workflow no PR #21 agora usa FFmpeg do runner se disponível, evitando `apt-get` desnecessário, e usa timeout se instalação for necessária. A validação completa Python 3.11/3.12 permanece pendente antes de marcar GN-060/GN-061 [x] e mesclar o PR #21.
 - **Continuar:** conferir CI do PR #21; corrigir erros se houver; após aprovação, atualizar ROADMAP/STATUS/AGENTS/README no mesmo commit, mesclar #21 e avançar GN-062 (deduplicação multifuente). Não assumir sincronismo real nem ativar fontes antes de GN-090.
+
+## GN-062 — implementação em revisão (2026-11-11)
+
+- PR #22: https://github.com/vmendesneto/game_now/pull/22, branch `feat/gn062-conservative-event-dedup`, com base na branch GN-061 (PR #21), sem merge ainda.
+- `app/event_deduplication.py`: combina candidatos de eventos textualmente explícitos de fontes diferentes apenas com alinhamento relativo informado, instante de captura compatível, mesmo tipo/equipe e sem conflitos de jogador. Passes, cruzamentos, chutes e laterais exigem jogador inequívoco; não mescla duplicatas da mesma fonte. Observações de comercial/replay não geram grupo. Endpoint `POST /api/matches/{id}/events/deduplicate/preview` é read-only.
+- `tests/test_event_deduplication.py`: duas narrações formando um grupo, conflitos, atrasos, fontes desalinhadas, eventos próximos distintos, limites e ausência de escrita na API.
+- **Pendente:** testes CI e aprovação das GN-060/GN-061; GN-062 ainda [ ]. Não criar FootballEvent v1 salvo nem alterar a bola automaticamente, e não declarar deduplicação em streams reais. Após GN-061 e GN-062 aprovadas/mescladas, prosseguir GN-063.

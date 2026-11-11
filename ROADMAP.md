@@ -155,3 +155,5 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 - GN-060: implementação mesclada na main via [PR #20](https://github.com/vmendesneto/game_now/pull/20), mas CI original ainda sem comprovação de aprovação; manter [ ] até resultado válido.
 - GN-061: estimativa diagnóstica de atraso por eventos explicitamente comuns, janela e testes de simulação no [PR #21](https://github.com/vmendesneto/game_now/pull/21); manter [ ] até CI aprovada e merge.
+
+- GN-062: deduplicação diagnóstica conservadora de dois relatos em um grupo no [PR #22](https://github.com/vmendesneto/game_now/pull/22), dependente do PR #21; manter [ ] até a CI da branch e a integração final.
