@@ -247,3 +247,8 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### GN-083 — correção da incompatibilidade PyAV/Whisper (2026-11-11)
 
 - Diagnóstico físico de `scripts.gn083_asr_check` revelou incompatibilidade entre `faster-whisper==1.2.1` e `av==19.0.2` (`metadata_errors`). Dependência opcional fixada em `av==17.1.0`, com teste de regressão `tests/test_gn083_asr_requirements.py` e guia de reparo. GN-083 permanece [ ] até execução real pós-atualização e métricas validadas.
+
+
+### GN-083 — isolamento CPU/ingestão e diagnóstico 403 (2026-11-11)
+
+- O usuário concluiu ASR físico de 6s em Cruzeiro x Bahia com `tiny`, mas `base`/300s encontrou `upstream_http_403` de mídia. `--capture-first` opcional coleta até 600s PCM (19,2MB) só na RAM antes de transcrever, para evitar pausas do stream por inferência CPU; erro 403 permanece definitivo, com registro do PCM recebido. Testes determinísticos cobrem modo e recusa sem retry, guia `docs/GN-083.md`. **GN-083 [ ]** ainda sem 300s real ou gabarito de qualidade.

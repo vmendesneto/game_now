@@ -40,6 +40,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ffmpeg", default="ffmpeg", help="FFmpeg executable")
     parser.add_argument("--reference", type=Path, help="Independent human annotations JSON")
     parser.add_argument("--include-text", action="store_true", help="Include private ASR text")
+    parser.add_argument("--capture-first", action="store_true",
+                        help="Receive up to 600 seconds PCM in bounded RAM before running CPU ASR")
     parser.add_argument("--diagnose-asr", action="store_true",
                         help="On failure, show sanitized native ASR error details locally")
     parser.add_argument("--output", type=Path, help="Optional local JSON report")
@@ -63,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.youtube_url, match, seconds=args.seconds,
                 source_id="youtube-083" if args.source_id == "audio-local" else args.source_id,
                 yt_dlp_binary=args.yt_dlp, ffmpeg_binary=args.ffmpeg,
-                model=args.model,
+                model=args.model, capture_first=args.capture_first,
             ))
             observations = list(run.observations)
         else:
