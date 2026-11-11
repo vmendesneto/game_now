@@ -240,16 +240,21 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
                 if receive_task in done:
                     update_task.cancel()
                     await asyncio.gather(update_task, return_exceptions=True)
-                    receive_task.result()  # propagates WebSocketDisconnect
+                    message_from_client = receive_task.result()  # may raise WebSocketDisconnect
+                    if message_from_client == "close":
+                        break
                     receive_task = asyncio.create_task(socket.receive_text())
                     continue
                 message = update_task.result()
                 allowed = {source.id for source in store.get_sources(match_id) or []}
                 if message["data"]["source_id"] in allowed:
                     await socket.send_json(message)
-        except (WebSocketDisconnect, RuntimeError, OSError):
+        except (WebSocketDisconnect, RuntimeError, OSError, asyncio.CancelledError):
             pass
         finally:
+            if 'update_task' in locals() and not update_task.done():
+                update_task.cancel()
+                await asyncio.gather(update_task, return_exceptions=True)
             receive_task.cancel()
             await asyncio.gather(receive_task, return_exceptions=True)
             transcript_feed.unsubscribe(match_id, token)
