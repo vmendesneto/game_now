@@ -50,10 +50,10 @@ test("small and desktop viewBoxes preserve identical normalized zone proportions
   const zone = {band:3,lane:"right"};
   const desktop = zoneCellBounds(zone, "right_to_left", 1000, 620);
   const mobile = zoneCellBounds(zone, "right_to_left", 320, 198.4);
-  assert.equal(desktop.x/1000, mobile.x/320);
-  assert.equal(desktop.y/620, mobile.y/198.4);
-  assert.equal(desktop.width/1000, mobile.width/320);
-  assert.equal(desktop.height/620, mobile.height/198.4);
+  assert.ok(Math.abs(desktop.x/1000 - mobile.x/320) < 1e-10);
+  assert.ok(Math.abs(desktop.y/620 - mobile.y/198.4) < 1e-10);
+  assert.ok(Math.abs(desktop.width/1000 - mobile.width/320) < 1e-10);
+  assert.ok(Math.abs(desktop.height/620 - mobile.height/198.4) < 1e-10);
   assert.equal(mobile.width, 64);
 });
 
