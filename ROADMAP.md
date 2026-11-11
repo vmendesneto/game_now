@@ -94,7 +94,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-070 [P0]** Desenhar campo responsivo via SVG, com 15 zonas, sentido do ataque e troca de lados; evidência: desktop/móvel.
 - [x] **GN-071 [P0]** Exibir posição/região estimada, indicador de incerteza e animação limitada ao que foi narrado; evidência: roteiro demonstrável.
 - [x] **GN-072 [P0]** Exibir posse, placar, relógio, jogador provável e evento atual; evidência: UI em demo.
-- [ ] **GN-073 [P0]** Atualizar site por WebSocket sem transmitir mídia; evidência: dois navegadores sincronizados.
+- [x] **GN-073 [P0]** Atualizar site por WebSocket sem transmitir mídia; evidência: dois navegadores sincronizados.
 - [ ] **GN-074 [P0]** Tela de configuração para partida, elencos e fontes (rádio/YouTube); evidência: fluxo sem editar código.
 - [ ] **GN-075 [P1]** Feed de transcrições, eventos e status de cada fonte, com explicação da confiança; evidência: inspeção UI.
 - [ ] **GN-076 [P1]** Controles iniciar/pausar/reiniciar e correções manuais; evidência: testes UX.
@@ -181,3 +181,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### GN-072 integrada (2026-11-11)
 
 - **GN-072 [x]:** PR #28, painel com posse/atleta provável de GN-071, placar e relógio da demo, narração atual separada do último lance confirmado, comercial/replay/análise e relatos duplicados distinguíveis sem gols artificiais. Testes `tests/test_demo_scoreboard.cjs` e `tests/test_demo_dashboard_ui.py` incluem a API sintética completa de 8 passos, CI https://github.com/vmendesneto/game_now/actions/runs/43051812981 (**405 passed, 2 skipped** Python 3.11/3.12). Não há partida ao vivo nem teste físico. **Próxima GN-073 [ ].**
+
+### GN-073 integrada (2026-11-11)
+
+- **GN-073 [x]:** PR #29. Envelope da demo com `stream_id` e `revision` para que duas sessões de navegador nunca exibam uma resposta HTTP antiga por cima de um broadcast WebSocket mais novo; reconexão com backoff, reset versionado e tratamento de reinício do servidor. Testes de dois WebSockets via TestClient + duas sessões independentes simuladas em Node. CI https://github.com/vmendesneto/game_now/actions/runs/43052978721 (**408 passed, 2 skipped** em Python 3.11/3.12). **Não houve teste físico com dois navegadores;** não há captura real nem alteração do `ContractBundle` v1. **Próxima GN-074 [ ].** GN-066 [P1] segue pendente.

@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Últimas concluídas:** GN-063 (seleção conservadora da fonte ativa), GN-062 (deduplicação de candidatos), GN-061 (atraso por fonte) e GN-060 (relógio lógico). **Próxima tarefa prioritária: GN-073 — sincronizar interface em dois navegadores por WebSocket; GN-066 [P1] permanece pendente.** GN-063: CI do PR #23 aprovada, 361 passed, 2 skipped em Python 3.11 e 3.12 (run 43047629361). GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
+**Últimas tarefas concluídas:** GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Últimas concluídas:** GN-063 (seleção conservadora da fonte ativa), GN-062 (deduplicação de candidatos), GN-061 (atraso por fonte) e GN-060 (relógio lógico). **Próxima tarefa prioritária: GN-074 — validar e completar o fluxo de configuração de partida, elencos e fontes na interface; GN-066 [P1] permanece pendente.** GN-063: CI do PR #23 aprovada, 361 passed, 2 skipped em Python 3.11 e 3.12 (run 43047629361). GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -205,3 +205,12 @@
 - `tests/test_demo_scoreboard.cjs` (8 casos Node) cobre marcador, relógio por período, nenhum evento, comercial/replay/análise e segmentos repetidos. `tests/test_demo_dashboard_ui.py` (3 testes) verifica HTML/JS e consome 9 snapshots reais da API sintética (estado inicial + 8 etapas), executando apresentador Node para conferir mensagens, placares e relógios em todos os passos.
 - **CI PR #28**: 405 passed, 2 skipped em Python 3.11 e 3.12: https://github.com/vmendesneto/game_now/actions/runs/43051812981. Testes automatizados não equivalem a navegador real/Windows; nada neste trabalho ativa rádio, YouTube ou ASR.
 - **Próxima: GN-073** WebSocket e múltiplos navegadores, respeitando demo separada; GN-066 [P1] ainda pendente. GN-090 antes de habilitar captura via site.
+
+## GN-073 — WebSocket versionado e dois clientes de navegação (2026-11-11)
+
+- PR #29: `feat/gn073-browser-websocket-sync`. `DemoEngine` acrescenta `stream_id` por processo e `revision` monotônica a cada relato/reset somente no envelope de demonstração. `ContractBundle` v1 e o SQLite não foram alterados.
+- `app/main.py` usa lock assíncrono na demo para impedir envio fora de ordem entre cadastro de novos WebSockets e broadcasts de alterações; `/api/state` e comandos `/api/demo/next` e `/api/demo/reset` compartilham essa ordenação.
+- `app/static/demo_sync.js` integra o navegador com validação de envelope, descarte de revisões antigas/duplicadas, uso de GET como fallback inicial, reconexão com backoff limitado e troca de época quando o servidor reinicia. `app.js` preserva o quadro e o feed sem retransmitir mídia.
+- Testes novos: `tests/test_demo_websocket_sync.py` abre **dois clientes WebSocket** do FastAPI e observa relatos/reset idênticos, além de simular a recriação do processo; `tests/test_demo_sync.cjs` simula duas abas independentes, snapshots fora de ordem, HTTP atrasado e reconexão. São clientes/sessões simulados, **não** ensaio físico com dois navegadores reais.
+- A primeira CI falhou apenas pelo novo teste omitir o campo `schema_version` preexistente; teste corrigido. CI final: https://github.com/vmendesneto/game_now/actions/runs/43052978721 — **408 passed, 2 skipped** em Python 3.11 e 3.12, com Node.js nos testes. Sem transmissão de áudio/vídeo e sem validação de rede LAN ou Windows físico.
+- **Próxima GN-074 [P0]:** fluxo completo na interface para partida, elencos e fontes com teste integrado; GN-066 [P1] também pendente. GN-090 continua pré-requisito da captura real.
