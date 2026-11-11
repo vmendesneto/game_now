@@ -35,6 +35,7 @@ from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
 from app.transcription_feed import TranscriptFeed
+from app.gn083_live import LiveObservation, LivePreviewRegistry
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -46,6 +47,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     flow = MatchFlowService(store)
     corrections = CorrectionService(store)
     transcript_feed = TranscriptFeed()
+    live_previews = LivePreviewRegistry()
     application.state.transcript_feed = transcript_feed
     application.state.store = store
     logger = request_logger()
@@ -140,6 +142,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         if not store.delete_match(match_id):
             raise HTTPException(status_code=404, detail="Partida não encontrada")
         transcript_feed.clear_match(match_id)
+        live_previews.clear_match(match_id)
         return Response(status_code=204)
 
     @application.get("/api/matches/{match_id}/players", response_model=list[RosterPlayer])
@@ -349,6 +352,26 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
             match_id, source_id=source_id, limit=limit,
             allowed_sources=registered,
         )
+
+    @application.post("/api/matches/{match_id}/live/observation")
+    async def receive_live_observation(
+        match_id: str, observation: LiveObservation, request: Request,
+    ):
+        # Only the local GN-083 CLI may publish ephemeral text-only diagnostics.
+        # This is never a persisted event, authenticated broadcast or score update.
+        host = request.client.host if request.client else ""
+        if host not in ("127.0.0.1", "::1", "testclient") or request.headers.get("origin"):
+            raise HTTPException(status_code=403, detail="Live preview accepts local CLI only")
+        match = require_match(match_id)
+        try:
+            return live_previews.receive(match, observation)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @application.get("/api/matches/{match_id}/live/preview")
+    async def get_live_preview(match_id: str):
+        require_match(match_id)
+        return live_previews.get(match_id)
 
     @application.websocket("/ws/matches/{match_id}/transcripts")
     async def transcript_websocket(match_id: str, socket: WebSocket):

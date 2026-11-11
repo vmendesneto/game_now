@@ -14,7 +14,7 @@
     </header>
     <section class="intro"><div><div class="eyebrow">PRÉVIA TÉCNICA · DEMONSTRAÇÃO OFFLINE</div>
       <h1>Acompanhe o lance. <em>Sem inventar a posição.</em></h1>
-      <p>O desenho mostra a <strong>região estimada</strong> a partir de narrações simuladas. Não é rastreamento real da bola.</p>
+      <p>O desenho mostra uma <strong>região estimada</strong> na demo ou, ao monitorar uma partida selecionada, uma prévia de narração textual. Não é rastreamento real da bola.</p>
     </div><div class="demo-tag">SEM ÁUDIO / VÍDEO</div></section>
     <section class="dashboard">
       <div class="stage">
@@ -24,6 +24,7 @@
           <div class="club away"><span id="away-name">Vermelho</span><span class="club-dot red"></span></div>
         </div>
         <div class="meta"><span id="clock" aria-label="Relógio da demonstração">00:00 · 1º tempo</span><span id="direction">Azul ataca →</span></div>
+        <p id="live-monitor-state" role="status" aria-live="polite" class="muted" hidden></p>
         <div class="field-wrap"><svg id="field" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Campo de futebol com 15 zonas de localização aproximada" xmlns="http://www.w3.org/2000/svg"></svg></div>
         <div class="field-foot"><span><i class="legend-square"></i> Região provável (não posição exata)</span><span id="ball-status" role="status" aria-live="polite">Posição incerta</span></div>
       </div>
@@ -46,7 +47,7 @@
     <section class="config-area" aria-labelledby="configuration-title">
       <div class="config-heading"><div><div class="eyebrow">GN-020 · GN-021 · GN-023</div>
         <h2 id="configuration-title">Partidas e elencos</h2>
-        <p>Cadastre a partida e os atletas no SQLite local. O campo acima continua sendo uma <strong>demo sintética separada</strong>; suas narrações não alteram os jogos cadastrados. Para corrigir placar, posse ou evento de um jogo salvo, selecione a partida e use a seção <strong>Correções manuais auditadas</strong> abaixo.</p>
+        <p>Cadastre a partida e os atletas no SQLite local. O campo acima é uma <strong>demo sintética</strong>, mas muda para a prévia textual temporária quando um monitor GN-083 estiver ativo para a partida selecionada. Nunca altera automaticamente o placar/SQLite. Para corrigir placar, posse ou evento de um jogo salvo, selecione a partida e use a seção <strong>Correções manuais auditadas</strong> abaixo.</p>
       </div></div>
       <div class="panel setup-panel" id="setup-panel" aria-labelledby="setup-title">
         <div class="panel-title" id="setup-title">CONFIGURAÇÃO EM 3 ETAPAS</div>
