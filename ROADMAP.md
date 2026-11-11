@@ -86,7 +86,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-062 [P0]** Deduplicar o mesmo lance narrado por várias fontes; evidência: dois relatos geram um evento.
 - [x] **GN-063 [P0]** Selecionar fonte ativa considerando comercial, atualidade, confiança e saúde da conexão; evidência: transição entre fontes.
 - [x] **GN-064 [P0]** Tratar contradições sem “voltar no tempo” nem inventar coordenadas; evidência: teste de fontes conflitantes.
-- [ ] **GN-065 [P0]** Expirar posição antiga/mostrar “posição incerta” quando faltar narração válida; evidência: teste de silêncio.
+- [x] **GN-065 [P0]** Expirar posição antiga/mostrar “posição incerta” quando faltar narração válida; evidência: teste de silêncio.
 - [ ] **GN-066 [P1]** Painel de diagnóstico das decisões da fusão e calibração manual do atraso; evidência: logs legíveis.
 
 ## F07 — Site e campo
@@ -165,3 +165,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### GN-064 integrada (2026-11-11)
 
 - **GN-064 [x]:** PR #24, guarda read-only contra tempo atrasado e alegações contraditórias entre fontes, sem inventar região. `app/fusion_conflicts.py` e teste `tests/test_fusion_conflicts.py`; CI: **380 passed, 2 skipped** Python 3.11 e 3.12 em https://github.com/vmendesneto/game_now/actions/runs/43048616845. Prévia hipotética; não é sincronismo real de emissoras. **Próxima GN-065 [ ].**
+
+### GN-065 integrada (2026-11-11)
+
+- **GN-065 [x]:** PR #25, validade de último lance por captura alinhada, incerteza após silêncio ou perda da fonte, e expiração da zona com TTL; saída somente de prévia sem escrita. `app/ball_freshness.py`, `tests/test_ball_freshness.py`. CI **397 passed, 2 skipped** Python 3.11 e 3.12 em https://github.com/vmendesneto/game_now/actions/runs/43049429978. Ainda sem render automático no navegador (GN-071). **Próxima GN-070 [P0]**; GN-066 [P1] pendente.
