@@ -9,15 +9,15 @@ from app.main import create_app
 
 ROOT = Path(__file__).resolve().parents[1]
 MATCH = {"id": "gn074-match",
- "home":{"id":"h","name":"Azul","short_name":"AZU","color":"#4990FF","attack_direction":"left_to_right"},
- "away":{"id":"a","name":"Vermelho","short_name":"VER","color":"#F26C69","attack_direction":"right_to_left"},
+ "home":{"id":"club-h","name":"Azul","short_name":"AZU","color":"#4990FF","attack_direction":"left_to_right"},
+ "away":{"id":"club-a","name":"Vermelho","short_name":"VER","color":"#F26C69","attack_direction":"right_to_left"},
  "period":"first_half","match_seconds":0,"home_score":0,"away_score":0}
 PLAYERS = [
- {"id":"p1","team_id":"h","name":"João","number":10,"aliases":[],"starter":True,"position":"forward"},
- {"id":"p2","team_id":"a","name":"Pedro","number":9,"aliases":[],"starter":True,"position":"forward"}]
+ {"id":"player-1","team_id":"club-h","name":"João","number":10,"aliases":[],"starter":True,"position":"forward"},
+ {"id":"player-2","team_id":"club-a","name":"Pedro","number":9,"aliases":[],"starter":True,"position":"forward"}]
 SOURCES = [
- {"id":"r","name":"Rádio teste","kind":"radio","url":"https://radio.example.org/live","enabled":True,"status":"offline"},
- {"id":"y","name":"YouTube teste","kind":"youtube","url":"https://youtu.be/AbCdEf12345","enabled":False,"status":"offline"}]
+ {"id":"source-radio","name":"Rádio teste","kind":"radio","url":"https://radio.example.org/live","enabled":True,"status":"offline"},
+ {"id":"source-youtube","name":"YouTube teste","kind":"youtube","url":"https://youtu.be/AbCdEf12345","enabled":False,"status":"offline"}]
 
 def test_configure_in_three_steps_and_reopen_sqlite(tmp_path):
  db=tmp_path/"setup.sqlite3"
