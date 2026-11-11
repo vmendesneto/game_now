@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Próxima tarefa independente:** **GN-051 — resolver atletas/equipes e referências em narração textual com contexto conservador**. GN-044 exige benchmark no Windows e GN-045 áudio real autorizado. GN-090 é pré-requisito de segurança para ativação de fontes pelo site. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
+**Últimas tarefas concluídas:** GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Próxima tarefa independente:** **GN-052 — detectar posse e mudanças de posse apenas com evidência textual explícita**. GN-044 exige benchmark no Windows e GN-045 áudio real autorizado. GN-090 é pré-requisito de segurança para ativação de fontes pelo site. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -96,3 +96,11 @@
 - `fixtures/narration_labeled.json` inclui **39 frases originais sintéticas em português**, com seis categorias e casos negativos; `tests/test_narration_classifier.py` verifica todos os rótulos, precedência, falsos positivos, palavras acentuadas e limites. Correção de alongamentos de "GOOOOOL" reproduzida no corpus.
 - Evidência: **115 passed, 2 skipped** em Python 3.11/3.12, run https://github.com/vmendesneto/game_now/actions/runs/43020798677; smoke real ASR permanece verde (run https://github.com/vmendesneto/game_now/actions/runs/43020798636).
 - Limitação: as 39 frases são inventadas e rotuladas para o teste; acerto nesse corpus não mede generalização a narradores reais ou ASR ruidoso. O classificador está conectado **somente ao feed textual volátil** (PR #12, commit `0cc7b77`), expondo `narration_kind`, `classification_reason` e `eligible_for_live_state`; **não** está conectado à lógica que movimenta a bola. O complemento passou na CI Python 3.11/3.12 com **117 passed, 2 skipped** (https://github.com/vmendesneto/game_now/actions/runs/43022961852). Avaliação real e refinamento dependerão de GN-058 (corpus autorizado).
+
+## GN-051 — resolução conservadora de entidades em narração (2026-11-11)
+
+- `app/narration_entities.py` extrai nomes e aliases cadastrados, nomes/abreviações de clubes e camisas 1–99 (algarismos ou palavras, incluindo "camisa nove"). Comparação com fronteiras de palavras, caixa e acentos normalizados; devolve posição da menção, candidatos e motivo auditável. Nome ou número repetido entre equipes permanece `ambiguous` até haver referência explícita "do/da/pelo/pela [clube]"; não atribui posse ou posição de bola.
+- Referências "ele/dele" usam apenas um atleta explicitamente identificado antes do pronome na mesma frase; dois candidatos, comercial, replay ou ausência de antecedente permanecem desconhecidos. Contexto entre janelas é opcional, passado pelo chamador, válido somente no mesmo match/source, sequência imediatamente seguinte e intervalo de -2 a +8 s; não se propaga a partir de pronomes. Nenhum contexto persistente é registrado.
+- `POST /api/matches/{id}/resolve-narration` lê a escalação no SQLite e retorna dados de diagnóstico, sem mutar contrato v1, feed ou snapshot do jogo. Documentado no README; teste de integração cobre reinício e integridade do estado.
+- Prova: `python -m pytest -q` na CI do PR #13, Python 3.11 e 3.12: **125 passed, 2 skipped, 1 warning** em cada versão; schema/JS/FFmpeg fixtures e benchmark de montagem aprovados. https://github.com/vmendesneto/game_now/actions/runs/43024972166. Sete testes unitários de GN-051 também executados localmente com dependências mínimas (não substituem CI).
+- **Limite:** corpus de testes é sintético; resultado é resolução textual diagnóstica, não identifica jogador em áudio real, não produz evento ou posse, não alimenta automaticamente o feed nem campo. **Próximo item: GN-052**, depois GN-053; GN-044/045, GN-012/085 e GN-031 mantêm bloqueios próprios.
