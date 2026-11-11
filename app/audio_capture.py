@@ -183,13 +183,31 @@ async def pcm_chunks(
         if not yielded:
             raise CaptureError("FFmpeg produced no PCM samples")
     finally:
-        await _shutdown(proc)
-        if not errors.done():
-            errors.cancel()
-            with suppress(asyncio.CancelledError):
-                await errors
-        if relay is not None:
-            await asyncio.to_thread(relay.__exit__, None, None, None)
+        # A model exception can stop consumption before FFmpeg reaches EOF.
+        # On Windows, closing the event loop with undrained subprocess pipe
+        # transports can produce "Event loop is closed" in __del__.
+        # Shut down the producer first, then consume remaining pipe EOFs.
+        try:
+            await _shutdown(proc)
+        finally:
+            if proc.stdout is not None:
+                try:
+                    await asyncio.wait_for(proc.stdout.read(), timeout=3)
+                except (asyncio.TimeoutError, OSError, RuntimeError):
+                    # Closing the reader's transport is a last resort; Python
+                    # exposes no public Process.close() for asyncio subprocesses.
+                    transport = getattr(proc.stdout, "_transport", None)
+                    if transport is not None:
+                        transport.close()
+            if not errors.done():
+                try:
+                    await asyncio.wait_for(asyncio.shield(errors), timeout=3)
+                except (asyncio.TimeoutError, OSError, RuntimeError):
+                    errors.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await errors
+            if relay is not None:
+                await asyncio.to_thread(relay.__exit__, None, None, None)
 
 
 async def diagnostic(source: AudioSource, *, fixture_file: Path | None = None,
