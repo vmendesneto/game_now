@@ -27,6 +27,7 @@ from app.llm_local import LLMCompareRequest, LLMComparison, compare_language
 from app.logical_clock import ClockPreviewRequest, ClockPreviewResponse, preview_clock
 from app.source_delay import RelativeDelayRequest, RelativeDelayResponse, preview_relative_delays
 from app.event_deduplication import EventDeduplicationRequest, EventDeduplicationResponse, preview_event_deduplication
+from app.source_selection import SourceSelectionRequest, SourceSelectionResponse, preview_active_source
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
@@ -235,6 +236,15 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         # GN-062: pairs are candidate observations, never persisted events.
         require_match(match_id)
         return preview_event_deduplication(request)
+
+    @application.post(
+        "/api/matches/{match_id}/sources/selection/preview",
+        response_model=SourceSelectionResponse,
+    )
+    async def preview_source_selection(match_id: str, request: SourceSelectionRequest):
+        # GN-063: diagnostic only, no capture started and no match state changed.
+        require_match(match_id)
+        return preview_active_source(request)
 
     @application.get("/api/matches/{match_id}/flow")
     async def get_match_flow(match_id: str):
