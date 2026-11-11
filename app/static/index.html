@@ -200,6 +200,23 @@
         <div class="panel-title">EVENTOS REGISTRADOS · PONTUAÇÕES DE REGRAS</div>
         <ul class="roster-list" id="transcript-event-list"></ul>
         <p class="muted">Pontuações são heurísticas, não probabilidades calibradas. A transcrição ainda não é ligada automaticamente à captura nem ao estado do campo.</p>
+        <div class="panel config-form" id="fusion-panel">
+          <div class="panel-title">GN-066 · FUSÃO E CALIBRAÇÃO MANUAL</div>
+          <p class="muted">Prévia de fonte escolhida, atrasos e contradições. Insira observações com horário de captura confiável. Os ajustes são temporários; não alteram partidas, áudio ou posições.</p>
+          <form id="fusion-form">
+            <label>Observações (JSON com selection e fusion)
+              <textarea id="fusion-json" rows="7" required placeholder="Cole observações alinhadas das fontes cadastradas"></textarea>
+            </label>
+            <p class="muted">Um atraso manual positivo indica fonte narrando depois da referência; a prévia subtrai esse valor do horário do evento.</p>
+            <div id="fusion-offsets"></div>
+            <div class="controls">
+              <button type="button" id="fusion-example" class="secondary">Preencher exemplo sintético</button>
+              <button type="submit">Pré-visualizar fusão</button>
+            </div>
+            <p id="fusion-result" class="form-message" role="status">Nenhuma hipótese avaliada.</p>
+          </form>
+          <ul id="fusion-trace" class="roster-list"></ul>
+        </div>
       </div>
       <div class="panel config-form" id="sources-panel" hidden>
         <div class="panel-title">GN-032 · FONTES DE NARRAÇÃO</div>
@@ -232,6 +249,7 @@
   <script src="/static/demo_playback.js" defer></script>
   <script src="/static/setup_progress.js" defer></script>
   <script src="/static/transcript_diagnostics.js" defer></script>
+  <script src="/static/fusion_diagnostics.js" defer></script>
   <script src="/static/app.js" defer></script>
 </body>
 </html>

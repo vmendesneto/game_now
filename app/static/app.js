@@ -172,6 +172,10 @@ function blankMatch() {
   stopTranscriptDiagnostics();
   chosenMatch=null;currentRoster=[];registeredSources=[];editingPlayerId=null;
   $("transcripts-panel").hidden=true;
+  $("fusion-json").value="";
+  $("fusion-offsets").replaceChildren();
+  $("fusion-trace").replaceChildren();
+  $("fusion-result").textContent="Nenhuma hipótese avaliada.";
   $("match-form").reset();
   $("home-input").value="Azul";$("away-input").value="Vermelho";
   $("home-short").value="AZU";$("away-short").value="VER";
@@ -612,6 +616,7 @@ async function loadSavedSources(){
   $("sources-panel").hidden=false;
   resetSourceForm();
   showSavedSources();
+  refreshFusionOffsetInputs();
   updateSetupProgress();
 }
 async function persistSavedSources(next){
@@ -620,6 +625,7 @@ async function persistSavedSources(next){
     "/api/matches/"+encodeURIComponent(chosenMatch.id)+"/sources","PUT",next);
   resetSourceForm();
   showSavedSources();
+  refreshFusionOffsetInputs();
   updateSetupProgress();
   await loadTranscriptDiagnostics();
 }
@@ -755,3 +761,61 @@ async function loadTranscriptDiagnostics(){
       $("transcript-connection").textContent="Não foi possível consultar transcrições: "+error.message;
   }
 }
+
+/* GN-066: manual, nonpersistent fusion preview; never activates capture. */
+function refreshFusionOffsetInputs(){
+  const container=$("fusion-offsets");container.replaceChildren();
+  for(const source of registeredSources){
+    const label=document.createElement("label");
+    label.textContent="Ajuste manual de "+source.name+" (segundos, -120 a +120)";
+    const input=document.createElement("input");
+    input.type="number";input.min="-120";input.max="120";input.step="0.5";
+    input.value="0";input.dataset.sourceId=source.id;
+    label.append(input);container.append(label);
+  }
+}
+$("fusion-example").addEventListener("click",()=>{
+  const sample=window.GameNowFusion.example(chosenMatch,registeredSources);
+  if(!sample){
+    formNotice("fusion-result","Cadastre ao menos duas fontes para o exemplo.",true);
+    return;
+  }
+  $("fusion-json").value=JSON.stringify(sample,null,2);
+  $("fusion-offsets").querySelectorAll("input[data-source-id]").forEach((input,index)=>{
+    input.value=index===1?"8":"0";
+  });
+  formNotice("fusion-result","Exemplo SIMULADO, não corresponde às suas rádios.");
+  $("fusion-trace").replaceChildren();
+});
+$("fusion-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(!chosenMatch){formNotice("fusion-result","Selecione uma partida.",true);return;}
+  const matchId=chosenMatch.id;
+  const fields=[...$("fusion-offsets").querySelectorAll("input[data-source-id]")];
+  let request;
+  try{
+    request=window.GameNowFusion.prepare($("fusion-json").value,
+      fields.map(input=>({source_id:input.dataset.sourceId,seconds:input.value})));
+  }catch(error){formNotice("fusion-result",error.message,true);return;}
+  formNotice("fusion-result","Avaliando somente a hipótese…");
+  try{
+    const response=await configApi(
+      "/api/matches/"+encodeURIComponent(matchId)+"/fusion/diagnostics/preview",
+      "POST",request);
+    if(!chosenMatch || chosenMatch.id!==matchId)return;
+    const rows=window.GameNowFusion.describe(response,registeredSources);
+    const list=$("fusion-trace");list.replaceChildren();
+    for(const row of rows){
+      const li=document.createElement("li");
+      const title=document.createElement("strong");title.textContent=row.title;
+      const detail=document.createElement("span");detail.textContent=" · "+row.detail;
+      li.append(title,detail);list.append(li);
+    }
+    formNotice("fusion-result",response.fusion.accepted_for_preview?
+      "Hipótese aceita SOMENTE para prévia, sem alteração do estado.":
+      "Hipótese rejeitada; veja os motivos abaixo.");
+  }catch(error){
+    if(chosenMatch && chosenMatch.id===matchId)
+      formNotice("fusion-result","Diagnóstico não disponível: "+error.message,true);
+  }
+});

@@ -3,7 +3,7 @@
 **Atualizado:** 2026-11-11
 **Branch:** `main`
 **Últimas tarefas concluídas:** GN-091, GN-090, GN-082, GN-081, GN-080, GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Última tarefa concluída:** GN-091 [P0]. **GN-083 [P0] em andamento:** pipeline offline de transcrição PCM/WAV e avaliação com gabarito preparado, sem valores reais de acurácia. **Próxima tarefa independente:** GN-066 [P1], painel de diagnóstico de fusão/calibração de atraso; GN-092 [P1] em seguida. GN-083 requer áudio permitido e referência; GN-012/GN-085 requerem Windows físico.
+**Última tarefa concluída:** GN-091 [P0]. **GN-083 [P0] em andamento:** pipeline offline de transcrição PCM/WAV e avaliação com gabarito preparado, sem valores reais de acurácia. **GN-066 [P1] em validação:** painel de fusão/calibração manual com rastros legíveis; GN-092 [P1] em seguida. GN-083 requer áudio permitido e referência; GN-012/GN-085 requerem Windows físico.
 **Compatibilidade GN-031/GN-083:** o diagnóstico YouTube aceita gravações concluídas e amostras de até 600 s. **Prova física informada pelo usuário em 2026-11-11:** `Ls4qkPrh4Tk` capturado no Windows por **300 s / 9.600.000 bytes de PCM / 600 blocos** (`audio_retransmitted=false`). O áudio não foi fornecido a este ambiente e a permissão específica de uso tampouco foi confirmada; portanto ainda não houve reconhecimento de voz real, medição humana ou gabarito. GN-031 e GN-083 permanecem [ ].
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
@@ -303,3 +303,10 @@
 - **Validação:** smoke local da lógica de métricas e validação estrutural realizado em ambiente Linux Python 3.13 com amostras artificiais; testes integrais da implementação e CI Python 3.11/3.12 devem ser verificados no PR antes de merge. **Nenhum teste de reconhecimento de fala na gravação foi realizado** (bytes PCM e gabarito ausentes no ambiente).
 - **Bloqueio [ ]:** para fechar GN-083, executar o CLI sobre amostra local autorizada e comparar com gabarito manual independente; registrar precisão, recall, cobertura e WER observados, inclusive falhas. Autorizações não devem ser presumidas apenas porque o vídeo está público. GN-031 também [ ] por esse requisito.
 - **Próxima tarefa independente:** GN-066 [P1] (fusão/calibração manual de atraso), depois GN-092; GN-084 e GN-085 somente com provas reais correspondentes.
+
+### GN-066 — painel de prévia de fusão (2026-11-11)
+
+- Implementação candidata: app/fusion_diagnostics.py, app/static/fusion_diagnostics.js, app/main.py, painel de diagnóstico. Une GN-061/063/064 em resposta exclusivamente diagnóstica, com ajustes temporários de -120 a +120 segundos e razões legíveis; nunca grava dados, não ativa captura, não move bola.
+- Testes criados: tests/test_gn066_fusion_diagnostics.py e tests/test_fusion_diagnostics.cjs (alinhamento e conflito, fontes isoladas por partida, validação, imutabilidade, UI).
+- **Validação pendente:** CI Python 3.11/3.12 e Node ainda não executadas nesta alteração. GN-066 [ ] até testes verdes; nenhum offset foi medido em transmissão real.
+- Próxima após GN-066: GN-092 [P1] (backup/exportação/importação).
