@@ -30,7 +30,9 @@ function drawPitch() {
 }
 let previousRenderedEventId=null;
 let previousRenderedZoneKey=null;
+let lastDemoSnapshot=null;
 function render(snapshot) {
+  lastDemoSnapshot=snapshot;
   const data=snapshot.data,match=data.match,ball=data.ball;
   const summary=window.GameNowScoreboard.summary(snapshot);
   $("home-name").textContent=summary.homeName;
@@ -74,25 +76,37 @@ function render(snapshot) {
     li.append(label,document.createTextNode(seg.text));feed.append(li);
   });
 }
+const demoSync = window.GameNowSync.createSync({
+  url:(location.protocol==="https:"?"wss:":"ws:")+"//"+location.host+"/ws",
+  createSocket:url=>new WebSocket(url),
+  fetchState:async()=>{
+    const response=await fetch("/api/state");
+    if(!response.ok)throw new Error("HTTP "+response.status);
+    return response.json();
+  },
+  render,
+  report:(message,online)=>{
+    $("connection-dot").classList.toggle("online",online);
+    $("connection").textContent=message;
+  },
+});
 async function command(action){
   $("next").disabled=true;
   try{
     const response=await fetch("/api/demo/"+action,{method:"POST"});
     if(!response.ok)throw new Error("HTTP "+response.status);
-    render(await response.json());
-  }catch(e){$("connection").textContent="Erro: "+e.message;}
+    // WebSocket may already have delivered a newer version. Apply only in order.
+    demoSync.accept(await response.json());
+  }catch(e){
+    $("connection").textContent="Erro: "+e.message;
+    $("next").disabled=!!lastDemoSnapshot &&
+      lastDemoSnapshot.step>=lastDemoSnapshot.total_steps;
+  }
 }
 $("next").addEventListener("click",()=>command("next"));
 $("reset").addEventListener("click",()=>command("reset"));
-function connect(){
-  const ws=new WebSocket((location.protocol==="https:"?"wss:":"ws:")+"//"+location.host+"/ws");
-  ws.onopen=()=>{$("connection-dot").classList.add("online");$("connection").textContent="Conectado · Demo";};
-  ws.onmessage=(message)=>render(JSON.parse(message.data));
-  ws.onclose=()=>{$("connection-dot").classList.remove("online");$("connection").textContent="Reconectando…";setTimeout(connect,2000);};
-}
 drawPitch();
-fetch("/api/state").then(r=>r.json()).then(render).catch(()=>{});
-connect();
+demoSync.start();
 
 /* CRUD UI: match configuration and player positions are separate from the demo feed. */
 let configuredMatches = [];
