@@ -40,5 +40,7 @@ jobs:
           fi
       - name: Check frontend JavaScript syntax
         run: node --check app/static/app.js
+      - name: Benchmark bounded overlapping window assembly (no ASR)
+        run: python -m scripts.benchmark_asr_windows
       - name: Run tests
         run: python -m pytest -q
