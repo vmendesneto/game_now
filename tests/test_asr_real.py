@@ -15,19 +15,16 @@ import pytest
 
 from app.asr import ASRSettings, CPUTranscriber, read_pcm_wav
 from app.asr_windows import RollingASRProcessor, WindowSettings
+from scripts.synthetic_tts import synthesize_wav
 
 
 @pytest.mark.skipif(os.getenv("GAME_NOW_REAL_ASR") != "1", reason="Heavy opt-in CPU test")
 def test_real_portuguese_speech_on_cpu(tmp_path: Path):
-    assert shutil.which("espeak-ng"), "Install espeak-ng to generate Portuguese speech"
     assert shutil.which("ffmpeg"), "Install FFmpeg to normalize the fixture"
     original = tmp_path / "speech-original.wav"
     normalized = tmp_path / "speech-16k.wav"
     phrase = "O jogo de futebol começou agora. A bola está no meio do campo. O atacante chutou e fez um gol."
-    subprocess.run(
-        ["espeak-ng", "-v", "pt-br", "-s", "130", "-w", str(original), phrase],
-        check=True, capture_output=True,
-    )
+    synthesize_wav(phrase, original, language="pt-br", words_per_minute=130)
     subprocess.run(
         ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(original),
          "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(normalized)],
