@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Próxima tarefa independente:** **GN-052 — detectar posse e mudanças de posse apenas com evidência textual explícita**. GN-044 exige benchmark no Windows e GN-045 áudio real autorizado. GN-090 é pré-requisito de segurança para ativação de fontes pelo site. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
+**Últimas tarefas concluídas:** GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Próxima tarefa independente:** **GN-053 — resolver regiões do campo (5 × 3) com orientação de ataque e evidência textual**. GN-044 exige benchmark no Windows e GN-045 áudio real autorizado. GN-090 é pré-requisito de segurança para ativação de fontes pelo site. A prova técnica da captura GN-031 no Windows foi bem-sucedida em 2026-11-11, mas falta verificar autorização de uso da fonte antes de marcar `[x]` no ROADMAP. Não pedir novamente o mesmo teste técnico.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -104,3 +104,11 @@
 - `POST /api/matches/{id}/resolve-narration` lê a escalação no SQLite e retorna dados de diagnóstico, sem mutar contrato v1, feed ou snapshot do jogo. Documentado no README; teste de integração cobre reinício e integridade do estado.
 - Prova: `python -m pytest -q` na CI do PR #13, Python 3.11 e 3.12: **125 passed, 2 skipped, 1 warning** em cada versão; schema/JS/FFmpeg fixtures e benchmark de montagem aprovados. https://github.com/vmendesneto/game_now/actions/runs/43024972166. Sete testes unitários de GN-051 também executados localmente com dependências mínimas (não substituem CI).
 - **Limite:** corpus de testes é sintético; resultado é resolução textual diagnóstica, não identifica jogador em áudio real, não produz evento ou posse, não alimenta automaticamente o feed nem campo. **Próximo item: GN-052**, depois GN-053; GN-044/045, GN-012/085 e GN-031 mantêm bloqueios próprios.
+
+## GN-052 — posse textual explícita sem alterar jogo (2026-11-11)
+
+- `app/possession.py` recebe o texto de uma narração e elenco salvo, usa GN-050 e GN-051 para rejeitar anúncios/replays, nomes ambíguos e frases vagas. Somente âncoras explícitas de posse ("com a bola", "bola com", "recebe a bola", "rouba/recupera a bola", "retoma a posse") permitem emitir `status=explicit`. Duas pistas na mesma frase, passes sem recepção ou relato incompatível resultam `unknown`.
+- O identificador `previous_team_id` é fornecido pelo chamador, validado contra os clubes da partida e comparado com a nova hipótese para derivar `changed_team`. Ausência de contexto anterior dá `null`, não inventa turnover. Não manipula o histórico ou a posse persistida.
+- `POST /api/matches/{id}/resolve-possession`: consulta partida/elenco no SQLite, responde hipótese textual e motivo, sem escrever eventos, bola, posse ou schema v1. O classificador GN-050 passou a reconhecer "bola com" e equivalentes como candidatos a lance atual, mantendo a precedência de replay/anúncio.
+- `tests/test_possession.py` cobre mudanças explícitas, camisa por extenso, ambiguidades, frases sem evidência, replay, anúncios, pistas múltiplas e API com snapshot inalterado. **CI do PR #14: 129 passed, 2 skipped, 1 warning em Python 3.11 e 3.12**, schema e JS aprovados: https://github.com/vmendesneto/game_now/actions/runs/43025807453. Teste local de núcleo: 3 passed.
+- **Limitações:** resultado é diagnóstico, não estado persistido de posse, nem comparação entre narradores ou interpretação automática de stream; inferência não foi validada com áudio esportivo real. **Próxima GN-053** (regiões 5×3 e lados). Bloqueios Windows/autorizações de fontes permanecem.
