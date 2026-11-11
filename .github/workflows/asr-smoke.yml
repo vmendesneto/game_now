@@ -41,13 +41,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install native offline Portuguese speech synthesizer
-        run: |
-          # Fail quickly if Ubuntu mirrors/DNS are unavailable; do not hang for 50 minutes.
-          timeout 90s sudo apt-get update -qq -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15
-          timeout 90s sudo apt-get install -y -qq -o Acquire::Retries=0 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 espeak-ng
-      - name: Install test dependencies and bundled FFmpeg
-        run: python -m pip install --timeout 20 --retries 1 -r requirements-dev.txt -r requirements-asr.txt imageio-ffmpeg==0.8.1
+      - name: Install test dependencies and bundled native speech libraries
+        run: python -m pip install --timeout 20 --retries 1 -r requirements-dev.txt -r requirements-asr.txt imageio-ffmpeg==0.8.1 espeakng-loader==0.2.4
       - name: Expose FFmpeg executable from wheel
         run: |
           python - <<'PY'
