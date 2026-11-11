@@ -129,7 +129,7 @@ class MatchStartDetector:
         # Adjacent ASR windows may repeat a phrase. Overlap is not independent
         # evidence, even when sequence numbers differ.
         if signature == self._last_signature and self._recent and (
-            start - self._recent[-1].start_seconds < 12
+            start - self._recent[-1].start_seconds <= 12
         ):
             return
         self._last_signature = signature
@@ -144,7 +144,7 @@ class MatchStartDetector:
         supported = bool(starts) and bool(plays) and any(
             p.end_seconds >= s.start_seconds for p in plays for s in starts
         )
-        independent = len(plays) >= 3 and len({p.cue for p in plays}) >= 2
+        independent = len(plays) >= 3 and len({p.cue for p in plays}) >= 3
         if not (supported or independent):
             if not second and starts and self.phase == "pre_game":
                 self.phase = "probable_start"
