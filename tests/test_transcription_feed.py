@@ -247,3 +247,36 @@ def test_two_websocket_clients_and_http_remain_live_during_blocked_inference(tmp
                     job.join(timeout=5)
                 assert not exception
                 assert not job.is_alive()
+
+
+def test_new_transcript_entries_include_conservative_narration_labels():
+    """GN-050 follow-up: classification is additive and per source."""
+    feed = TranscriptFeed(max_sources_per_match=2)
+    now = datetime.now(timezone.utc)
+    messages = (
+        ("radio", "Gol do Azul!", "live_play", True),
+        ("youtube", "No replay do gol do Azul!", "replay", False),
+    )
+    for source, text, _, _ in messages:
+        feed.publish("match", source, window(source, 0, text), captured_at=now)
+    entries = {entry["source_id"]: entry for entry in feed.snapshot("match")["entries"]}
+    for source, text, label, eligible in messages:
+        entry = entries[source]
+        assert entry["text"] == text
+        assert entry["narration_kind"] == label
+        assert entry["eligible_for_live_state"] is eligible
+        assert entry["classification_reason"]
+        assert entry["captured_at"] == now.isoformat()
+        assert "url" not in entry
+
+
+def test_oversize_transcript_must_not_be_eligible_for_live_state():
+    feed = TranscriptFeed()
+    now = datetime.now(timezone.utc)
+    text = "Gol do Azul! " + ("x" * 3000)
+    feed.publish("match", "radio", window("radio", 0, text), captured_at=now)
+    entry = feed.snapshot("match")["entries"][0]
+    assert entry["text"] == text
+    assert entry["narration_kind"] == "unknown"
+    assert entry["classification_reason"] == "text_exceeds_classifier_limit"
+    assert entry["eligible_for_live_state"] is False
