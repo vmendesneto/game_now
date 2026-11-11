@@ -1,7 +1,8 @@
-"""GN-083 offline diagnostic CLI. Never captures/downloads remote media or writes game state."""
+"""GN-083 local or permitted public-stream ASR CLI. Never saves raw audio or game state."""
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 from pathlib import Path
 
@@ -9,6 +10,8 @@ from pydantic import ValidationError
 
 from app.asr import ASRError
 from app.gn083_offline import analyze_observations, evaluate, transcribe_file
+from app.gn083_stream import transcribe_youtube_source
+from app.audio_capture import CaptureError
 
 
 def _array(path: Path) -> list:
@@ -19,11 +22,12 @@ def _array(path: Path) -> list:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="GN-083: local ASR and narration audit")
+    parser = argparse.ArgumentParser(description="GN-083: authorized local/YouTube ASR audit")
     inputs = parser.add_mutually_exclusive_group(required=True)
     inputs.add_argument("--wav", type=Path, help="Local PCM mono 16000 Hz s16le WAV")
     inputs.add_argument("--raw-pcm", type=Path, help="Local raw mono 16000 Hz s16le PCM")
     inputs.add_argument("--transcripts", type=Path, help="Existing text-window JSON array")
+    inputs.add_argument("--youtube-url", help="Permitted public YouTube video/live URL to transcribe directly")
     game = parser.add_mutually_exclusive_group(required=True)
     game.add_argument("--match-json", type=Path, help="Local Match JSON with team/roster")
     game.add_argument("--match-id", help="Saved match ID in local SQLite")
@@ -31,6 +35,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--permission-confirmed", action="store_true",
                         help="Confirm permission to process supplied local audio")
     parser.add_argument("--model", choices=("tiny", "base", "small", "medium"), default="tiny")
+    parser.add_argument("--seconds", type=float, default=300, help="Maximum YouTube stream duration (5-600)")
+    parser.add_argument("--yt-dlp", default="yt-dlp", help="yt-dlp executable")
+    parser.add_argument("--ffmpeg", default="ffmpeg", help="FFmpeg executable")
     parser.add_argument("--reference", type=Path, help="Independent human annotations JSON")
     parser.add_argument("--include-text", action="store_true", help="Include private ASR text")
     parser.add_argument("--output", type=Path, help="Optional local JSON report")
@@ -44,8 +51,19 @@ def main(argv: list[str] | None = None) -> int:
             match = SQLiteStore().get_match(args.match_id)
             if match is None:
                 raise ValueError("Match not found")
+        run = None
         if args.transcripts is not None:
             observations = _array(args.transcripts)
+        elif args.youtube_url is not None:
+            if not args.permission_confirmed:
+                raise ValueError("YouTube ASR requires --permission-confirmed")
+            run = asyncio.run(transcribe_youtube_source(
+                args.youtube_url, match, seconds=args.seconds,
+                source_id="youtube-083" if args.source_id == "audio-local" else args.source_id,
+                yt_dlp_binary=args.yt_dlp, ffmpeg_binary=args.ffmpeg,
+                model=args.model,
+            ))
+            observations = list(run.observations)
         else:
             if not args.permission_confirmed:
                 raise ValueError("Local audio requires --permission-confirmed")
@@ -60,21 +78,28 @@ def main(argv: list[str] | None = None) -> int:
             for row in predictions:
                 row.pop("text", None)
         report = {
-            "task": "GN-083", "mode": "offline_diagnostic",
-            "input_type": "transcripts" if args.transcripts else "local_audio_asr",
-            "source": "per_observation" if args.transcripts else args.source_id,
+            "task": "GN-083", "mode": "direct_stream_asr" if run else "offline_diagnostic",
+            "input_type": ("transcripts" if args.transcripts else
+                           "youtube_stream_asr" if run else "local_audio_asr"),
+            "source": ("per_observation" if args.transcripts else
+                       run.source_id if run else args.source_id),
             "asr_model": None if args.transcripts else args.model,
             "observations": len(predictions),
             "reference_evaluated": metrics is not None,
             "metrics": metrics, "predictions": predictions,
             "persisted": False, "audio_retransmitted": False,
         }
+        if run is not None:
+            report["audio_seconds_processed"] = run.processed_seconds
+            report["audio_bytes_processed"] = run.processed_bytes
+            report["requested_seconds"] = run.requested_seconds
+            report["audio_duration_complete"] = run.complete
         content = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
         if args.output:
             args.output.write_text(content, encoding="utf-8")
         else:
             print(content, end="")
-    except (ValueError, OSError, json.JSONDecodeError, ASRError, ValidationError) as exc:
+    except (ValueError, OSError, json.JSONDecodeError, ASRError, CaptureError, ValidationError) as exc:
         parser.exit(2, f"GN-083: {exc}\n")
     return 0
 
