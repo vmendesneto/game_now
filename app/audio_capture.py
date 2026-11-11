@@ -1,8 +1,8 @@
 """GN-030: bounded FFmpeg capture to mono 16-kHz signed 16-bit PCM.
 
 No browser media endpoints. Use contextlib.aclosing() when stopping early.
-YouTube resolution is intentionally excluded (GN-031). A full network policy
-for HTTP redirects/HLS subrequests is still required in GN-090.
+YouTube resolution is intentionally excluded (GN-031). GN-090 routes remote HTTP(S) media through a DNS-pinned localhost relay,
+including redirects and HLS subresources. Local fixtures bypass the relay.
 """
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 
 from app.contracts import AudioSource
 from app.source_validation import validate_source_urls
+from app.secure_ingest import IngestSecurityError, SafeMediaRelay
 from app.storage import StoreConflict
 
 SAMPLE_RATE = 16_000
@@ -107,22 +108,35 @@ async def pcm_chunks(
             raise CaptureError(str(exc)) from exc
         if not source.url:
             raise CaptureError("Radio source has no URL")
-        await check_public_destination(source.url)
+        # The relay checks DNS at each actual TCP connection and pins its IP.
         input_uri = source.url
 
     if shutil.which(ffmpeg_binary) is None:
         raise CaptureError("FFmpeg not found; install it and add it to PATH")
-
-    args = [
-        ffmpeg_binary, "-nostdin", "-hide_banner", "-loglevel", "error",
-        "-protocol_whitelist", "file,http,https,tcp,tls,crypto,data",
-    ]
     if http_headers:
         allowed = {"user-agent", "referer", "origin", "accept"}
-        if any(key.lower() not in allowed or "\r" in value or "\n" in value
-               or len(value) > 1024 for key, value in http_headers.items()):
+        if any(not isinstance(key, str) or key.lower() not in allowed or
+               not isinstance(value, str) or len(value) > 1024 or
+               any(ord(char) < 32 or ord(char) == 127 for char in value)
+               for key, value in http_headers.items()):
             raise CaptureError("Only safe public-stream request headers are supported")
-        args += ["-headers", "".join(f"{key}: {value}\r\n" for key, value in http_headers.items())]
+
+    relay: SafeMediaRelay | None = None
+    if fixture_file is None:
+        try:
+            relay = SafeMediaRelay(input_uri, http_headers=http_headers)
+            relay.__enter__()
+            input_uri = relay.input_url
+        except (OSError, IngestSecurityError) as exc:
+            raise CaptureError("Public media relay could not start") from exc
+
+    # No original remote URL, HTTPS, TLS, file or data protocol is given to
+    # FFmpeg when capturing network media. HLS URIs are rewritten by the relay.
+    args = [
+        ffmpeg_binary, "-nostdin", "-hide_banner", "-loglevel", "error",
+        "-protocol_whitelist",
+        "file,http,https,tcp,tls,crypto,data" if fixture_file is not None else "http,tcp,crypto",
+    ]
     args += [
         "-i", input_uri, "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE),
         "-f", "s16le", "-acodec", "pcm_s16le", "pipe:1",
@@ -133,6 +147,8 @@ async def pcm_chunks(
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
         )
     except (OSError, ValueError) as exc:
+        if relay is not None:
+            await asyncio.to_thread(relay.__exit__, None, None, None)
         raise CaptureError("Could not start FFmpeg") from exc
     assert proc.stdout is not None and proc.stderr is not None
     errors = asyncio.create_task(_drain_errors(proc.stderr))
@@ -156,6 +172,7 @@ async def pcm_chunks(
         code = await proc.wait()
         diagnosis = await errors
         if code != 0:
+            diagnosis = diagnosis.replace(input_uri, "[private media relay]")
             raise CaptureError("FFmpeg failed to decode stream: " + (diagnosis[-300:] or f"code {code}"))
         if not yielded:
             raise CaptureError("FFmpeg produced no PCM samples")
@@ -165,6 +182,8 @@ async def pcm_chunks(
             errors.cancel()
             with suppress(asyncio.CancelledError):
                 await errors
+        if relay is not None:
+            await asyncio.to_thread(relay.__exit__, None, None, None)
 
 
 async def diagnostic(source: AudioSource, *, fixture_file: Path | None = None,

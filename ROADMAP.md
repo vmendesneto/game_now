@@ -111,7 +111,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 ## F09 — Segurança e operacionalização
 
-- [ ] **GN-090 [P0]** Servidor ouvindo somente `127.0.0.1` por padrão; validar URLs/fontes e não aceitar execução arbitrária; evidência: testes de segurança.
+- [x] **GN-090 [P0]** Servidor local por padrão, relay HTTP(S) efêmero com pinagem de DNS/IP e verificação de redirecionamentos e HLS; FFmpeg recebe só URI local. Evidência: `tests/test_secure_ingest.py` (22 passed em Linux, com FFmpeg), `tests/test_gn090_runtime.py` (validação CI pendente antes do merge).
 - [ ] **GN-091 [P0]** Instruções para instalar, iniciar, parar e atualizar no Windows; evidência: checklist de instalação limpa.
 - [ ] **GN-092 [P1]** Backup/exportação/importação da partida e logs diagnósticos; evidência: restauração.
 - [ ] **GN-093 [P1]** Autenticação e HTTPS se abrir acesso pela rede/Internet; evidência: revisão de ameaça antes de exposição.
@@ -209,3 +209,9 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### GN-082 integrada (2026-11-11)
 
 - **GN-082 [x]:** CLI de quatro fases reproduzíveis, duas fontes artificiais com atraso +8 s, descarte de comercial, deduplicação, failover, contradição e silêncio com TTL, sem inferir mídia real ou alterar banco. `scripts/simulate_two_radios.py`, `tests/test_gn082_simulator.py`; CI https://github.com/vmendesneto/game_now/actions/runs/43059870772 (**486 passed/2 skipped** nas versões 3.11/3.12). **Próxima GN-083 [P0]**, condicionada a narração real autorizada; GN-090 [P0] permanece pré-requisito de captura operacional.
+
+### GN-090 — proteção da entrada de mídia (2026-11-11)
+
+- **GN-090 [x]:** `app/secure_ingest.py` introduz relay exclusivamente em 127.0.0.1 para rádio e CDN de YouTube, com DNS validado/pinado a cada conexão, redirecionamentos limitados, playlists HLS reescritas e whitelist de protocolos de FFmpeg sem acesso direto HTTPS ou a arquivos.
+- Testes locais: `python -m pytest -q tests/test_secure_ingest.py` — **22 passed** (Linux e FFmpeg real sintetizado); o PR também valida `tests/test_gn090_runtime.py` e a suíte completa em 3.11/3.12. Sem teste Windows ou narração real.
+- **Próxima GN-091 [P0]** (instruções de instalação/operação no Windows); GN-083 [P0] espera narração autorizada.
