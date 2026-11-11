@@ -4,7 +4,7 @@ Este arquivo é uma instrução de continuidade do projeto Game Now. **Comece se
 
 ## Missão
 
-Construir um site que mostra o andamento **de uma partida** em campinho de futebol, estimando **região da bola, posse, jogador e eventos** a partir de **múltiplas narrações de rádio e YouTube Live**, com Windows do usuário como servidor inicial. **Não** reproduzir áudio ou vídeo das fontes no site.
+Construir um site que mostra o andamento **de uma partida** em campinho de futebol, estimando **região da bola, posse, jogador e eventos** a partir de **múltiplas narrações de rádio e YouTube, ao vivo ou gravadas para testes reprodutíveis**, com Windows do usuário como servidor inicial. **Não** reproduzir áudio ou vídeo das fontes no site.
 
 Não confundir **posição estimada pela linguagem** com rastreamento óptico. Não fabricar coordenadas, resultados de benchmark ou funcionamento de hardware não testado.
 
@@ -126,3 +126,11 @@ O reconhecimento GN-040 foi testado com modelo real e fala sintética em portugu
 **GN-072 [x] (2026-11-11):** `app/static/demo_scoreboard.js` centraliza placar e relógio estritamente dos dados da partida na demonstração, distingue evento atual, último lance confirmado, comerciais/replay/análises e narrações duplicadas. `app.js/index.html/styles.css` preservam status acessível e posse/atleta do adaptador seguro GN-071. `tests/test_demo_dashboard_ui.py` valida os oito passos da demo pela API com apresentação Node (9 snapshots), além de `tests/test_demo_scoreboard.cjs`; CI https://github.com/vmendesneto/game_now/actions/runs/43051812981 (405 passed, 2 skipped nas duas versões Python). **Próxima GN-073**, atualização da interface por WebSocket com dois clientes sem mídia. Demo e SQLite continuam separados; GN-090 antes de ativar fontes reais.
 
 **GN-073 [x] (2026-11-11):** `app/static/demo_sync.js` evita estados desatualizados no navegador com revisão monotônica, reconecta o WebSocket e aceita reinício do servidor. `app/main.py` serializa broadcasts/assinaturas; novos testes usam dois WebSockets TestClient e dois navegadores *simulados* em Node. CI https://github.com/vmendesneto/game_now/actions/runs/43052978721 (**408 passed, 2 skipped**, Python 3.11/3.12). Não houve ensaio físico com dois navegadores, nem áudio real. **Próxima GN-074**, revisar fluxo de configuração visual já existente; GN-066 [P1] permanece pendente e GN-090 precede captura real.
+
+
+## Compatibilidade de narrações gravadas (2026-11-11)
+
+- A captação CLI deve aceitar vídeo público YouTube gravado (`not_live`, `was_live`) e ao vivo (`is_live`). Não restaurar a trava de live no resolvedor; partidas gravadas são essenciais para desenvolvimento sem depender de horários de jogos.
+- **Gravação de uma partida** (modalidade da fonte) é distinta de **replay de um lance** (classificação semântica dentro da narração). Não classificar toda narração de vídeo gravado como `replay` ou congelar o campo só por não estar ao vivo.
+- Preservar GN-037/GN-090: sem cookies, autenticação, DRM, URL local, execução arbitrária ou mídia para navegador. A autorização do titular da fonte ainda deve ser verificada; vídeo público não basta por si só.
+- Limitar diagnósticos a até 10 minutos de PCM por comando; não inferir métricas reais GN-083 de testes com metadados/áudio sintético. GN-031/GN-083 ficam [ ] até evidenciação autorizada, GN-012/GN-085 continuam exigindo execução física no Windows.

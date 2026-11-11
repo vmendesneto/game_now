@@ -117,30 +117,30 @@ CI após GN-015/GN-030: **35 testes passaram em Python 3.11 e 3.12**: https://gi
 
 A GN-034 implementa `MultiSourceAudioBuffer` em `app/audio_buffer.py`, com frames PCM mono 16 kHz, marca temporal de captura, remoção por idade/bytes, limite de fontes e snapshots thread-safe. O teste `tests/test_audio_buffer.py` inseriu 20.000 chunks em duas fontes independentes sem ultrapassar os limites. Esse buffer está disponível para o futuro orquestrador, mas ainda não recebe blocos automaticamente do site.
 
-A GN-031 **continua pendente**. O arquivo `app/youtube_capture.py` já contém uma implementação preliminar: invoca `yt-dlp` sem cookies/configuração pessoal e sem autenticação, exige transmissão pública ativa, seleciona apenas formato de áudio, não salva URLs assinadas e envia o endereço transitório ao conversor FFmpeg de GN-030. O código descarta headers de autenticação e bloqueia URLs privadas iniciais; redirecionamentos, substreams e URLs expiradas exigem medidas adicionais. Os testes com `tests/test_youtube_capture.py` usam um executável yt-dlp **falso**, portanto **não comprovam funcionamento com YouTube Live real**. Em um ambiente autorizado, instalar yt-dlp oficial no PATH e fornecer uma transmissão pública que permita a captação; sem isso, não afirmar GN-031 finalizada. Nada é embutido no site.
+A GN-031 **continua pendente**. O arquivo `app/youtube_capture.py` já contém uma implementação preliminar: invoca `yt-dlp` sem cookies/configuração pessoal e sem autenticação, aceita transmissões públicas em andamento ou gravações já concluídas, prioriza formato somente de áudio, não salva URLs assinadas e envia o endereço transitório ao relay protegido (GN-090) que alimenta o FFmpeg. O código descarta headers de autenticação e bloqueia URLs privadas iniciais; redirecionamentos e recursos HLS são protegidos pelo relay GN-090; URLs de CDN ainda podem expirar. Os testes com `tests/test_youtube_capture.py` usam um executável yt-dlp **falso**, portanto **não comprovam funcionamento com YouTube Live real**. Em um ambiente autorizado, instalar yt-dlp oficial no PATH e fornecer uma transmissão pública que permita a captação; sem isso, não afirmar GN-031 finalizada. Nada é embutido no site.
 
 **Última CI:** 47 testes em Python 3.11/3.12, JSON schema v1 preservado, JavaScript válido, codec FFmpeg real em fixtures: https://github.com/vmendesneto/game_now/actions/runs/42888042259. Testes físicos no Windows e mídia pública autorizada seguem pendentes.
 
 
-## Diagnóstico YouTube Live e retomada de áudio (GN-031 parcial / GN-033)
+## Diagnóstico YouTube Live ou gravado e retomada de áudio (GN-031 parcial / GN-033)
 
-**GN-031 requer ainda uma validação real autorizada.** O projeto não baixa nem transmite vídeo: o yt-dlp consulta uma transmissão pública *ao vivo*, escolhe apenas um formato de áudio oferecido sem DRM e passa o link temporário ao FFmpeg para produzir PCM mono 16 kHz. A ferramenta de diagnóstico devolve somente contadores e tempo; nunca a URL assinada, mídia, cookies ou credenciais. Os testes automatizados usam metadados sintéticos, **não** uma transmissão real.
+**GN-031 requer ainda uma validação real autorizada.** O yt-dlp aceita metadados de transmissões públicas *ao vivo*, gravações comuns (`not_live`) ou lives arquivadas (`was_live`). Escolhe áudio-only quando existir ou formato combinado se for a única opção; a saída do FFmpeg é sempre PCM mono 16 kHz e nenhuma mídia é servida ao site. A ferramenta de diagnóstico devolve somente contadores e tempo; nunca a URL assinada, mídia, cookies ou credenciais. Os testes automatizados usam metadados sintéticos, **não** uma transmissão real.
 
 No Windows, com FFmpeg instalado no PATH e Python 3.11/3.12 configurado, instale o yt-dlp oficial *opcionalmente* no mesmo ambiente virtual (não é necessário para o modo demo):
 
 ```bat
 .venv\Scripts\activate.bat
 python -m pip install --upgrade yt-dlp
-python -m app.youtube_capture --url "https://www.youtube.com/watch?v=ID_DE_LIVE_AUTORIZADA" --seconds 5
+python -m app.youtube_capture --url "https://www.youtube.com/watch?v=ID_DO_VIDEO_PERMITIDO" --seconds 5
 ```
 
-Substitua a URL ilustrativa pela transmissão pública **ativa e com uso permitido**. Se o vídeo estiver off-line, inacessível sem login, protegido, não tiver áudio-only ou requerer DRM, a ferramenta deve falhar com uma mensagem clara; não adicionar cookies, assinatura artificial, extração de DRM nem bypass. Para validar em ambiente diferente, execute o mesmo comando com `python` apropriado e yt-dlp/FFmpeg no PATH. Exemplo de **formato esperado**, não resultado de execução real:
+Substitua a URL ilustrativa por um vídeo público **ao vivo ou gravado, com captura permitida**. Se estiver indisponível, em estreia futura, aguardando processamento, sem áudio decodificável, inacessível sem login ou com DRM, a ferramenta deve falhar com uma mensagem clara; não adicionar cookies, assinatura artificial, extração de DRM nem bypass. Para validar em ambiente diferente, execute o mesmo comando com `python` apropriado e yt-dlp/FFmpeg no PATH. Exemplo de **formato esperado**, não resultado de execução real:
 
 ```json
 {"source_id":"youtube-diagnostic","sample_rate":16000,"channels":1,"format":"s16le","bytes":160000,"chunks":10,"seconds":5.0,"audio_retransmitted":false}
 ```
 
-O processamento não grava arquivos de mídia. Para diagnosticar um stream offline, a execução retorna código diferente de zero. Os endereços dos servidores de mídia expiram: `app/capture_supervisor.py` permite criar um worker independente por fonte, com timeout de ausência de PCM, backoff exponencial de 1 a 30 segundos por padrão e encerramento ao acionar `asyncio.Event`. A cada tentativa de YouTube, o worker chama o resolvedor novamente; não reutiliza o endereço expirado. Blocos PCM são guardados no `MultiSourceAudioBuffer` por fonte, com limites de memória e sem transmissão ao site. Os estados internos não incluem URLs ou mensagens de erro potencialmente sensíveis.
+O processamento não grava arquivos de mídia. Uma transmissão encerrada **com gravação acessível** é aceita; somente conteúdo indisponível, ainda não iniciado ou restrito retorna erro. Os endereços dos servidores de mídia expiram: `app/capture_supervisor.py` permite criar um worker independente por fonte, com timeout de ausência de PCM, backoff exponencial de 1 a 30 segundos por padrão e encerramento ao acionar `asyncio.Event`. A cada tentativa de YouTube, o worker chama o resolvedor novamente; não reutiliza o endereço expirado. Blocos PCM são guardados no `MultiSourceAudioBuffer` por fonte, com limites de memória e sem transmissão ao site. Os estados internos não incluem URLs ou mensagens de erro potencialmente sensíveis.
 
 Esse supervisor **ainda não é iniciado pelos botões de fontes nem integra ASR ou o site**; integração operacional/telemetria será tratada nos próximos itens. Testes da GN-033 simulam desconexão, reconexão, fluxo sem áudio, fonte travada, múltiplas fontes, expiração de URL e parada segura. Nada disso equivale à validação de uma live real, de políticas dos criadores, da estabilidade por 90 minutos, de redirecionamentos/HLS com DNS ou do Windows físico.
 
@@ -149,7 +149,7 @@ Esse supervisor **ainda não é iniciado pelos botões de fontes nem integra ASR
 
 Algumas transmissões públicas ao vivo não oferecem uma faixa de áudio separada. Nesses casos, o resolvedor prefere sempre um formato exclusivamente de áudio, mas agora pode selecionar uma **variante combinada de vídeo e áudio** quando essa for a única disponível sem DRM. O FFmpeg já recebe `-vn` e entrega apenas **PCM mono 16 kHz**, sem salvar vídeo, repassar mídia ao navegador ou publicar URLs de stream. **Limitação:** em uma variante combinada, a rede pode transferir bytes de vídeo juntamente com áudio antes do descarte; não é correto afirmar que o tráfego de origem tem somente áudio.
 
-No PowerShell, após `git pull --ff-only`, teste com uma live pública ativa cuja captação seja permitida:
+No PowerShell, após `git pull --ff-only`, teste com vídeo público gravado ou live ativa cuja captação seja permitida:
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.youtube_capture --yt-dlp ".\.venv\Scripts\yt-dlp.exe" --url "https://www.youtube.com/watch?v=ID_DA_LIVE" --seconds 5
@@ -174,7 +174,7 @@ Com `git pull --ff-only` na pasta Documentos, repita:
 .\.venv\Scripts\python.exe -m app.youtube_capture --yt-dlp ".\.venv\Scripts\yt-dlp.exe" --url "https://www.youtube.com/watch?v=SWEYimqD_50" --seconds 5
 ```
 
-A URL precisa continuar ao vivo e ter permissão para captura. Não divulgar URLs assinadas, cookies nem metadados completos de yt-dlp.
+Para vídeos antigos a URL não precisa estar ao vivo; é necessário que a gravação esteja acessível e o uso do áudio seja permitido. Não divulgar URLs assinadas, cookies nem metadados completos de yt-dlp.
 
 ## GN-040 — ASR local opcional (português, CPU)
 
@@ -354,3 +354,16 @@ O servidor inicia em `127.0.0.1:8000`, incluindo `iniciar_windows.bat`. Não exp
 O FFmpeg remoto recebe exclusivamente a URL local do relay e protocolos de entrada limitados (`http,tcp,crypto`), não a URL assinada externa. Cabeçalhos HTTP são repassados apenas pelo relay, com lista restrita; cookies, tokens e autenticação não são aceitos. A opção CLI `--file` mantém o tratamento de arquivos de teste, e não é exposta pela API. A resolução de metadados do YouTube pelo yt-dlp continua separada do capturador e limitada às URLs públicas do YouTube já validadas.
 
 Teste reproduzível: `python -m pytest -q tests/test_secure_ingest.py tests/test_gn090_runtime.py`. As provas usam HTTP remoto simulado e FFmpeg real em HLS/MP3 sintéticos, não uma narração de terceiros. O relay não é equivalente a firewall de saída do Windows; valide segurança operacional, compatibilidade com streams reais e direitos de utilização antes de ativar captação pelo site (GN-083, GN-085, GN-093).
+
+
+### GN-031 — teste reproduzível com vídeo gravado (2026-11-11)
+
+**Vídeos anteriores agora podem ser usados como fonte de diagnóstico**, independentemente do horário do jogo. O resolvedor aceita `live_status=not_live` (vídeo comum), `was_live` (live arquivada) e `is_live` (transmissão atual). Bloqueia lives futuras/em processamento, material restrito ou protegido por DRM e mantêm-se os controles de segurança SSRF da GN-090. `yt-dlp` não grava arquivo e o FFmpeg produz PCM de áudio sem enviá-lo ao navegador. Se o formato disponível combinar vídeo/áudio, bytes de vídeo podem trafegar na entrada, embora a saída seja apenas áudio.
+
+Foi fornecida esta URL para servir como **referência de teste**: https://www.youtube.com/watch?v=Ls4qkPrh4Tk. **A disponibilidade e a autorização de captação desse material não foram verificadas na CI.** Para uma execução local no Windows, *se você tiver permissão de uso*:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.youtube_capture --yt-dlp ".\.venv\Scripts\yt-dlp.exe" --url "https://www.youtube.com/watch?v=Ls4qkPrh4Tk" --seconds 300
+```
+
+O argumento `--seconds` aceita **até 600 segundos (10 minutos)**; não é necessário alterar o código quando não houver partidas ao vivo. Ele inicia do começo do vídeo e apresenta somente a quantidade de PCM decodificada. **Isso não mede a identificação de equipes, jogadores e zonas:** GN-083 ainda exige transcrição + gabarito rotulado e métricas reais, além de confirmar autorização para usar a narração; GN-085 requer ensaio no Windows. Não presumir que um URL público implica licença de uso.

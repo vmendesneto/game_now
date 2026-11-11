@@ -66,7 +66,6 @@ def test_live_audio_only_selection_excludes_cookies(tmp_path):
 
 @pytest.mark.parametrize("name,error", [
     ("restricted", "unavailable or restricted"),
-    ("notlive", "not currently live"),
     ("onlyvideo", "containing audio"),
     ("privatecdn", "non-public"),
     ("invalidjson", "invalid metadata"),
@@ -164,7 +163,7 @@ def test_live_diagnostic_emits_only_json_safe_statistics(monkeypatch):
     assert result["audio_retransmitted"] is False
     assert all(field not in result for field in ("url", "pcm", "audio", "headers"))
     with pytest.raises(CaptureError, match="duration"):
-        asyncio.run(youtube_capture.youtube_diagnostic(source(), duration=61))
+        asyncio.run(youtube_capture.youtube_diagnostic(source(), duration=601))
 
 
 def test_live_diagnostic_rejects_no_audio(monkeypatch):
@@ -272,4 +271,150 @@ def test_unknown_codec_not_accepted_without_audio_only_hls_evidence(
     with pytest.raises(CaptureError, match="containing audio"):
         asyncio.run(youtube_capture.resolve_live_audio(
             source(), yt_dlp_binary=binary,
+        ))
+
+
+
+def test_recorded_video_is_accepted_even_when_not_live(tmp_path):
+    """Regression: previously all VODs failed solely because is_live=False."""
+    binary = fake_metadata_resolver(tmp_path, {
+        "is_live": False, "live_status": "not_live", "duration": 5400,
+        "formats": [{
+            "format_id": "m4a", "vcodec": "none", "acodec": "mp4a.40.2",
+            "protocol": "https", "url": "https://cdn.example.org/game.m4a",
+        }],
+    })
+    result = asyncio.run(youtube_capture.resolve_live_audio(
+        source("recorded"), yt_dlp_binary=binary,
+    ))
+    assert result.format_id == "m4a"
+    assert result.url.endswith("/game.m4a")
+    assert result.input_has_video is False
+
+
+def test_recorded_livestream_is_accepted(tmp_path):
+    binary = fake_metadata_resolver(tmp_path, {
+        "is_live": False, "live_status": "was_live",
+        "formats": [{
+            "format_id": "archive", "vcodec": "none", "acodec": "opus",
+            "url": "https://cdn.example.org/archive.webm",
+        }],
+    })
+    result = asyncio.run(youtube_capture.resolve_live_audio(
+        source("archived"), yt_dlp_binary=binary,
+    ))
+    assert result.format_id == "archive"
+
+
+@pytest.mark.parametrize("status", ["is_upcoming", "post_live", "unavailable", "unknown"])
+def test_unavailable_and_unknown_statuses_fail_closed(tmp_path, status):
+    binary = fake_metadata_resolver(tmp_path, {
+        "is_live": False, "live_status": status,
+        "formats": [{
+            "format_id": "audio", "vcodec": "none", "acodec": "aac",
+            "url": "https://cdn.example.org/audio.m4a",
+        }],
+    })
+    with pytest.raises(CaptureError, match="not yet available|not a confirmed"):
+        asyncio.run(youtube_capture.resolve_live_audio(
+            source("unready"), yt_dlp_binary=binary,
+        ))
+
+
+@pytest.mark.parametrize("availability", [
+    "private", "premium_only", "subscriber_only", "needs_auth",
+])
+def test_restricted_recordings_fail_closed_even_with_an_audio_format(tmp_path, availability):
+    binary = fake_metadata_resolver(tmp_path, {
+        "live_status": "not_live", "availability": availability,
+        "formats": [{
+            "format_id": "audio", "vcodec": "none", "acodec": "aac",
+            "url": "https://cdn.example.org/audio.m4a",
+        }],
+    })
+    with pytest.raises(CaptureError, match="restricted"):
+        asyncio.run(youtube_capture.resolve_live_audio(
+            source("restricted-recording"), yt_dlp_binary=binary,
+        ))
+
+
+def test_recording_with_global_drm_flag_fails_closed(tmp_path):
+    binary = fake_metadata_resolver(tmp_path, {
+        "live_status": "was_live", "has_drm": True,
+        "formats": [{
+            "format_id": "audio", "vcodec": "none", "acodec": "aac",
+            "url": "https://cdn.example.org/audio.m4a",
+        }],
+    })
+    with pytest.raises(CaptureError, match="restricted"):
+        asyncio.run(youtube_capture.resolve_live_audio(
+            source("drm-recording"), yt_dlp_binary=binary,
+        ))
+
+
+def test_recorded_media_pcm_flow_has_same_privacy_guarantees(tmp_path, monkeypatch):
+    binary = fake_metadata_resolver(tmp_path, {
+        "is_live": False, "live_status": "not_live",
+        "formats": [{
+            "format_id": "audio", "vcodec": "none", "acodec": "opus",
+            "url": "https://cdn.example.org/game.webm",
+        }],
+    })
+    requests = []
+    async def fake_pcm(item, **kwargs):
+        requests.append((item, kwargs))
+        yield b"\x00\x00" * 8000
+    monkeypatch.setattr(youtube_capture, "pcm_chunks", fake_pcm)
+    async def collect():
+        async with aclosing(youtube_capture.youtube_pcm_chunks(
+            source("recording"), yt_dlp_binary=binary,
+        )) as stream:
+            return [block async for block in stream]
+    assert asyncio.run(collect()) == [b"\x00\x00" * 8000]
+    assert requests[0][0].kind == "radio"
+    assert requests[0][0].url.endswith("game.webm")
+    assert "Cookie" not in requests[0][1].get("http_headers", {})
+
+
+def test_diagnostic_accepts_five_to_ten_minutes_without_saving_media(monkeypatch):
+    async def fake_pcm(item, **kwargs):
+        for _ in range(600):
+            yield b"\x01\x00" * 8000  # 0.5 s, no real audio or network
+    monkeypatch.setattr(youtube_capture, "youtube_pcm_chunks", fake_pcm)
+    stats = asyncio.run(youtube_capture.youtube_diagnostic(
+        source("recorded"), duration=300,
+    ))
+    assert stats["seconds"] == 300
+    assert stats["bytes"] == 9_600_000
+    assert stats["chunks"] == 600
+    assert stats["audio_retransmitted"] is False
+    assert set(stats).isdisjoint({"pcm", "url", "media", "headers", "audio"})
+
+
+def test_older_metadata_without_live_status_can_identify_finite_vod(tmp_path):
+    binary = fake_metadata_resolver(tmp_path, {
+        "is_live": False, "duration": 3600,
+        "formats": [{
+            "format_id": "recording", "vcodec": "none", "acodec": "mp4a.40.2",
+            "url": "https://cdn.example.org/rec.m4a",
+        }],
+    })
+    result = asyncio.run(youtube_capture.resolve_live_audio(
+        source("older-metadata"), yt_dlp_binary=binary,
+    ))
+    assert result.format_id == "recording"
+
+
+@pytest.mark.parametrize("duration", [None, 0, -1, float("inf"), float("nan")])
+def test_missing_status_needs_known_recording_duration(tmp_path, duration):
+    binary = fake_metadata_resolver(tmp_path, {
+        "is_live": False, "duration": duration,
+        "formats": [{
+            "format_id": "recording", "vcodec": "none", "acodec": "opus",
+            "url": "https://cdn.example.org/rec.webm",
+        }],
+    })
+    with pytest.raises(CaptureError, match="not a confirmed"):
+        asyncio.run(youtube_capture.resolve_live_audio(
+            source("unknown-duration"), yt_dlp_binary=binary,
         ))

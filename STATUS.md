@@ -4,6 +4,7 @@
 **Branch:** `main`
 **Últimas tarefas concluídas:** GN-091, GN-090, GN-082, GN-081, GN-080, GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
 **Última conclusão:** GN-091 [P0] — documentação de instalação, início/parada, atualização, backup e diagnóstico em Windows, com `scripts/windows_check.py`; 10 testes locais Linux aprovados (simulação). **Próxima GN-066 [P1]**, painel de diagnóstico de fusão/calibração de atraso; GN-092 [P1] (backup/exportação) em seguida. GN-083 aguarda narração pt-BR autorizada e gabarito. GN-012/GN-085 permanecem dependentes de validação física do Windows.
+**Compatibilidade adicionada à GN-031:** o diagnóstico YouTube aceita agora gravações públicas concluídas (`was_live`/`not_live`) além de lives e permite amostras de até 600 segundos. Link de referência fornecido: https://www.youtube.com/watch?v=Ls4qkPrh4Tk. **Não há resultado real desse vídeo nem autorização confirmada**; GN-031/GN-083 ainda [ ]. GN-066 segue próxima implementação independente.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -274,3 +275,13 @@
 - **Evidência local executada:** `python -m pytest -q tests/test_windows_check.py` — **10 passed** no Linux/Python 3.13 (testes simulados de Windows, sem execução física); Python 3.11/3.12 e suíte completa serão verificados na CI. Sem alegar instalação limpa executada no Windows.
 - **Pendências físicas reais:** GN-012 (script Windows inicializar de verdade), GN-085 (FFmpeg/yt-dlp/ASR/navegador no Windows), GN-083 (narração autorizada, métricas reais) e GN-084 (partida inteira). GN-091 cobre somente preparo operacional e checklist.
 - **Próxima tarefa GN-066 [P1]** (painel diagnóstico de fusão + ajuste de atraso); GN-092 [P1] (backup/export/import) depois.
+
+
+## GN-031 — permitir partidas gravadas para testes de desenvolvimento (2026-11-11)
+
+- **Motivo:** não é viável depender de jogo transmitido ao vivo durante a implementação. A regra anterior rejeitava automaticamente `is_live=False` mesmo em vídeos disponíveis gravados; isso impedia testes reprodutíveis e frustrava a GN-083.
+- **Mudanças:** `app/youtube_capture.py` passa a aceitar `live_status=is_live` (ao vivo), `not_live` (vídeo normal) e `was_live` (transmissão encerrada com gravação); em versões sem `live_status`, aceita duração positiva finita com `is_live=False`. Rejeita `is_upcoming`, `post_live`, estados não confirmados, DRM, `private/premium_only/subscriber_only/needs_auth`, vídeos sem áudio e URLs inseguras. Não remove políticas de segurança GN-037/GN-090, nem baixa arquivo ou repassa áudio/vídeo à API/site.
+- **Amostras prolongadas:** `python -m app.youtube_capture --url URL_PERMITIDA --seconds 300` (limite de 600 s) conta PCM mas **não transcreve ou mede precisão do classificador**. Testes determinísticos alterados/novos em `tests/test_youtube_capture.py` verificam vídeo comum, live arquivada, estados futuros, DRM, autorização, metadados antigos e amostra de cinco minutos artificial.
+- **Referência de teste do usuário:** https://www.youtube.com/watch?v=Ls4qkPrh4Tk — parece ser narração gravada conforme informado, mas acesso ao áudio, titularidade, permissão específica e desempenho real **não foram verificados** neste ambiente. Nada foi baixado ou coletado dessa URL; não presumir autorização apenas por ser pública.
+- **Reprodução no Windows, somente se a captação for permitida:** `.\.venv\Scripts\python.exe -m app.youtube_capture --yt-dlp ".\.venv\Scripts\yt-dlp.exe" --url "https://www.youtube.com/watch?v=Ls4qkPrh4Tk" --seconds 300`. Use `--seconds 5` para prova curta antes. A captação por CLI não inicia o site nem o ASR.
+- **Estado das tarefas:** melhoria do resolvedor pronta mediante testes/CI; GN-031 **permanece [ ]** aguardando prova real permitida, GN-083 **permanece [ ]** até 5–10 min transcritos e avaliação com gabarito, GN-012/GN-085 requerem Windows físico. **Próxima GN-066 [P1]** conforme STATUS e ROADMAP (GN-092 depois).
