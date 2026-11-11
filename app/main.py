@@ -29,6 +29,7 @@ from app.source_delay import RelativeDelayRequest, RelativeDelayResponse, previe
 from app.event_deduplication import EventDeduplicationRequest, EventDeduplicationResponse, preview_event_deduplication
 from app.source_selection import SourceSelectionRequest, SourceSelectionResponse, preview_active_source
 from app.fusion_conflicts import FusionConflictRequest, FusionConflictResponse, preview_fusion_conflicts
+from app.ball_freshness import BallFreshnessRequest, BallFreshnessResponse, preview_ball_freshness
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
@@ -255,6 +256,15 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         # GN-064: caller-provided aligned text, diagnostic only, never a state write.
         require_match(match_id)
         return preview_fusion_conflicts(request)
+
+    @application.post(
+        "/api/matches/{match_id}/ball/freshness/preview",
+        response_model=BallFreshnessResponse,
+    )
+    async def preview_ball_age(match_id: str, request: BallFreshnessRequest):
+        # GN-065: capture-time TTL diagnostic; no timer or SQLite write.
+        require_match(match_id)
+        return preview_ball_freshness(request)
 
     @application.get("/api/matches/{match_id}/flow")
     async def get_match_flow(match_id: str):
