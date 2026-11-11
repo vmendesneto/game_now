@@ -67,7 +67,7 @@ def assess_confidence(match: Match, request: ConfidenceRequest) -> ConfidenceEvi
     if not live:
         return ConfidenceEvidence(
             eligible_for_live_state=False, scores=zeros,
-            reasons={k: "not_current_live_play" for k in zeros.model_fields},
+            reasons={k: "not_current_live_play" for k in ComponentScores.model_fields},
         )
 
     relevant = [m for m in narration.mentions
