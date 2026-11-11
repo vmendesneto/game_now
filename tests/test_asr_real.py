@@ -14,6 +14,7 @@ import unicodedata
 import pytest
 
 from app.asr import ASRSettings, CPUTranscriber, read_pcm_wav
+from app.asr_windows import RollingASRProcessor, WindowSettings
 
 
 @pytest.mark.skipif(os.getenv("GAME_NOW_REAL_ASR") != "1", reason="Heavy opt-in CPU test")
@@ -33,9 +34,8 @@ def test_real_portuguese_speech_on_cpu(tmp_path: Path):
         check=True, capture_output=True,
     )
     pcm = read_pcm_wav(normalized, max_seconds=20)
-    result = CPUTranscriber(
-        ASRSettings(model="base", cpu_threads=2, beam_size=5, max_seconds=20)
-    ).transcribe_pcm(pcm)
+    model = CPUTranscriber(ASRSettings(model="base", cpu_threads=2, beam_size=5, max_seconds=20))
+    result = model.transcribe_pcm(pcm)
     plain = "".join(
         char for char in unicodedata.normalize("NFKD", result.text.casefold())
         if not unicodedata.combining(char)
@@ -44,3 +44,17 @@ def test_real_portuguese_speech_on_cpu(tmp_path: Path):
     assert result.language == "pt"
     assert result.segments and len(result.text) >= 8
     assert any(word in plain for word in ("futebol", "bola", "campo", "gol")), plain
+
+    # GN-041: same real CPU backend over partially overlapping windows.
+    rolling = RollingASRProcessor(
+        model, WindowSettings(window_ms=5000, overlap_ms=2000, min_tail_ms=500)
+    )
+    windows = []
+    for index in range(0, len(pcm), 16_000):  # PCM bytes = 0.5s
+        windows.extend(rolling.push("synthetic-pt", pcm[index:index + 16_000]))
+    windows.extend(rolling.finish("synthetic-pt"))
+    assert len(windows) >= 2
+    assert any(window.raw_text.strip() for window in windows)
+    assert all(window.language == "pt" for window in windows)
+    print("REAL_ROLLING_CPU_ASR_WINDOWS:", len(windows))
+    print("REAL_ROLLING_CPU_ASR_TEXT:", " ".join(item.new_text for item in windows))
