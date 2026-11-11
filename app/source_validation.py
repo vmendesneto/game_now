@@ -1,11 +1,12 @@
 """GN-032: validate metadata/URLs before storing radio or public YouTube sources.
 
-This is NOT a network allowlist for FFmpeg/yt-dlp. Network ingestion must revalidate
-DNS results, redirects and final destinations to prevent SSRF/rebinding (GN-090).
+Metadata validation alone cannot stop SSRF. GN-090 adds a separate DNS-pinned
+loopback relay for runtime HTTP(S) streaming, redirects and HLS references.
 """
 from __future__ import annotations
 
 import ipaddress
+import re
 from urllib.parse import urlsplit
 
 from app.contracts import AudioSource
@@ -22,8 +23,9 @@ def validate_source_urls(sources: list[AudioSource]) -> None:
             # A placeholder is valid configuration, but cannot be captured yet.
             continue
         url = source.url
-        if not url or url != url.strip() or len(url) > 2048:
-            raise StoreConflict("Source URL must be nonempty, trimmed and at most 2048 chars")
+        if (not url or url != url.strip() or len(url) > 2048
+                or any(ord(char) <= 32 or ord(char) == 127 or char == "\\" for char in url)):
+            raise StoreConflict("Source URL must be trimmed, valid and contain no control characters")
         try:
             parts = urlsplit(url)
             host = (parts.hostname or "").lower().rstrip(".")
@@ -42,6 +44,11 @@ def validate_source_urls(sources: list[AudioSource]) -> None:
             ip = ipaddress.ip_address(host)
         except ValueError:
             ip = None
+        if ip is None and (re.fullmatch(r"[0-9.]+", host)
+                           or host.startswith("0x")
+                           or re.match(r"^0[0-9]+(?:\.|$)", host)):
+            # Do not accept shortened, integer, hex or octal IPv4 spellings.
+            raise StoreConflict("Ambiguous numeric host is forbidden")
         if ip is not None and not ip.is_global:
             raise StoreConflict("Non-public source IP addresses are forbidden")
         if source.kind == "youtube":

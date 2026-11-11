@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-082, GN-081, GN-080, GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Últimas concluídas:** GN-082 (simulador determinístico de duas rádios), GN-081 (integração API + WebSocket + SQLite), GN-080 (testes unitários). **Próximo trabalho: GN-083 [P0] — avaliação quantitativa de 5–10 minutos de narração brasileira autorizada**, quando houver material permitido; GN-090 [P0] pode avançar independentemente como segurança prévia à captura real. GN-066 [P1] segue aberta. CI GN-082 https://github.com/vmendesneto/game_now/actions/runs/43059870772 (486 passed / 2 skipped em Python 3.11/3.12).
+**Últimas tarefas concluídas:** GN-090, GN-082, GN-081, GN-080, GN-076, GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Última conclusão:** GN-090 [P0] — relay temporário para rádio/HLS, com DNS/IP público verificado e conexão fixada ao IP, redirects limitados e FFmpeg sem URL externa. Testes locais `tests/test_secure_ingest.py`: 22 passed em Linux com FFmpeg. **Próxima GN-091 [P0]**, documentação operacional do Windows. GN-083 segue bloqueada até receber 5–10 min de narração brasileira autorizada e gabarito. GN-066 [P1] segue aberta. A validação Windows/fonte real não foi executada nesta etapa.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -257,3 +257,12 @@
 - **Reprodução:** `python -m scripts.simulate_two_radios` imprime JSON determinístico; `python -m pytest -q tests/test_gn082_simulator.py` verifica atraso, deduplicação, comerciais, alternância de fontes, contradição, TTL, ausência de permissão de escrita e igualdade CLI/função.
 - **Evidência:** PR #35, commit `2dfe000`, CI https://github.com/vmendesneto/game_now/actions/runs/43059870772 — **486 passed, 2 skipped** em Python 3.11 e 3.12, testes com dados sintéticos.
 - **Limites e próximo passo GN-083 [P0]:** obter gravação/permissão de 5–10 min de narração pt-BR e anotar equipe/atleta/zona; calcular métricas reais sem substituir pela simulação. Enquanto isso, GN-090 [P0] de SSRF/URL/localhost pode ser feito independentemente, sem ativar fontes. GN-012/085 dependem do Windows físico.
+
+## GN-090 — segurança de captação HTTP(S) (2026-11-11)
+
+- **GN-083 não executada:** não há no repositório gravação brasileira autorizada de 5–10 minutos com anotações de equipe/jogador/zona. Continuou [ ]; não foram criadas métricas fictícias.
+- **GN-090 implementada:** `app/secure_ingest.py` serve apenas no loopback com token efêmero, valida DNS público por conexão, fixa IP de TCP mantendo Host/SNI, revalida até cinco redirecionamentos e recursos HLS (variantes, segmentos, init maps, chaves). Bloqueia DNS privado/misto, credenciais, headers malformados, caminhos inseguros, playlists variáveis ou referências não transformadas.
+- `app/audio_capture.py` encaminha mídia remota ao FFmpeg por URI local e whitelist de protocolos `http,tcp,crypto`, não passando URL externa, headers de CDN, TLS, arquivo ou data diretamente a esse processo. Arquivos de teste permanecem opcionais apenas na CLI. A execução usa lista de argumentos (sem shell). A API não inicia captura e não retransmite áudio/vídeo.
+- **Evidência local executada antes da entrega:** `python -m pytest -q tests/test_secure_ingest.py` — **22 passed** (Linux, Python 3.13, HLS sintetizado realmente decodificado pelo FFmpeg, além de testes de redirects/DNS/URI/header). `tests/test_gn090_runtime.py` e a suíte Python 3.11/3.12 dependem da CI do PR, e não foram afirmados como aprovados antecipadamente.
+- **Limites:** sem narração real autorizada, sem ensaio físico Windows, sem teste de CDN real ou 90 minutos; HLS incomuns podem ser rejeitados. O relay não é um firewall de saída do sistema operacional. O yt-dlp permanece restrito a URL pública YouTube para resolução de metadados; não confundir com captação do site.
+- **Próxima GN-091 [P0]:** revisar e documentar instalação, atualização, início e parada no Windows. GN-083 aguarda material autorizado; GN-066 [P1] segue aberta.

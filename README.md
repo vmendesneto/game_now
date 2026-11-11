@@ -80,7 +80,7 @@ Para diagnosticar uma rádio pública permitida, cuja URL você fornece:
 python -m app.audio_capture --url https://exemplo.radio/stream.mp3 --seconds 5
 ```
 
-O comando apenas imprime estatísticas JSON, **não** reproduz ou salva áudio e não alimenta o site. O URL ilustrativo acima não é uma estação verificada. A função Python `pcm_chunks` oferece blocos binários de 16 kHz para etapas seguintes. A opção `--file` é somente CLI/testes e não é exposta pela API. A resolução DNS inicial bloqueia IPs não públicos, mas segurança contra redirecionamentos e substreams HLS exige GN-090. **Nenhuma rádio real ou Windows foi validado nesta etapa.**
+O comando apenas imprime estatísticas JSON, **não** reproduz ou salva áudio e não alimenta o site. O URL ilustrativo acima não é uma estação verificada. A função Python `pcm_chunks` oferece blocos binários de 16 kHz para etapas seguintes. A opção `--file` é somente CLI/testes e não é exposta pela API. A GN-090 agora protege redirecionamentos e HLS com relay local de DNS/IP público validado e TCP fixado ao endereço verificado. Ainda requer teste em fonte real/Windows. **Nenhuma rádio real ou Windows foi validado nesta etapa.**
 
 ## Limitações (importante)
 
@@ -101,7 +101,7 @@ Os três painéis aparecem ao selecionar uma partida salva. As **operações** a
 
 Para corrigir um resultado, use `POST /api/matches/{id}/corrections` com `{"kind":"score","home_score":1,"away_score":0,"reason":"Conferência do lance","actor":"operator"}`. `kind="possession"` exige `team_id` (nulo quando desconhecido), e aceita `player_id` da mesma equipe. `kind="event"` aceita `event_id` e `changes` com campos permitidos: `kind`, `team_id`, `player_id`, `zone`, `uncertainty`, `match_seconds`. A fonte/proveniência e o ID original do evento não podem ser substituídos. Toda correção tem motivo, autor, snapshot anterior e posterior auditados no SQLite; também há auditoria automática quando se altera placar via editor legado ou substitui o estado pela API anterior. Não fornece autenticação nem assinatura criptográfica da trilha; uso local somente.
 
-O cadastro de fontes permite várias rádios e vídeos públicos do YouTube, cada qual com nome, tipo, URL e flag `enabled`. O `PUT /sources` substitui a lista completa; alterações que removem fontes citadas em eventos/transcrições retornam 409. São aceitos URLs públicos HTTP(S) para rádio e HTTPS de `youtube.com` / `youtu.be` para YouTube, sem credenciais ou IP local. URLs ausentes são placeholders, não fontes operacionais. **A validação de cadastro não substitui uma defesa de rede no capturador**, que precisará validar DNS, redirecionamentos e IP de destino na GN-090. Nenhuma fonte é executada/reproduzida pelo cadastro.
+O cadastro de fontes permite várias rádios e vídeos públicos do YouTube, cada qual com nome, tipo, URL e flag `enabled`. O `PUT /sources` substitui a lista completa; alterações que removem fontes citadas em eventos/transcrições retornam 409. São aceitos URLs públicos HTTP(S) para rádio e HTTPS de `youtube.com` / `youtu.be` para YouTube, sem credenciais ou IP local. URLs ausentes são placeholders, não fontes operacionais. **A validação do cadastro não substitui defesa de rede:** GN-090 faz verificação adicional no relay de captação (DNS, redirecionamentos, segmentos HLS e IP final). Nenhuma fonte é executada/reproduzida pelo cadastro.
 
 Testes de integração `tests/test_match_flow.py`, `tests/test_corrections.py`, `tests/test_sources.py` comprovam rejeições, atomicidade, edição, consulta, reinício SQLite e interface HTTP. CI Linux, **28 testes em Python 3.11 e 3.12**, schema v1 preservado e JS sintaticamente válido: https://github.com/vmendesneto/game_now/actions/runs/42884686478. Persistem validações físicas no Windows, rádio real e modelos ASR.
 
@@ -342,3 +342,13 @@ python -m pytest -q tests/test_gn082_simulator.py
 ```
 
 A CLI imprime um JSON reproduzível de **quatro fases fictícias**, com duas rádios que narram o mesmo lance oito segundos apartadas, um comercial, alternância de fonte, contradição e silêncio que expira a posição. Os identificadores de eventos comuns e os timestamps de captura/alinhamento são fornecidos artificialmente: **não** se trata de descoberta automática de eventos nem de sincronização real de streams. Nenhuma URL é acessada, nenhuma amostra de mídia é produzida e nenhum estado de partida é gravado ou movido por essas prévias. Para desempenho real com narração brasileira, consultar GN-083/GN-084 e requisitos de autorização das fontes.
+
+## GN-090 — proteção de rede da captação CLI
+
+O servidor inicia em `127.0.0.1:8000`, incluindo `iniciar_windows.bat`. Não exponha `0.0.0.0` nem encaminhe a porta para a Internet antes da GN-093 (autenticação, HTTPS e revisão de ameaças). O cadastro de uma fonte não executa código nem inicia a captura; a interface permanece no modo demo.
+
+`app/secure_ingest.py` fornece um relay temporário que escuta somente em `127.0.0.1`, protegido por token efêmero, para cada fonte HTTP(S). Cada solicitação remota verifica todos os IPs DNS, bloqueia IPs privados/locais/reservados e fixa a conexão TCP ao endereço público validado, mantendo o Host e a verificação TLS do servidor original. Redirecionamentos são limitados e submetidos à mesma verificação. Playlists HLS são reescritas para que variantes, segmentos, mapas e chaves passem pelo relay. HLS com construções incomuns/indefinidas falha fechado.
+
+O FFmpeg remoto recebe exclusivamente a URL local do relay e protocolos de entrada limitados (`http,tcp,crypto`), não a URL assinada externa. Cabeçalhos HTTP são repassados apenas pelo relay, com lista restrita; cookies, tokens e autenticação não são aceitos. A opção CLI `--file` mantém o tratamento de arquivos de teste, e não é exposta pela API. A resolução de metadados do YouTube pelo yt-dlp continua separada do capturador e limitada às URLs públicas do YouTube já validadas.
+
+Teste reproduzível: `python -m pytest -q tests/test_secure_ingest.py tests/test_gn090_runtime.py`. As provas usam HTTP remoto simulado e FFmpeg real em HLS/MP3 sintéticos, não uma narração de terceiros. O relay não é equivalente a firewall de saída do Windows; valide segurança operacional, compatibilidade com streams reais e direitos de utilização antes de ativar captação pelo site (GN-083, GN-085, GN-093).
