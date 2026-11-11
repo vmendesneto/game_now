@@ -30,8 +30,15 @@
       <aside class="side">
         <div class="panel"><div class="panel-title">AGORA NO JOGO</div><h2 id="action">Aguardando o primeiro lance</h2><p id="last-confirmed-event" class="confirmed-event">Nenhum evento confirmado na demo</p><p id="last-text">Avance a demonstração para acompanhar a sequência simulada.</p>
           <div class="facts"><div><span>Posse provável</span><strong id="possession">Desconhecida</strong></div><div><span>Jogador provável</span><strong id="player">Desconhecido</strong></div><div><span>Confiança da zona</span><strong id="confidence">Sem evidência</strong></div></div></div>
-        <div class="panel"><div class="panel-title">CONTROLES DA DEMONSTRAÇÃO</div><p class="muted">Dois narradores simulados, comercial, replay e expiração. Nenhum download ou modelo ASR é necessário.</p>
-          <div class="controls"><button id="next">Próximo relato <span>→</span></button><button id="reset" class="secondary">Reiniciar</button></div><div class="progress"><span id="progress">0 / 8 relatos</span><span>Modo sintético</span></div></div>
+        <div class="panel"><div class="panel-title">CONTROLES DA DEMONSTRAÇÃO</div><p class="muted">Dois narradores simulados, comercial, replay e expiração. Iniciar/pausar controla somente o avanço automático neste navegador; reiniciar é compartilhado entre navegadores. Nenhum áudio real é capturado.</p>
+          <div class="controls">
+            <button id="demo-start" type="button" disabled>Iniciar demo</button>
+            <button id="demo-pause" type="button" class="secondary" disabled>Pausar</button>
+            <button id="next" type="button">Próximo relato <span>→</span></button>
+            <button id="reset" type="button" class="secondary">Reiniciar demo</button>
+          </div>
+          <p id="demo-playback-state" role="status" class="muted">Avanço automático pausado neste navegador.</p>
+          <div class="progress"><span id="progress">0 / 8 relatos</span><span>Modo sintético</span></div></div>
         <div class="panel feed"><div class="panel-title">RELATOS RECEBIDOS</div><ol id="feed"><li class="empty">Nenhuma narração ainda.</li></ol></div>
       </aside>
     </section>
@@ -39,7 +46,7 @@
     <section class="config-area" aria-labelledby="configuration-title">
       <div class="config-heading"><div><div class="eyebrow">GN-020 · GN-021 · GN-023</div>
         <h2 id="configuration-title">Partidas e elencos</h2>
-        <p>Cadastre a partida e os atletas no SQLite local. O campo acima continua sendo uma <strong>demo sintética separada</strong>; suas narrações não alteram os jogos cadastrados.</p>
+        <p>Cadastre a partida e os atletas no SQLite local. O campo acima continua sendo uma <strong>demo sintética separada</strong>; suas narrações não alteram os jogos cadastrados. Para corrigir placar, posse ou evento de um jogo salvo, selecione a partida e use a seção <strong>Correções manuais auditadas</strong> abaixo.</p>
       </div></div>
       <div class="panel setup-panel" id="setup-panel" aria-labelledby="setup-title">
         <div class="panel-title" id="setup-title">CONFIGURAÇÃO EM 3 ETAPAS</div>
@@ -222,6 +229,7 @@
   <script src="/static/pitch_presentation.js" defer></script>
   <script src="/static/demo_scoreboard.js" defer></script>
   <script src="/static/demo_sync.js" defer></script>
+  <script src="/static/demo_playback.js" defer></script>
   <script src="/static/setup_progress.js" defer></script>
   <script src="/static/transcript_diagnostics.js" defer></script>
   <script src="/static/app.js" defer></script>

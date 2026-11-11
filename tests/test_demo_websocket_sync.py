@@ -78,7 +78,8 @@ def test_browser_script_order_and_two_client_node_simulation():
     app_js = (static / "app.js").read_text(encoding="utf-8")
     assert html.index("demo_sync.js") < html.index("app.js")
     assert "GameNowSync.createSync(" in app_js
-    assert "demoSync.accept(await response.json())" in app_js
+    assert "const snapshot=await response.json();" in app_js
+    assert "demoSync.accept(snapshot)" in app_js
     assert "demoSync.start()" in app_js
     node = shutil.which("node")
     if not node:

@@ -97,7 +97,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-073 [P0]** Atualizar site por WebSocket sem transmitir mídia; evidência: dois navegadores sincronizados.
 - [x] **GN-074 [P0]** Tela de configuração para partida, elencos e fontes (rádio/YouTube); evidência: fluxo sem editar código.
 - [x] **GN-075 [P1]** Feed de transcrições, eventos e status de cada fonte, com explicação da confiança; evidência: inspeção UI.
-- [ ] **GN-076 [P1]** Controles iniciar/pausar/reiniciar e correções manuais; evidência: testes UX.
+- [x] **GN-076 [P1]** Controles iniciar/pausar/reiniciar e correções manuais; evidência: testes UX.
 
 ## F08 — Qualidade e prova real
 
@@ -193,3 +193,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### GN-075 integrada (2026-11-11)
 
 - **GN-075 [x]:** Painel de diagnósticos por partida mostrando status das fontes, transcrições de texto/razão da classificação e eventos persistidos com pontuações heurísticas explicitamente não calibradas. Cliente HTTP inicial + WebSocket de feed com filtro por fonte, limitação de histórico, descarte de sequência repetida e desligamento ao trocar partida. Testes em `tests/test_transcript_diagnostics.cjs` e `tests/test_transcript_diagnostics_ui.py` (API/WebSocket sintéticos). Não transmite mídia, não ativa captura ou transcrição real; **sem ensaio em navegador físico**. **Próxima GN-076 [P1]**; GN-066 [P1] aberta e GN-090 precede captura.
+
+### GN-076 integrada (2026-11-11)
+
+- **GN-076 [x], escopo demo:** Controles locais para iniciar/pausar avanço automático da demonstração sintética, reinício global existente por HTTP/WebSocket e formulário preexistente de correções manuais auditadas para partidas SQLite. O timer não emite pedidos sobrepostos, aguarda requisição pendente antes do reset e pausa ao chegar ao último passo ou falhar; reiniciar sincroniza com outros navegadores. `app/static/demo_playback.js`, `tests/test_demo_playback.cjs` e `tests/test_demo_playback_controls.py`. **Não controla captação de áudio real nem pausa transcritores externos** (GN-090 e integração operacional pendentes). GN-066 [P1] continua aberta. Próximo trabalho GN-080 [P0] (testes de parsing e estado) ou GN-090 [P0] para segurança antes de ativar captura.
