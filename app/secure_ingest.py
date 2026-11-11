@@ -29,6 +29,14 @@ class IngestSecurityError(ValueError):
     """Blocked network destination or unsupported unsafe media reference."""
 
 
+class UpstreamStatusError(IngestSecurityError):
+    """Remote HTTP response unavailable for playback, without sensitive data."""
+
+    def __init__(self, status: int):
+        self.status = status
+        super().__init__("Remote media HTTP error")
+
+
 def _parse_public_url(url: str):
     if (not isinstance(url, str) or len(url.encode("utf-8")) > MAX_URL_BYTES
             or not url or any(ord(c) <= 32 or ord(c) == 127 or c == "\\" for c in url)):
@@ -197,6 +205,12 @@ class SafeMediaRelay:
         self._token = secrets.token_urlsafe(24)
         self._server: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
+        self._failure: str | None = None
+
+    @property
+    def failure_reason(self) -> str | None:
+        """Safe diagnostic code, never a URL, hostname, header or token."""
+        return self._failure
 
     def __enter__(self) -> "SafeMediaRelay":
         relay = self
@@ -221,7 +235,7 @@ class SafeMediaRelay:
                     connection, upstream, final_url = _open_redirects(target, forward_headers)
                     try:
                         if upstream.status not in (200, 206):
-                            raise IngestSecurityError("Upstream media request failed")
+                            raise UpstreamStatusError(upstream.status)
                         media_type = (upstream.getheader("Content-Type") or "").lower()
                         opening = upstream.read(7)
                         playlist = (urlsplit(final_url).path.lower().endswith(".m3u8")
@@ -257,8 +271,15 @@ class SafeMediaRelay:
                     finally:
                         connection.close()
                 except (IngestSecurityError, OSError, http.client.HTTPException,
-                        UnicodeError, ValueError):
-                    # Do not surface remote URLs, signed queries or headers.
+                        UnicodeError, ValueError) as exc:
+                    # Diagnose the source without exposing signed URLs, tokens,
+                    # hostnames or arbitrary response content.
+                    if isinstance(exc, UpstreamStatusError):
+                        relay._failure = f"upstream_http_{exc.status}"
+                    elif isinstance(exc, IngestSecurityError):
+                        relay._failure = "destination_or_playlist_rejected"
+                    else:
+                        relay._failure = "transport_error"
                     try:
                         self.send_error(502, "Remote media rejected")
                     except OSError:

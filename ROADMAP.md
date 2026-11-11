@@ -228,3 +228,10 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - **Subescopo implementado:** resolvedor de YouTube passa a aceitar `is_live`, `was_live` e `not_live`, além de metadados legados que indiquem vídeo encerrado com duração positiva; não exige transmissão ativa. Diagnóstico permite `--seconds 300` a `600` para cinco a dez minutos. `tests/test_youtube_capture.py` cobre vídeo comum, live arquivada, formatos áudio-only/alternativa A/V, falhas para vídeos ainda futuros, DRM/autenticação e saída JSON sem mídia.
 - **GN-031 e GN-083 permanecem [ ]:** a URL fornecida para o roteiro (https://www.youtube.com/watch?v=Ls4qkPrh4Tk) não foi efetivamente captada/transcrita neste ambiente, nem houve autorização específica confirmada ou métricas reais com gabarito. Não confundir o vídeo gravado com a categoria linguística `replay` de um lance narrado.
 - **Próxima entrega independente:** GN-066 [P1] e, depois, GN-092 [P1]; GN-083 pode prosseguir quando houver material permitido e dados de referência.
+
+
+### GN-031/GN-090 — diagnóstico de erro 5XX na captura de vídeo gravado (2026-11-11)
+
+- **Erro reproduzido no Windows do usuário:** após `git pull --ff-only` até `1529df7`, o teste com `https://www.youtube.com/watch?v=Ls4qkPrh4Tk` e `--seconds 5` falhou no FFmpeg com `Server returned 5XX` do relay local. Isso confirma que a etapa de resolver metadados avançou, mas **não** prova que a origem retornou HTTP 403 especificamente.
+- **Correção candidata implementada:** o consumidor espera 5,5 s antes de acessar URLs `https://*.googlevideo.com/videoplayback` recentemente resolvidas, acompanhando a espera de playback do próprio yt-dlp, sem cookies, autenticação ou bypass. O relay torna falhas de origem diagnosticáveis por códigos seguros (`upstream_http_403`, etc.), em vez de um 5XX opaco, preservando a validação SSRF.
+- **Evidência:** `tests/test_gn031_relay_recovery.py` cobre espera seletiva, relay HTTP 403 sem repetição nem vazamento e erro seguro da captura; suíte CI PR Python 3.11/3.12 obrigatória. **GN-031 [ ] e GN-083 [ ]** até teste autorizado de áudio real e métricas; não marcar sucesso físico por testes simulados.

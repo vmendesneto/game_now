@@ -172,6 +172,12 @@ async def pcm_chunks(
         code = await proc.wait()
         diagnosis = await errors
         if code != 0:
+            # FFmpeg only sees the loopback URL and cannot explain the remote
+            # HTTP failure. Surface the relay's sanitized reason, not the
+            # signed media URL or arbitrary upstream response body.
+            reason = getattr(relay, "failure_reason", None) if relay is not None else None
+            if reason:
+                raise CaptureError(f"Remote media request failed ({reason}); check source access")
             diagnosis = diagnosis.replace(input_uri, "[private media relay]")
             raise CaptureError("FFmpeg failed to decode stream: " + (diagnosis[-300:] or f"code {code}"))
         if not yielded:
