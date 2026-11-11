@@ -237,7 +237,7 @@
 
 ## GN-080 — regressões unitárias de interpretação e estado (2026-11-11)
 
-- `tests/test_gn080_unit_matrix.py` acrescenta 81 verificações unitárias/parametrizadas para classificação de texto, eventos, ambiguidades de jogadores/camisas, antecedentes por fonte e limite de tempo, períodos e esquema de ações, além de rejeição de referências inválidas, duplicadas e inconsistentes no `ContractBundle` v1. Testes usam fixtures sintéticas originais, sem serviços externos.
+- `tests/test_gn080_unit_matrix.py` acrescenta 67 casos de teste unitários/parametrizados para classificação de texto, eventos, ambiguidades de jogadores/camisas, antecedentes por fonte e limite de tempo, períodos e esquema de ações, além de rejeição de referências inválidas, duplicadas e inconsistentes no `ContractBundle` v1. Testes usam fixtures sintéticas originais, sem serviços externos.
 - **Evidência executada antes de marcar concluída:** PR #33, commit `9c1da69`, CI https://github.com/vmendesneto/game_now/actions/runs/43057714416 — **481 passed, 2 skipped** em Python 3.11 e 3.12. Checagem do schema e sintaxe JavaScript também aprovadas.
 - **Limites:** não houve execução local/Windows físico, validação com rádio/YouTube real, nem ensaio integrado novo de API + WebSocket + SQLite. Esses critérios pertencem à GN-081/GN-083–085; GN-090 continua bloqueando ativação de fontes remotas pelo site.
 - **Próxima GN-081 [P0]:** testes de integração ponta a ponta da API, WebSocket e persistência SQLite com reinício, usando fontes e lances simulados. GN-066 [P1] segue aberta.
