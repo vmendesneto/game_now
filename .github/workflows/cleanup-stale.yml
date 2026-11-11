@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   cleanup:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     steps:
       - name: Cancel obsolete runs but preserve latest main and open PR checks
