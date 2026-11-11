@@ -35,6 +35,7 @@ Abra http://127.0.0.1:8000 no navegador. Clique em **Próximo relato** para simu
 | `/api/matches/{id}` | GET, PUT, DELETE | Detalhar, editar e excluir partida |
 | `/api/matches/{id}/players` | GET, PUT | Elenco completo dos dois clubes, com posição, camisa, apelidos e titularidade |
 | `/api/matches/{id}/resolve-player` | POST | Resolver menção isolada (nome, apelido, camisa), retornando `resolved`, `ambiguous` ou `unknown` |
+| `/api/matches/{id}/resolve-narration` | POST | Resolver nomes de equipes/atletas, camisas e pronomes em texto livre sem alterar a partida (GN-051) |
 | `/api/matches/{id}/flow` | GET | Período, titulares em campo, substituições, expulsões, acréscimos e histórico |
 | `/api/matches/{id}/actions` | POST | Registrar operação de jogo (GN-024) |
 | `/api/matches/{id}/corrections` | GET, POST | Corrigir placar, posse e eventos com auditoria (GN-025) |
@@ -46,6 +47,8 @@ Abra http://127.0.0.1:8000 no navegador. Clique em **Próximo relato** para simu
 A seção **Partidas e elencos**, abaixo da demonstração, permite criar/editar/excluir partidas e cadastrar os dois elencos pelo navegador, sem editar Python. Posição é metadado de elenco separado do contrato de eventos v1. Cada PUT de elenco/fontes substitui a lista integral; 409 significa conflito de referências históricas, camisa duplicada ou equipe inválida. Dados são escritos em `data/game_now.sqlite3` por padrão (não versionado); escolha outro caminho com `GAME_NOW_DB_PATH` antes de iniciar. Copiar o arquivo com o servidor parado permite backup manual. Não apagar o arquivo para atualizar o aplicativo.
 
 A GN-022 acrescenta identificação conservadora de atletas: `POST /api/matches/{id}/resolve-player` recebe `{"mention":"camisa 10","team_id":null}`. Nomes são normalizados por caixa, acentos e pontuação. Sem equipe de contexto, dois atletas com a mesma camisa ou apelido geram `ambiguous`, nunca um palpite. O formulário no painel de elencos permite testar. Isso **não** é transcrição nem resolução de entidades em texto livre (GN-051).
+
+Na **GN-051**, `POST /api/matches/{id}/resolve-narration` recebe `{"text":"João do Azul recebe a bola, ele chuta"}` e devolve menções com índices no texto original, IDs somente quando únicos, lista de candidatos quando ambíguos e indicação da regra usada. O texto é limitado a 2.048 caracteres; a identificação se baseia exclusivamente no elenco salvo e nos nomes dos clubes, sem adivinhar posse, jogador ou zona no estado da partida. Referências como `ele` somente são vinculadas a um único antecedente explícito na frase. O uso opcional de `source_id`, `sequence`, `start_seconds`, `end_seconds` e `previous` permite carregar uma referência de uma janela anterior **apenas na mesma fonte**, em sequência imediata e com intervalo máximo de 8 segundos. Replay, comercial e texto sem pista de lance não criam contexto futuro. A API é diagnóstica e não altera o feed, o placar, a bola nem o contrato v1.
 
 O snapshot persistente está disponível em `/api/matches/{id}/state`. Ele exige um `ContractBundle` v1 válido e não altera a configuração da partida; edite partida/elenco pelos endpoints próprios. **O botão Próximo relato continua operando a demo separada**, sem preencher histórico das partidas cadastradas; integração entre eles ocorrerá numa etapa futura. Fontes reais e sua captura continuam não implementadas.
 
