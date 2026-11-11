@@ -18,10 +18,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install FFmpeg for real codec fixture tests
+      - name: Ensure FFmpeg for real codec fixture tests
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            timeout 180s sudo apt-get update -qq
+            timeout 180s sudo apt-get install -y -qq ffmpeg
+          fi
           ffmpeg -version
       - name: Install dependencies
         run: python -m pip install -r requirements-dev.txt
