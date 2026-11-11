@@ -85,7 +85,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-061 [P0]** Calcular atraso relativo por fonte usando eventos comuns e janela de observação; evidência: simulação com delays.
 - [x] **GN-062 [P0]** Deduplicar o mesmo lance narrado por várias fontes; evidência: dois relatos geram um evento.
 - [x] **GN-063 [P0]** Selecionar fonte ativa considerando comercial, atualidade, confiança e saúde da conexão; evidência: transição entre fontes.
-- [ ] **GN-064 [P0]** Tratar contradições sem “voltar no tempo” nem inventar coordenadas; evidência: teste de fontes conflitantes.
+- [x] **GN-064 [P0]** Tratar contradições sem “voltar no tempo” nem inventar coordenadas; evidência: teste de fontes conflitantes.
 - [ ] **GN-065 [P0]** Expirar posição antiga/mostrar “posição incerta” quando faltar narração válida; evidência: teste de silêncio.
 - [ ] **GN-066 [P1]** Painel de diagnóstico das decisões da fusão e calibração manual do atraso; evidência: logs legíveis.
 
@@ -161,3 +161,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### GN-063 integrada (2026-11-11)
 
 - **GN-063 [x]:** PR #23, `app/source_selection.py` + endpoint de prévia e testes de failover de fonte, comerciais, atualidade, saúde, força heurística e histerese. CI 361 passed / 2 skipped Python 3.11 e 3.12: https://github.com/vmendesneto/game_now/actions/runs/43047629361. Seleção diagnóstica `persisted=false` e sem alterar estado da partida; sem captação real. **Próxima GN-064 [ ].**
+
+### GN-064 integrada (2026-11-11)
+
+- **GN-064 [x]:** PR #24, guarda read-only contra tempo atrasado e alegações contraditórias entre fontes, sem inventar região. `app/fusion_conflicts.py` e teste `tests/test_fusion_conflicts.py`; CI: **380 passed, 2 skipped** Python 3.11 e 3.12 em https://github.com/vmendesneto/game_now/actions/runs/43048616845. Prévia hipotética; não é sincronismo real de emissoras. **Próxima GN-065 [ ].**

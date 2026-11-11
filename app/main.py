@@ -28,6 +28,7 @@ from app.logical_clock import ClockPreviewRequest, ClockPreviewResponse, preview
 from app.source_delay import RelativeDelayRequest, RelativeDelayResponse, preview_relative_delays
 from app.event_deduplication import EventDeduplicationRequest, EventDeduplicationResponse, preview_event_deduplication
 from app.source_selection import SourceSelectionRequest, SourceSelectionResponse, preview_active_source
+from app.fusion_conflicts import FusionConflictRequest, FusionConflictResponse, preview_fusion_conflicts
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
@@ -245,6 +246,15 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         # GN-063: diagnostic only, no capture started and no match state changed.
         require_match(match_id)
         return preview_active_source(request)
+
+    @application.post(
+        "/api/matches/{match_id}/events/fusion/preview",
+        response_model=FusionConflictResponse,
+    )
+    async def preview_conflicting_events(match_id: str, request: FusionConflictRequest):
+        # GN-064: caller-provided aligned text, diagnostic only, never a state write.
+        require_match(match_id)
+        return preview_fusion_conflicts(request)
 
     @application.get("/api/matches/{match_id}/flow")
     async def get_match_flow(match_id: str):

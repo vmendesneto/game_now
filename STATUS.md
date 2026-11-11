@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Últimas concluídas:** GN-063 (seleção conservadora da fonte ativa), GN-062 (deduplicação de candidatos), GN-061 (atraso por fonte) e GN-060 (relógio lógico). **Próxima tarefa: GN-064 — contradições entre fontes**. GN-063: CI do PR #23 aprovada, 361 passed, 2 skipped em Python 3.11 e 3.12 (run 43047629361). GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
+**Últimas tarefas concluídas:** GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Últimas concluídas:** GN-063 (seleção conservadora da fonte ativa), GN-062 (deduplicação de candidatos), GN-061 (atraso por fonte) e GN-060 (relógio lógico). **Próxima tarefa: GN-065 — expiração da posição antiga**. GN-063: CI do PR #23 aprovada, 361 passed, 2 skipped em Python 3.11 e 3.12 (run 43047629361). GN-057 é diagnóstico local opcional e só teve testes com modelo simulado; não há alegação de modelo Ollama real em execução. GN-044/045 e GN-012/085 dependem de execução real no Windows ou áudio autorizado; GN-090 precede ativação de fontes pelo site.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -165,3 +165,11 @@
 - `POST /api/matches/{id}/sources/selection/preview` é somente prévia: `persisted=false`, `eligible_for_state_update=false`; não ativa FFmpeg/ASR, não escreve SQLite, não muda bola, não garante sincronismo de streams. Os sinais de entrada são fornecidos pelo chamador e exigem relógio comum confiável. A força heurística NÃO é probabilidade calibrada.
 - `tests/test_source_selection.py`: comerciais, replay, saúde, atrasos de entrega, confiança, silêncio, mudança e retenção de fonte, validação estrita e API sem mutação. **CI PR #23: 361 passed, 2 skipped em Python 3.11 e 3.12**: https://github.com/vmendesneto/game_now/actions/runs/43047629361. O warning pré-existente não causou falha.
 - **Próxima: GN-064** (contradições entre fontes e monotonicidade), depois GN-065. GN-090 permanece bloqueio de captação real iniciada pelo site; GN-031 depende de fonte autorizada. Nenhum teste com rádio ou YouTube reais foi feito nesta tarefa.
+
+## GN-064 — contradições entre fontes sem retrocesso (2026-11-11)
+
+- `app/fusion_conflicts.py` recebe escolha explícita da fonte ativa, observações com timestamps já alinhados (fornecidos pelo chamador) e último lance previamente aceito. Recusa texto não-live, fonte sem observação, tempo não alinhado/futuro, equipe ou zona ausente e atualização no mesmo instante ou antes do lance anterior.
+- Observações simultâneas de outra fonte que afirmem equipe, zona, jogador ou tipo de evento conflitante vetam a proposta; ignoram-se análises/replays e registros sem alinhamento como prova de conflito. Informação ausente em fontes secundárias não pode preencher coordenadas ausentes da fonte escolhida. Não há voto de maioria nem conversão de texto em posição real.
+- Endpoint `POST /api/matches/{id}/events/fusion/preview`: `accepted_for_preview` é apenas consistência hipotética, sempre `persisted=false` e `eligible_for_state_update=false`. Sem alterações de partidas, bola, relógio ou SQLite.
+- `tests/test_fusion_conflicts.py` cobre múltiplas contradições, retrocesso, falta de zona/equipe, tempo, classificação, integração com seleção GN-063 e API somente leitura. **PR #24, CI: 380 passed, 2 skipped em Python 3.11 e 3.12**: https://github.com/vmendesneto/game_now/actions/runs/43048616845. Um warning de dependência já conhecido permanece.
+- **Próxima: GN-065**, expirar informação de bola após silêncio. Integração com áudio/ASR reais continua pendente e sujeita à GN-090; nenhuma fonte real foi testada na GN-064.
