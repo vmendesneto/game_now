@@ -68,16 +68,39 @@ jobs:
                 core.info(`Retained ${run.id}: ${key} (${run.status})`);
                 continue;
               }
-              try {
-                await github.rest.actions.cancelWorkflowRun({
-                  owner, repo, run_id: run.id,
-                });
-                cancelled += 1;
-                core.info(`Cancelled superseded run ${run.id} (${key})`);
-              } catch (error) {
-                // A run may complete between listing and cancellation.
+              let completedOrCancelled = false;
+              let lastError;
+              for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                  await github.rest.actions.cancelWorkflowRun({
+                    owner, repo, run_id: run.id,
+                  });
+                  cancelled += 1;
+                  completedOrCancelled = true;
+                  core.info(`Cancelled superseded run ${run.id} (${key})`);
+                  break;
+                } catch (error) {
+                  lastError = error;
+                  try {
+                    const refreshed = await github.rest.actions.getWorkflowRun({
+                      owner, repo, run_id: run.id,
+                    });
+                    if (refreshed.data.status === "completed") {
+                      core.info(`Run ${run.id} completed before cancellation`);
+                      completedOrCancelled = true;
+                      break;
+                    }
+                  } catch (lookupError) {
+                    core.warning(`Could not refresh run ${run.id}: ${lookupError.message}`);
+                  }
+                  if (attempt < 2) {
+                    await new Promise(resolve => setTimeout(resolve, 750 * (attempt + 1)));
+                  }
+                }
+              }
+              if (!completedOrCancelled) {
                 failures += 1;
-                core.warning(`Could not cancel ${run.id}: ${error.message}`);
+                core.warning(`Could not cancel active run ${run.id}: ${lastError?.message}`);
               }
             }
             core.info(`Checked ${runs.length} pending/running jobs; cancelled ${cancelled}, retained ${retained.size}, cancel errors ${failures}`);
