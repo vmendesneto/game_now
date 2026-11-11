@@ -19,6 +19,31 @@ Não confundir **posição estimada pela linguagem** com rastreamento óptico. N
 7. Ao concluir **cada tarefa**, atualize sua checkbox para `[x]` em `ROADMAP.md` **somente depois de testar**, e atualize `STATUS.md` no mesmo commit.
 8. Se interrompido ou limitado, documente exatamente o que foi feito, o que falhou e o comando seguinte, mantendo a tarefa inacabada em `[ ]`.
 
+## Processo obrigatório de commits, PR e GitHub Actions — evitar execuções redundantes (2026-11-11)
+
+**Esta regra vale para todo novo chat, Codex ou colaborador.** O workflow `.github/workflows/test.yml` executa em `pull_request` e em `push` para `main`, com matriz Python 3.11/3.12. **Cada novo commit enviado para um PR pode iniciar a suíte completa novamente**, mesmo que só altere Markdown. `concurrency.cancel-in-progress: true` cancela runs anteriores do mesmo PR, mas não evita que sejam criados nem o desperdício inicial de recursos. O merge na `main` dispara **outra execução esperada**. Não tratar duas versões do Python como execuções duplicadas: são validações distintas na mesma run.
+
+### Ordem obrigatória por tarefa GN-xxx
+
+1. **Antes de trabalhar:** ler `STATUS.md`, `ROADMAP.md`, `AGENTS.md`, a `main`, os PRs/branches em andamento e as regras atuais da CI. Reutilizar trabalho existente. Criar a branch da tarefa a partir da `main` atual, sem reabrir trabalho concluído.
+2. **Preparar tudo antes do primeiro push:** implementar código e testes, verificar lint/sintaxe/schema e executar os testes relevantes **localmente quando houver ambiente disponível**. Preparar também as alterações finais de `ROADMAP.md`, `STATUS.md`, `AGENTS.md` e/ou `README.md` que forem necessárias. Não criar commit remoto após cada arquivo, nem fazer commits separados só para atualizar esses documentos.
+3. **Registrar a tarefa corretamente:** marcar `[x]` no ROADMAP **apenas com evidência de teste executado**; registrar no STATUS o que de fato foi validado e o que permanece pendente. Se só a CI conseguir validar, não alegar aprovação nem marcar a tarefa concluída antes do resultado. Não inventar número de testes ou run ID ainda inexistente.
+4. **Publicar uma entrega coerente:** preferir **um único commit por tarefa** contendo código + testes + documentação (ou o menor conjunto de commits indispensável) e **um único push** na branch, então abrir/atualizar o PR. Se estiver usando API do GitHub, criar um commit multi-arquivos por Git Data API (blobs/tree/commit/ref) ou preparar os arquivos em clone local; o endpoint `update_file` gera um commit por arquivo e, portanto, não deve ser usado repetidamente em PR aberto quando for possível agrupá-los.
+5. **Validar a CI uma vez para o HEAD definitivo do PR:** acompanhar a execução automática de `Testes Game Now`, incluindo os jobs Python 3.11 e 3.12. A execução do **último commit** precisa estar verde antes do merge. Se falhar, consultar o log, corrigir a causa e fazer novo commit/push **somente pela correção necessária**. Não disparar `workflow_dispatch`/rerun por hábito, nem fazer push só para acompanhar progresso.
+6. **Depois da CI verde:** mesclar o PR conforme as regras do repositório e conferir a CI automática da `main`. Evitar commit adicional de Markdown apenas para anotar o número da run: registrar a evidência no PR/descrição/comentário ou agrupá-la com uma futura alteração relevante. Se a documentação realmente exigir atualização imediata na `main`, justificar e aceitar conscientemente **uma** execução adicional.
+7. **Ao encerrar:** relatar tarefa, PR/merge, testes, limitações e próximo ID. Não iniciar uma nova tarefa sobre uma branch anterior não mesclada sem registrar essa dependência. Se não for possível validar, deixar `[ ]` e documentar o bloqueio.
+
+### Exemplos a evitar
+
+- `criar código → push → criar teste → push → STATUS → push → ROADMAP → push → AGENTS → push → README → push`: gera várias runs, cancelamentos e filas mesmo sem alteração funcional.
+- Executar novamente a mesma suíte só porque a run aparece como `queued`/`in_progress`; primeiro aguardar ou diagnosticar o status da execução atual.
+- Mesclar baseando-se na CI de um commit antigo quando o HEAD do PR mudou.
+- Alterar o workflow para ignorar arquivos `.md` sem antes verificar as **checks obrigatórias/branch protection**; um filtro por caminhos mal planejado pode deixar PRs eternamente pendentes. Uma otimização de CI deve ser tratada e validada como tarefa própria.
+
+**Exceções justificadas:** correção de falha real, urgência de segurança, conflito de merge e limitação técnica do ambiente. Nesses casos registrar o motivo da execução adicional; evitar execuções inúteis, **nunca** pular testes necessários.
+
+---
+
 ## Arquitetura-alvo (ajustável por ADR, sem recomeços arbitrários)
 
 - Backend: Python (FastAPI), processamento de áudio em jobs isolados e persistência SQLite.
