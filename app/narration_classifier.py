@@ -64,6 +64,7 @@ CUES: tuple[tuple[NarrationLabel, tuple[str, ...]], ...] = (
     )),
     (NarrationLabel.LIVE_PLAY, (
         "recebe a bola", "passa a bola", "com a bola",
+        "bola com", "recupera a bola", "rouba a bola", "retoma a posse",
         "cruza na area", "cruza para a area", "cruzou",
         "finaliza", "chutou", "chuta", "cobrou o escanteio",
         "marcou o gol", "gol do", "goool", "gooool", "defendeu o chute",
