@@ -43,7 +43,7 @@ _RULES: dict[EventKind, tuple[str, ...]] = {
         r"\bdefesa do goleiro\b",
     ),
     EventKind.GOAL: (
-        r"\bmarcou o gol\b", r"\bgol do\b", r"\bgo{3,}l\b",
+        r"\bmarcou o gol\b", r"\bmarca o gol\b", r"\bgol do\b", r"\bgo{3,}l\b",
     ),
     EventKind.CORNER: (
         r"\bcobrou o escanteio\b", r"\bescanteio para\b",
