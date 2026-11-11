@@ -113,6 +113,9 @@ let configuredMatches = [];
 let chosenMatch = null;
 let currentRoster = [];
 let registeredSources = [];
+let transcriptSocket=null,transcriptTimer=null,transcriptEpoch=0,transcriptAttempts=0;
+let transcriptData=window.GameNowTranscript.empty();
+let persistedTranscriptEvents=[];
 let editingPlayerId = null;
 function updateSetupProgress(){
   const result=window.GameNowSetup.describe(chosenMatch,currentRoster,registeredSources);
@@ -141,7 +144,9 @@ async function configApi(path, method="GET", body) {
   return response.status===204?null:response.json();
 }
 function blankMatch() {
+  stopTranscriptDiagnostics();
   chosenMatch=null;currentRoster=[];registeredSources=[];editingPlayerId=null;
+  $("transcripts-panel").hidden=true;
   $("match-form").reset();
   $("home-input").value="Azul";$("away-input").value="Vermelho";
   $("home-short").value="AZU";$("away-short").value="VER";
@@ -194,6 +199,7 @@ async function chooseMatch(id) {
   if(!id){blankMatch();return;}
   const match=configuredMatches.find(item=>item.id===id);
   if(!match){blankMatch();return;}
+  stopTranscriptDiagnostics();
   showMatch(match);
   currentRoster=await configApi("/api/matches/"+encodeURIComponent(id)+"/players");
   editingPlayerId=null;
@@ -202,6 +208,7 @@ async function chooseMatch(id) {
   await loadMatchFlow();
   await loadMatchCorrections();
   await loadSavedSources();
+  await loadTranscriptDiagnostics();
   updateSetupProgress();
   formNotice("match-message","Partida carregada do SQLite.");
 }
@@ -465,6 +472,7 @@ async function loadMatchCorrections(){
   const [audit,state]=await Promise.all([
     configApi(base+"/corrections"),configApi(base+"/state")
   ]);
+  persistedTranscriptEvents=Array.isArray(state.events)?state.events:[];
   $("corrections-panel").hidden=false;
   $("correction-home-goals").value=chosenMatch.home_score;
   $("correction-away-goals").value=chosenMatch.away_score;
@@ -588,6 +596,7 @@ async function persistSavedSources(next){
   resetSourceForm();
   showSavedSources();
   updateSetupProgress();
+  await loadTranscriptDiagnostics();
 }
 function editSavedSource(source){
   editingSourceId=source.id;
@@ -613,3 +622,111 @@ $("source-form").addEventListener("submit",async event=>{
     formNotice("source-message","Fonte salva no SQLite; captura ainda indisponível.");
   }catch(error){formNotice("source-message","Erro na fonte: "+error.message,true);}
 });
+
+/* GN-075: separate text-only diagnostics of the selected SQLite match. */
+function stopTranscriptDiagnostics(){
+  transcriptEpoch+=1;
+  if(transcriptTimer!==null){clearTimeout(transcriptTimer);transcriptTimer=null;}
+  const socket=transcriptSocket;transcriptSocket=null;
+  if(socket)socket.close();
+  transcriptData=window.GameNowTranscript.empty();
+  persistedTranscriptEvents=[];
+  transcriptAttempts=0;
+}
+function renderTranscriptDiagnostics(){
+  if(!chosenMatch)return;
+  const model=window.GameNowTranscript.present(
+    transcriptData,registeredSources,$("transcript-source-filter").value,persistedTranscriptEvents);
+  function fill(id,items,emptyText){
+    const target=$(id);target.replaceChildren();
+    if(!items.length){
+      const li=document.createElement("li");li.textContent=emptyText;target.append(li);
+    }
+    for(const item of items){
+      const li=document.createElement("li");
+      const strong=document.createElement("strong");
+      strong.textContent=item.title||item.label||"Registro";
+      li.append(strong);
+      if(item.text){const p=document.createElement("p");p.textContent=item.text;li.append(p);}
+      if(item.detail){const small=document.createElement("small");small.textContent=item.detail;li.append(small);}
+      target.append(li);
+    }
+  }
+  fill("transcript-source-status",model.sources,"Nenhuma fonte cadastrada.");
+  fill("transcript-entry-list",model.entries,"Sem transcrições: a captura pelo site ainda não foi ativada.");
+  fill("transcript-event-list",model.events,"Nenhum evento salvo nesta partida.");
+}
+function refreshTranscriptFilter(){
+  const picker=$("transcript-source-filter"),previous=picker.value;
+  picker.replaceChildren();
+  const all=document.createElement("option");all.value="";all.textContent="Todas as fontes";picker.append(all);
+  for(const source of registeredSources){
+    const option=document.createElement("option");
+    option.value=source.id;option.textContent=source.name;picker.append(option);
+  }
+  picker.value=registeredSources.some(source=>source.id===previous)?previous:"";
+}
+$("transcript-source-filter").addEventListener("change",renderTranscriptDiagnostics);
+function connectTranscriptSocket(matchId,epoch){
+  if(epoch!==transcriptEpoch || !chosenMatch || chosenMatch.id!==matchId)return;
+  const protocol=location.protocol==="https:"?"wss:":"ws:";
+  let socket;
+  try{socket=new WebSocket(protocol+"//"+location.host+
+    "/ws/matches/"+encodeURIComponent(matchId)+"/transcripts");}
+  catch(error){
+    $("transcript-connection").textContent="WebSocket indisponível; reconectando.";
+    retryTranscriptSocket(matchId,epoch);return;
+  }
+  transcriptSocket=socket;
+  socket.onopen=()=>{
+    if(epoch!==transcriptEpoch || transcriptSocket!==socket)return;
+    transcriptAttempts=0;
+    $("transcript-connection").textContent="Diagnósticos conectados · somente texto.";
+  };
+  socket.onmessage=event=>{
+    if(epoch!==transcriptEpoch || transcriptSocket!==socket)return;
+    try{
+      const updated=window.GameNowTranscript.apply(
+        transcriptData,JSON.parse(event.data),registeredSources);
+      if(updated!==transcriptData){transcriptData=updated;renderTranscriptDiagnostics();}
+    }catch(_){$("transcript-connection").textContent="Atualização de diagnóstico inválida.";}
+  };
+  socket.onerror=()=>{
+    if(epoch===transcriptEpoch && transcriptSocket===socket)
+      $("transcript-connection").textContent="Conexão de diagnóstico instável.";
+  };
+  socket.onclose=()=>{
+    if(epoch!==transcriptEpoch || transcriptSocket!==socket)return;
+    transcriptSocket=null;
+    retryTranscriptSocket(matchId,epoch);
+  };
+}
+function retryTranscriptSocket(matchId,epoch){
+  if(epoch!==transcriptEpoch || transcriptTimer!==null)return;
+  const delay=Math.min(1000*2**Math.min(transcriptAttempts,4),16000);
+  transcriptAttempts+=1;
+  transcriptTimer=setTimeout(()=>{
+    transcriptTimer=null;
+    connectTranscriptSocket(matchId,epoch);
+  },delay);
+}
+async function loadTranscriptDiagnostics(){
+  if(!chosenMatch)return;
+  stopTranscriptDiagnostics();
+  const epoch=transcriptEpoch,matchId=chosenMatch.id;
+  refreshTranscriptFilter();
+  $("transcripts-panel").hidden=false;
+  $("transcript-connection").textContent="Consultando diagnósticos textuais…";
+  renderTranscriptDiagnostics();
+  try{
+    const data=await configApi("/api/matches/"+encodeURIComponent(matchId)+"/transcripts?limit=50");
+    if(epoch!==transcriptEpoch || !chosenMatch || chosenMatch.id!==matchId)return;
+    transcriptData=window.GameNowTranscript.apply(
+      transcriptData,{kind:"snapshot",data},registeredSources);
+    renderTranscriptDiagnostics();
+    connectTranscriptSocket(matchId,epoch);
+  }catch(error){
+    if(epoch===transcriptEpoch)
+      $("transcript-connection").textContent="Não foi possível consultar transcrições: "+error.message;
+  }
+}

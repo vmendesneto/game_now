@@ -2,8 +2,8 @@
 
 **Atualizado:** 2026-11-11
 **Branch:** `main`
-**Últimas tarefas concluídas:** GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
-**Últimas concluídas:** GN-074 (configuração guiada de partida, elencos e fontes), GN-073 (WebSocket versionado), GN-072 (painel demo). **Próxima tarefa: GN-075 — feed de transcrições e eventos no site**; GN-066 [P1] permanece pendente. GN-090 bloqueia ativação real de URLs; demonstração separada da partida registrada. GN-073 CI pós-merge: https://github.com/vmendesneto/game_now/actions/runs/43053811362. GN-074 requer validação da CI do PR.
+**Últimas tarefas concluídas:** GN-075, GN-074, GN-073, GN-072, GN-071, GN-070, GN-065, GN-064, GN-063, GN-062, GN-061, GN-060, GN-057, GN-056, GN-055, GN-054, GN-053, GN-052, GN-051, GN-050, GN-046, GN-043, GN-042, GN-041, GN-040, GN-024, GN-025, GN-032, GN-030, GN-015, GN-034 e **GN-033/GN-037 (recuperação de captura e política de mídia)**.
+**Últimas concluídas:** GN-075 (diagnóstico textual de fontes/transcrições/eventos), GN-074 (configuração em três etapas), GN-073 (WebSocket versionado). **Próxima tarefa: GN-076 — iniciar/pausar/reiniciar e correções manuais**; GN-066 [P1] pendente. GN-090 permanece pré-requisito de qualquer captura via site. GN-074 CI pós-merge: https://github.com/vmendesneto/game_now/actions/runs/43054930416. GN-075 requer validação da CI do PR.
 **Bloqueio físico paralelo:** GN-012 exige Windows do usuário; GN-085 exigirá áudio/navegador/modelos reais.
 
 ## Implementado e validado
@@ -220,3 +220,10 @@
 - A interface já possuía CRUD de partida, atletas e fontes. Novo painel em 3 etapas mostra o progresso do cadastro sem confundir fonte habilitada com captura iniciada. `app/static/setup_progress.js` não acessa áudio/rede. Alterações no cadastro, elenco e fontes atualizam o resumo; criar nova partida zera a contagem.
 - Novos testes `tests/test_setup_progress.cjs` e `tests/test_configuration_flow_ui.py` exercitam contadores, cadastro de duas equipes, URLs de rádio/YouTube e persistência após reinício do SQLite. **Não há validação física em navegador/Windows nem captura de áudio integrada.**
 - **Próxima GN-075 [P1]**: UI do feed de transcrições e eventos; GN-066 [P1] pendente; GN-090 precede captura real.
+
+## GN-075 — painel textual de diagnósticos (2026-11-11)
+
+- `app/static/transcript_diagnostics.js` limita transcrições a 50 e eventos salvos a 10, filtra por fontes registradas, descarta sequências textuais duplicadas, expõe o motivo da regra de classificação e exibe pontuações heurísticas sem apresentá-las como probabilidades calibradas. Não expõe URL, PCM, vídeo, binários ou chave de stream.
+- UI dedicada à partida cadastrada com status/erro safe-code por fonte, transcrições voláteis e eventos persistidos. API HTTP inicial e `/ws/matches/{id}/transcripts` para atualização; reconexão limitada e cancelamento ao trocar partida. Não influencia demo sintética nem move a bola.
+- `tests/test_transcript_diagnostics.cjs` verifica duas fontes, filtro, segurança, status, eventos; `tests/test_transcript_diagnostics_ui.py` cobre API/WebSocket com fala sintética injetada em memória. Sem teste físico de navegador/Windows nem áudio real.
+- **Próxima GN-076 [P1]**; GN-066 [P1] pendente, GN-090 bloqueia ativação de fontes externas pelo site.

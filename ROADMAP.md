@@ -96,7 +96,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-072 [P0]** Exibir posse, placar, relógio, jogador provável e evento atual; evidência: UI em demo.
 - [x] **GN-073 [P0]** Atualizar site por WebSocket sem transmitir mídia; evidência: dois navegadores sincronizados.
 - [x] **GN-074 [P0]** Tela de configuração para partida, elencos e fontes (rádio/YouTube); evidência: fluxo sem editar código.
-- [ ] **GN-075 [P1]** Feed de transcrições, eventos e status de cada fonte, com explicação da confiança; evidência: inspeção UI.
+- [x] **GN-075 [P1]** Feed de transcrições, eventos e status de cada fonte, com explicação da confiança; evidência: inspeção UI.
 - [ ] **GN-076 [P1]** Controles iniciar/pausar/reiniciar e correções manuais; evidência: testes UX.
 
 ## F08 — Qualidade e prova real
@@ -189,3 +189,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ### GN-074 integrada (2026-11-11)
 
 - **GN-074 [x]:** Formularios existentes de partidas/elencos/fontes agora incluem resumo progressivo em três etapas (partida salva, atletas mandante/visitante, fontes com URL) sem iniciar captura nem alterar ContractBundle v1. Testes: `tests/test_setup_progress.cjs` (contadores e casos vazios) e `tests/test_configuration_flow_ui.py` (API de cadastro, duas equipes, rádio/YouTube e reabertura SQLite). Sem teste físico com navegador/Windows. **Próxima GN-075 [P1]**; GN-090 antes de captação real.
+
+### GN-075 integrada (2026-11-11)
+
+- **GN-075 [x]:** Painel de diagnósticos por partida mostrando status das fontes, transcrições de texto/razão da classificação e eventos persistidos com pontuações heurísticas explicitamente não calibradas. Cliente HTTP inicial + WebSocket de feed com filtro por fonte, limitação de histórico, descarte de sequência repetida e desligamento ao trocar partida. Testes em `tests/test_transcript_diagnostics.cjs` e `tests/test_transcript_diagnostics_ui.py` (API/WebSocket sintéticos). Não transmite mídia, não ativa captura ou transcrição real; **sem ensaio em navegador físico**. **Próxima GN-076 [P1]**; GN-066 [P1] aberta e GN-090 precede captura.

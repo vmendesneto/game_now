@@ -179,6 +179,21 @@
         <div class="panel-title">TRILHA DE AUDITORIA</div>
         <ul id="correction-history" class="roster-list"></ul>
       </div>
+      <div class="panel transcripts-panel" id="transcripts-panel" hidden>
+        <div class="panel-title">GN-075 · DIAGNÓSTICOS DA PARTIDA CADASTRADA</div>
+        <p class="muted">Transcrições somente de texto em memória, estados do processamento e eventos salvos. Não são narração ou posição confirmadas; nenhuma mídia é transmitida.</p>
+        <label>Filtrar fonte
+          <select id="transcript-source-filter"><option value="">Todas as fontes</option></select>
+        </label>
+        <p id="transcript-connection" role="status">Ainda não conectado à transcrição.</p>
+        <div class="panel-title">STATUS DAS FONTES</div>
+        <ul class="roster-list" id="transcript-source-status"></ul>
+        <div class="panel-title">TRANSCRIÇÕES · REGRAS DE CLASSIFICAÇÃO</div>
+        <ol class="roster-list" id="transcript-entry-list"></ol>
+        <div class="panel-title">EVENTOS REGISTRADOS · PONTUAÇÕES DE REGRAS</div>
+        <ul class="roster-list" id="transcript-event-list"></ul>
+        <p class="muted">Pontuações são heurísticas, não probabilidades calibradas. A transcrição ainda não é ligada automaticamente à captura nem ao estado do campo.</p>
+      </div>
       <div class="panel config-form" id="sources-panel" hidden>
         <div class="panel-title">GN-032 · FONTES DE NARRAÇÃO</div>
         <p class="muted">Cadastre rádios HTTP(S) e links públicos de YouTube. As fontes ficam salvas no SQLite; a captura não é iniciada pelo site nesta etapa.</p>
@@ -208,6 +223,7 @@
   <script src="/static/demo_scoreboard.js" defer></script>
   <script src="/static/demo_sync.js" defer></script>
   <script src="/static/setup_progress.js" defer></script>
+  <script src="/static/transcript_diagnostics.js" defer></script>
   <script src="/static/app.js" defer></script>
 </body>
 </html>
