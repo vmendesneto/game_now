@@ -18,7 +18,7 @@ def _assert_safe_demo(snapshot: dict) -> None:
     assert snapshot["mode"] == "synthetic_demo"
     assert snapshot["stream_id"]
     assert isinstance(snapshot["revision"], int)
-    assert set(snapshot["data"]) == {"match", "sources", "segments", "events", "ball"}
+    assert set(snapshot["data"]) == {"schema_version", "match", "sources", "segments", "events", "ball"}
     # No base64 content, PCM/audio samples, media playback or binary frames.
     forbidden = {"audio_base64", "pcm_bytes", "raw_audio", "video_frame",
                  "video_base64", "media_payload", "stream_bytes"}
