@@ -49,6 +49,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     application.state.store = store
     logger = request_logger()
     clients: set[WebSocket] = set()
+    demo_lock = asyncio.Lock()  # Serializes snapshots, updates and subscriber joins.
 
     @application.middleware("http")
     async def log_requests(request: Request, call_next):
@@ -105,7 +106,8 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
 
     @application.get("/api/state")
     async def state():
-        return engine.snapshot()
+        async with demo_lock:
+            return engine.snapshot()
 
     @application.get("/api/matches", response_model=list[Match])
     async def list_matches():
@@ -403,25 +405,34 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
 
     @application.post("/api/demo/next")
     async def next_demo():
-        snapshot = engine.step()
-        await publish(snapshot)
-        return snapshot
+        async with demo_lock:
+            snapshot = engine.step()
+            await publish(snapshot)
+            return snapshot
 
     @application.post("/api/demo/reset")
     async def reset_demo():
-        snapshot = engine.reset()
-        await publish(snapshot)
-        return snapshot
+        async with demo_lock:
+            snapshot = engine.reset()
+            await publish(snapshot)
+            return snapshot
 
     @application.websocket("/ws")
     async def websocket(socket: WebSocket):
         await socket.accept()
-        clients.add(socket)
+        # Joining and first state must be atomic relative to broadcasts, or
+        # a newly opened browser can receive a new event before an older state.
+        async with demo_lock:
+            clients.add(socket)
+            try:
+                await socket.send_json(engine.snapshot())
+            except (RuntimeError, WebSocketDisconnect, OSError):
+                clients.discard(socket)
+                return
         try:
-            await socket.send_json(engine.snapshot())
             while True:
                 await socket.receive_text()
-        except WebSocketDisconnect:
+        except (WebSocketDisconnect, RuntimeError, OSError):
             pass
         finally:
             clients.discard(socket)
