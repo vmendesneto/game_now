@@ -22,6 +22,7 @@ from app.possession import PossessionRequest, PossessionEvidence, detect_possess
 from app.field_regions import RegionRequest, RegionEvidence, detect_region
 from app.event_detection import EventRequest, EventEvidence, detect_event
 from app.confidence import ConfidenceRequest, ConfidenceEvidence, assess_confidence
+from app.ball_guard import BallGuardRequest, BallGuardDecision, guard_ball_movement
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
@@ -189,6 +190,15 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
             return assess_confidence(require_match(match_id), request)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @application.post("/api/matches/{match_id}/guard-ball", response_model=BallGuardDecision)
+    async def guard_ball(match_id: str, request: BallGuardRequest):
+        # Read-only decision: a candidate is NEVER persisted or sent to the demo.
+        # Unverified age is not a real broadcast clock (GN-060/061 pending).
+        state = store.get_state(match_id)
+        if state is None:
+            raise HTTPException(status_code=404, detail="Partida não encontrada")
+        return guard_ball_movement(state.match, state.ball, request)
 
     @application.get("/api/matches/{match_id}/flow")
     async def get_match_flow(match_id: str):
