@@ -235,3 +235,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - **Erro reproduzido no Windows do usuário:** após `git pull --ff-only` até `1529df7`, o teste com `https://www.youtube.com/watch?v=Ls4qkPrh4Tk` e `--seconds 5` falhou no FFmpeg com `Server returned 5XX` do relay local. Isso confirma que a etapa de resolver metadados avançou, mas **não** prova que a origem retornou HTTP 403 especificamente.
 - **Correção candidata implementada:** o consumidor espera 5,5 s antes de acessar URLs `https://*.googlevideo.com/videoplayback` recentemente resolvidas, acompanhando a espera de playback do próprio yt-dlp, sem cookies, autenticação ou bypass. O relay torna falhas de origem diagnosticáveis por códigos seguros (`upstream_http_403`, etc.), em vez de um 5XX opaco, preservando a validação SSRF.
 - **Evidência:** `tests/test_gn031_relay_recovery.py` cobre espera seletiva, relay HTTP 403 sem repetição nem vazamento e erro seguro da captura; suíte CI PR Python 3.11/3.12 obrigatória. **GN-031 [ ] e GN-083 [ ]** até teste autorizado de áudio real e métricas; não marcar sucesso físico por testes simulados.
+
+### Fixture local para GN-083 (2026-11-11)
+
+- Escalações das imagens fornecidas: 11 titulares e 12 reservas por clube. Cadastro local por `scripts/seed_cruzeiro_bahia.py`, idempotente, sem alterar GN-083 [ ]. Testes `tests/test_seed_cruzeiro_bahia.py` e guia `docs/GN-083.md`; execução no Windows e ASR real ainda pendentes.
