@@ -15,6 +15,7 @@ from threading import RLock
 from uuid import uuid4
 
 from app.asr_windows import WindowTranscript
+from app.narration_classifier import classify_narration
 
 _ALLOWED_STATES = frozenset({"idle", "buffering", "processing", "ready", "error", "stopped"})
 
@@ -30,6 +31,9 @@ class FeedEntry:
     end_seconds: float
     language: str
     text: str
+    narration_kind: str
+    classification_reason: str
+    eligible_for_live_state: bool
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -38,6 +42,9 @@ class FeedEntry:
             "processed_at": self.processed_at.isoformat(),
             "start_seconds": self.start_seconds, "end_seconds": self.end_seconds,
             "language": self.language, "text": self.text,
+            "narration_kind": self.narration_kind,
+            "classification_reason": self.classification_reason,
+            "eligible_for_live_state": self.eligible_for_live_state,
         }
 
 
@@ -125,6 +132,15 @@ class TranscriptFeed:
         if not update.new_text.strip():
             # Repeated text in an overlapping window is not emitted again.
             return None
+        # Classifier metadata is advisory; it NEVER mutates match state.
+        # Oversize ASR output remains visible, but is not treated as live.
+        try:
+            decision = classify_narration(update.new_text)
+            kind = decision.label.value
+            reason = decision.matched_cue or "no_explicit_cue"
+            eligible = decision.is_current_play
+        except ValueError:
+            kind, reason, eligible = "unknown", "text_exceeds_classifier_limit", False
         entry = FeedEntry(
             match_id=match_id, source_id=source_id,
             sequence=update.sequence, captured_at=captured_at,
@@ -132,6 +148,9 @@ class TranscriptFeed:
             start_seconds=update.start_seconds,
             end_seconds=update.end_seconds, language=update.language,
             text=update.new_text.strip(),
+            narration_kind=kind,
+            classification_reason=reason,
+            eligible_for_live_state=eligible,
         )
         with self._lock:
             key = self._register(match_id, source_id)
