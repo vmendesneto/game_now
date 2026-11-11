@@ -72,7 +72,10 @@ async def _shutdown(process: asyncio.subprocess.Process) -> None:
         try:
             await asyncio.wait_for(process.wait(), timeout=3)
         except asyncio.TimeoutError:
-            process.kill()
+            # The subprocess can exit between the timeout and the kill signal.
+            # Reap it either way instead of leaking a transport on cancellation.
+            with suppress(ProcessLookupError):
+                process.kill()
             await process.wait()
 
 

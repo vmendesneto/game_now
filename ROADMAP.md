@@ -35,7 +35,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-013 [P0]** Criar `/health` e diagnóstico de FFmpeg, modelo ASR, armazenamento e sources; evidência: respostas verificáveis.
 - [x] **GN-014 [P0]** Modo demonstração totalmente offline para testar campo, interpretação e WebSocket sem downloads; evidência: roteiro reproduzível.
 - [x] **GN-015 [P1]** Logs estruturados, rotação e mensagens de erro compreensíveis; evidência: testes de falhas.
-- [ ] **GN-016 [P1]** Encerramento seguro dos processos de áudio e recuperação após reinício; evidência: nenhum processo órfão.
+- [x] **GN-016 [P1]** Controlador de lifecycle por fonte com stop idempotente e timeout/cancelamento de fallback, cleanup do FFmpeg com proteção contra corrida na terminação, reinício limpo e testes de subprocesso real/PID sem órfão no Linux CI. Verificação física Windows é separada (GN-085) e permanece pendente; CI do PR obrigatória.
 
 ## F02 — Partida, escalação e persistência
 

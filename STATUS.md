@@ -1,5 +1,13 @@
 # STATUS — Game Now
 
+## GN-016 — limpeza das sessões de captura (2026-11-11)
+
+- `CaptureSessionController` é dono das tarefas de captura, permite iniciar/parar por fonte e fecha os workers de forma cooperativa ou por cancelamento após timeout, aguardando `CaptureSupervisor.run` e seu encerramento final. Reinício recria novo controlador, sem restauração de workers/URLs assinadas.
+- Proteção contra corrida `ProcessLookupError` no kill do subprocesso em `app/audio_capture.py`.
+- `tests/test_gn016_shutdown.py`: fontes concorrentes simuladas, parada idempotente, reinício e verificações de reap do PID de um subprocesso REAL que emite PCM sintético. Evidência Linux na CI; nenhuma sessão real de rádio/YouTube ou ciclo de reinício foi testado fisicamente em Windows.
+- **Limites:** controlador é primitivo Python; não existe botão start/stop de captura real na API. GN-085 exige validação física de ausência de processos órfãos no Windows. GN-083 continua [ ] aguardando início real do jogo e avaliação com gabarito. Depois: GN-036 (VAD com benchmark) ou GN-086 (desempenho simultâneo).
+
+
 ## GN-094 — política de fontes e retenção de transcrições (2026-11-11)
 
 - `docs/GN-094.md`: inventário de licenças das dependências **diretas** declaradas e executáveis opcionais com links oficiais, restrições de uso de fontes e lista explícita de pontos que exigem auditoria antes de redistribuir. Esta revisão não concede autorização para captar YouTube/rádio nem valida termos de binários instalados.

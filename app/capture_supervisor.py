@@ -173,3 +173,72 @@ class CaptureSupervisor:
         finally:
             self._states[source.id] = replace(state, state="stopped")
             self._active.remove(source.id)
+
+
+class CaptureSessionController:
+    """GN-016: lifecycle owner for capture tasks (not a public web API).
+
+    Stops are cooperative first; timed-out tasks are cancelled, allowing
+    pcm_chunks' finally block to terminate and reap FFmpeg. New instances
+    must be constructed after a server restart. No URLs/PCM are persisted.
+    """
+
+    def __init__(self, supervisor: CaptureSupervisor) -> None:
+        self.supervisor = supervisor
+        self._tasks: dict[str, asyncio.Task[None]] = {}
+        self._stop: dict[str, asyncio.Event] = {}
+        self._lock = asyncio.Lock()
+        self._closed = False
+
+    async def start(self, source: AudioSource) -> None:
+        async with self._lock:
+            if self._closed:
+                raise RuntimeError("Capture controller is closed")
+            active = self._tasks.get(source.id)
+            if active is not None and not active.done():
+                raise ValueError("Capture already started for source")
+            if not source.enabled or not source.url:
+                raise ValueError("An enabled source with URL is required")
+            stop = asyncio.Event()
+            self._stop[source.id] = stop
+            self._tasks[source.id] = asyncio.create_task(
+                self.supervisor.run(source, stop), name=f"capture:{source.id}"
+            )
+
+    async def stop(self, source_id: str, *, timeout_seconds: float = 8.0) -> None:
+        if timeout_seconds <= 0:
+            raise ValueError("Stop timeout must be positive")
+        async with self._lock:
+            task = self._tasks.get(source_id)
+            event = self._stop.get(source_id)
+            if task is None or event is None:
+                return  # idempotent stop
+            event.set()
+        try:
+            await asyncio.wait_for(asyncio.shield(task), timeout=timeout_seconds)
+        except asyncio.TimeoutError:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        finally:
+            async with self._lock:
+                if self._tasks.get(source_id) is task and task.done():
+                    self._tasks.pop(source_id, None)
+                    self._stop.pop(source_id, None)
+
+    async def close(self, *, timeout_seconds: float = 8.0) -> None:
+        """Close every worker; can be called again after graceful shutdown."""
+        async with self._lock:
+            self._closed = True
+            source_ids = tuple(self._tasks)
+            for event in self._stop.values():
+                event.set()
+        await asyncio.gather(*(
+            self.stop(source_id, timeout_seconds=timeout_seconds)
+            for source_id in source_ids
+        ))
+
+    async def __aenter__(self) -> "CaptureSessionController":
+        return self
+
+    async def __aexit__(self, *_exc: object) -> None:
+        await self.close()
