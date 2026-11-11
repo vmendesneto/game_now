@@ -24,6 +24,7 @@ from app.event_detection import EventRequest, EventEvidence, detect_event
 from app.confidence import ConfidenceRequest, ConfidenceEvidence, assess_confidence
 from app.ball_guard import BallGuardRequest, BallGuardDecision, guard_ball_movement
 from app.llm_local import LLMCompareRequest, LLMComparison, compare_language
+from app.logical_clock import ClockPreviewRequest, ClockPreviewResponse, preview_clock
 from app.match_flow import MatchAction, MatchFlowService
 from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
@@ -206,6 +207,12 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         # Opt-in only. Local model I/O is offloaded; result is always read-only.
         match = require_match(match_id)
         return await asyncio.to_thread(compare_language, match, request)
+
+    @application.post("/api/matches/{match_id}/clock/preview", response_model=ClockPreviewResponse)
+    async def preview_logical_clock(match_id: str, request: ClockPreviewRequest):
+        # A bounded diagnostic, not live clock sync or a persisted event.
+        match = require_match(match_id)
+        return preview_clock(match.period, request)
 
     @application.get("/api/matches/{match_id}/flow")
     async def get_match_flow(match_id: str):
