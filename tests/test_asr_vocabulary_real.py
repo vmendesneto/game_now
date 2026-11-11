@@ -18,6 +18,7 @@ import pytest
 from app.asr import ASRSettings, CPUTranscriber, read_pcm_wav
 from app.asr_vocabulary import build_vocabulary_prompt
 from app.contracts import Match
+from scripts.synthetic_tts import synthesize_wav
 
 
 def _fold(text: str) -> str:
@@ -27,12 +28,11 @@ def _fold(text: str) -> str:
 
 @pytest.mark.skipif(os.getenv("GAME_NOW_REAL_ASR") != "1", reason="Heavy real-model opt-in A/B")
 def test_real_cpu_vocabulary_ab_with_identical_portuguese_speech(tmp_path: Path):
-    assert shutil.which("espeak-ng") and shutil.which("ffmpeg")
+    assert shutil.which("ffmpeg")
     wav = tmp_path / "voice.wav"
     wav16 = tmp_path / "voice16.wav"
     sentence = "Otávio Mendes passou a bola para Caio Ventura do Azul Futebol Clube. O goleiro defendeu e depois saiu um escanteio."
-    subprocess.run(["espeak-ng", "-v", "pt-br", "-s", "130", "-w", str(wav), sentence],
-                   check=True, capture_output=True)
+    synthesize_wav(sentence, wav, language="pt-br", words_per_minute=130)
     subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
                     "-i", str(wav), "-ac", "1", "-ar", "16000",
                     "-c:a", "pcm_s16le", str(wav16)], check=True, capture_output=True)
