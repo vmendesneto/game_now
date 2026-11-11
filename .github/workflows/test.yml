@@ -1,43 +1,55 @@
 name: Testes Game Now
+
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
 permissions:
   contents: read
+
+# One current execution per branch/PR; avoid duplicate push + PR builds.
+concurrency:
+  group: game-now-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install FFmpeg for real codec fixture tests
+      - name: Install dependencies and FFmpeg wheel (no apt mirror)
+        run: python -m pip install --timeout 15 --retries 1 -r requirements-dev.txt imageio-ffmpeg==0.6.0
+      - name: Expose FFmpeg executable from wheel
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
-          ffmpeg -version
-      - name: Install dependencies
-        run: python -m pip install -r requirements-dev.txt
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import imageio_ffmpeg
+
+          binary = Path(imageio_ffmpeg.get_ffmpeg_exe())
+          assert binary.is_file(), "FFmpeg executable unavailable"
+          tools = Path(os.environ["RUNNER_TEMP"]) / "game-now-tools"
+          tools.mkdir(exist_ok=True)
+          (tools / "ffmpeg").symlink_to(binary)
+          with open(os.environ["GITHUB_PATH"], "a", encoding="utf-8") as paths:
+              print(tools, file=paths)
+          PY
+          "$RUNNER_TEMP/game-now-tools/ffmpeg" -version | head -n 2
       - name: Generate canonical JSON schema
         run: python scripts/export_schema.py
-      - name: Print schema to bootstrap the first tracked copy
-        if: matrix.python-version == '3.12'
-        run: |
-          if ! git ls-files --error-unmatch schemas/v1.schema.json >/dev/null 2>&1; then
-            python -c "import base64,pathlib;print('GAME_NOW_SCHEMA_BEGIN');print(base64.b64encode(pathlib.Path('schemas/v1.schema.json').read_bytes()).decode());print('GAME_NOW_SCHEMA_END')"
-          fi
-      - name: Check tracked schema if present
-        run: |
-          if git ls-files --error-unmatch schemas/v1.schema.json >/dev/null 2>&1; then
-            git diff --exit-code -- schemas/v1.schema.json
-          fi
+      - name: Check tracked schema
+        run: git diff --exit-code -- schemas/v1.schema.json
       - name: Check frontend JavaScript syntax
         run: node --check app/static/app.js
       - name: Benchmark bounded overlapping window assembly (no ASR)
