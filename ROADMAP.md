@@ -49,7 +49,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ## F03 — Entradas de áudio: rádios e YouTube
 
 - [x] **GN-030 [P0]** Capturar URL de rádio MP3/AAC/HLS via FFmpeg, converter para PCM mono 16 kHz; evidência: arquivo/stream de teste.
-- [ ] **GN-031 [P0]** Capturar **somente áudio** de transmissões públicas YouTube Live via yt-dlp + FFmpeg; evidência: link de teste permitido e tratamento de indisponibilidade.
+- [ ] **GN-031 [P0]** Capturar **somente áudio** de transmissões públicas YouTube Live via yt-dlp + FFmpeg; evidência: link de teste permitido e tratamento de indisponibilidade. Prova técnica de PCM de live real no Windows: 2026-11-11, 5 s / 160.000 bytes; autorização de uso da fonte ainda não verificada (ver STATUS).
 - [x] **GN-032 [P0]** Cadastrar, editar, ativar e desativar múltiplas fontes independentes; evidência: API/UI.
 - [x] **GN-033 [P0]** Detectar desconexão e reconectar com backoff, incluindo URLs de YouTube que expiram; evidência: simular perda e retomada.
 - [x] **GN-034 [P0]** Buffer de áudio por fonte com timestamps e limites de memória; evidência: teste de longas sessões.
