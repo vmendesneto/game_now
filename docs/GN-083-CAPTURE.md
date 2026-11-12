@@ -150,3 +150,23 @@ privado `data/spatial-ball-browser/report.json`. Nenhuma acurácia foi medida.
 O script aceita `--port 8001` para testar um servidor com banco isolado sem
 interferir no painel principal. Acrescente `--expect-spatial-mention` para exigir
 faixa tracejada das cinco regiões e marcador parcial nos dois clientes.
+
+## Bola parada: corte de frescor e linguagem espacial (2026-11-12)
+
+A indicação parcial de corredor tinha sido submetida ao mesmo corte de5s da
+posição completa. Na execução real, um trecho com lado esquerdo levou cerca
+de5,18s para processar e foi descartado. O corredor agora usa seu TTL de15s
+incluindo essa idade inicial; a guarda de posição completa continua em5s.
+Não há prazo adicional por receber o texto atrasado. Distribuições explícitas
+como “já leva ... do lado direito” passam a servir de ação espacial para
+fase/anotação, mantendo os vetos e a resolução conservadora de equipe/direção.
+
+Suíte Windows769 passed/4 skipped; depois29 testes espaciais aprovados incluindo
+bloqueio da posição completa atrasada. Playwright real com dois clientes,
+60s PCM desde575s/small12s/quatro threads, seis textos: símbolo saiu do centro
+para outro corredor conforme a indicação recebida. Sem mídia, erros JS ou
+escrita de estado. Nenhuma acurácia medida; várias janelas seguem desconhecidas.
+Acrescente `--expect-movement` ao teste para **exigir duas posições diferentes
+nos dois clientes**, correspondentes aos corredores da prévia, sem injeção de
+observações ou movimento automático por tempo. Artefatos privados em
+`data/movement-browser`.

@@ -1,5 +1,16 @@
 # STATUS — Game Now
 
+## Correção atual — GN-083: indicações parciais descartadas por atraso de ASR (2026-11-12)
+
+Atualizado: 2026-11-12
+Última tarefa integral concluída: GN-085; GN-083 continua [ ].
+Diagnóstico: no acompanhamento real de 600s, a janela 20..32s citava lado esquerdo/equipe resolvida, mas levou cerca de5,18s entre captura/processamento. Era descartada pelo limite de5s de posição completa, também aplicado indevidamente à anotação parcial de corredor. Outros trechos omitiam “bola” e “do campo”, como “já leva ... do lado direito”, sem corresponder à regra de ação espacial.
+Correção: indicação parcial usa seu TTL já existente de15s **incluindo idade inicial de processamento**, sem reiniciar o prazo ao receber texto; posição completa mantém limite de5s. Distribuições explícitas leva/toca/passa/joga/conduz com corredor próximo são reconhecidas para fase/anotação parcial, mantendo vetos semânticos e equipe/direção inequívocas para lados. Não cria faixa longitudinal, posse, jogador ou posição completa.
+Evidência: suíte Windows **769 passed, 4 skipped**, depois **29 passed** no módulo espacial com asserção adicional de que posição completa atrasada continua bloqueada. Schema/sintaxe/diff verificados. Playwright real, dois clientes, YouTube autorizado desde575s, small/quatro threads/contexto12s, 60s PCM/seis textos: exigiu e observou marcador em **(500,310) e (500,516,666...)**, correspondendo aos corredores recebidos, sem injetar observações. Fase em andamento, símbolo persistente após vencer, reinício/parada com1s PCM real, `/state` intacto, zero erro JS/requisição externa/mídia no navegador. Relatório privado `data/movement-browser/report.json`; imagens `movement-1.png` e `movement-2.png`.
+Limitações: comprova movimento de âncora esquemática por corredor, não trajetória/posição exata, qualidade de equipe/jogador/posse, latência fim a fim ou partida inteira. Vários trechos reais continuam desconhecidos/com erros de ASR. Não marcar GN-083 concluída nem animar por tempo ou inventar movimento quando faltam pistas.
+Próxima tarefa: continuar GN-083, melhorando interpretação somente com evidência e avaliação independente.
+Como continuar: `scripts.gn083_browser_check ... --expect-in-play --expect-spatial-mention --expect-movement`. CI do HEAD definitivo obrigatória antes do merge; preservar a sessão principal até concluir a captura solicitada e então aplicar a correção.
+
 ## Correção atual — GN-083: bola sempre dentro do campo (2026-11-12)
 
 Atualizado: 2026-11-12

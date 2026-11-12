@@ -87,7 +87,10 @@ class LivePreviewRegistry:
         mention = spatial_mention(current, observation.text)
         age = observation.local_capture_age_seconds
         session["spatial_mention"] = mention if (
-            mention["status"] == "partial" and (age is None or age <= 5)
+            # A quoted corridor is partial information with its own 15s TTL,
+            # not a current ball candidate governed by the stricter 5s guard.
+            # _view includes initial processing age, so no extra lifetime is added.
+            mention["status"] == "partial" and (age is None or age <= SPATIAL_MENTION_TTL_SECONDS)
             and phase not in ("half_time",)
         ) else None
         session["spatial_time"] = now

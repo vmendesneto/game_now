@@ -91,9 +91,9 @@ _LIVE_CUES = (
 # Football narration often omits the noun "bola", and ASR can alter grammatical
 # gender ("ponta esquerdo"). Require a completed action + spatial football cue.
 _SPATIAL_PLAY = re.compile(
-    r"\b(?:carrega|carregando|leva|levando|avanca|avancando)\b.{0,64}?"
-    r"\b(?:ponta (?:esquerd[ao]|direit[ao])|lado (?:esquerdo|direito) do (?:campo|gramado)|"
-    r"faixa central|grande area)\b"
+    r"\b(?:carrega|carregando|leva|levando|avanca|avancando|toca|passa|joga|conduz)\b.{0,64}?"
+    r"\b(?:ponta (?:esquerd[ao]|direit[ao])|lado (?:esquerdo|direito)|"
+    r"corredor (?:esquerdo|direito|central)|faixa (?:central|esquerda|direita)|grande area)\b"
 )
 _PLAY_OUT = re.compile(r"\b(?:ja )?saiu jogando\b")
 _UNCONFIRMED_ACTION = re.compile(r"\b(?:nao|nunca|jamais|poderia|teria|talvez|se tivesse)\b")

@@ -52,6 +52,7 @@ def run(args):
             requests, max_api_seconds = 0, 0.
             in_play_observed = False
             spatial_mention_observed = False
+            marker_positions = []
             while time.monotonic() < deadline:
                 at = time.monotonic()
                 health = second.request.get(base + "/health")
@@ -59,6 +60,22 @@ def run(args):
                 assert health.ok
                 status = first.request.get(base + path + "/capture").json()
                 preview = first.request.get(base + path + "/live/preview").json()
+                if args.expect_movement and preview and preview.get("spatial_mention"):
+                    mention = preview["spatial_mention"]
+                    transforms = []
+                    for page in pages:
+                        expected = page.evaluate("""mention => {
+                          const cell=GameNowField.zoneCellBounds({band:3,lane:mention.lane},
+                            mention.attack_direction||'left_to_right');
+                          return `translate(${cell.x+cell.width/2} ${cell.y+cell.height/2})`;
+                        }""", mention)
+                        marker = page.locator("#field .ball-marker")
+                        expect(marker).to_have_attribute("data-ball-state", "partial")
+                        expect(marker).to_have_attribute("transform", expected)
+                        transforms.append(marker.get_attribute("transform"))
+                    if transforms[0] not in marker_positions:
+                        marker_positions.append(transforms[0])
+                        first.locator("#field").screenshot(path=str(output / f"movement-{len(marker_positions)}.png"))
                 if preview and preview.get("spatial_mention") and not spatial_mention_observed:
                     spatial_mention_observed = True
                     if args.expect_spatial_mention:
@@ -92,6 +109,8 @@ def run(args):
                 assert in_play_observed, "Current play was not confirmed during the recording"
             if args.expect_spatial_mention:
                 assert spatial_mention_observed, "No partial corridor reached the actual pitch"
+            if args.expect_movement:
+                assert len(marker_positions) >= 2, "Narration did not produce two different visible positions"
             for page in pages:
                 expect(page.locator("#transcript-entry-list li")).not_to_have_count(0)
                 expect(page.locator("#transcript-entry-list")).not_to_contain_text("Nenhuma transcrição")
@@ -147,6 +166,8 @@ def run(args):
                       "accuracy_measured": False}
             report["in_play_observed"] = in_play_observed
             report["spatial_mention_observed"] = spatial_mention_observed
+            report["distinct_visible_positions"] = marker_positions
+            report["movement_observed"] = len(marker_positions) >= 2
             report["ball_symbol_persisted_after_evidence_expired"] = True
             (output / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
             return report
@@ -174,6 +195,8 @@ def main():
                         help="Require live-play phase in both browsers during this known game excerpt")
     parser.add_argument("--expect-spatial-mention", action="store_true",
                         help="Require a visibly partial five-band corridor without a confirmed ball zone")
+    parser.add_argument("--expect-movement", action="store_true",
+                        help="Require two different marker positions matching the received corridors in both browsers")
     args = parser.parse_args()
     if not args.permission_confirmed:
         parser.error("Confirm authorization for the registered source")
