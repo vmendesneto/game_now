@@ -1,5 +1,17 @@
 # STATUS — Game Now
 
+## Entrega atual — GN-083: captura real pelo painel (parcial, 2026-11-12)
+
+Atualizado: 2026-11-12
+Última tarefa integral concluída: GN-085; GN-083 permanece [ ] com entrega funcional de integração, sem precisão demonstrada.
+Evidência: `app/capture_runtime.py`, endpoints start/stop/status e formulário Acompanhar narração conectam fonte cadastrada → relay/FFmpeg → Whisper → feed HTTP/WS e prévia segura do campo. Rádio usa o mesmo capturador seguro; YouTube pode receber início solicitado para gravação. Modelos opcionais são preparados antes da captura; padrão até quatro threads CPU, sem backend GPU novo. Controles locais explícitos, sem auto-start, uma fonte por partida e máximo duas sessões no servidor. Stop/shutdown aguardam inferência nativa e encerramento de captura; edição de contexto bloqueada enquanto ativo. Transcrição/preview voláteis, sem alterar placar/bola/SQLite nem enviar mídia.
+Testes: suíte Windows **727 passed, 4 skipped**; duas sessões WebSocket, lifecycle/restart/cancelamento, CPU bloqueada, adaptadores de rádio/YouTube simulados, validação, dados read-only e erros sanitizados. Testes finais de parâmetros estritos executados antes do push. Node/schema sem alterações de contrato v1.
+Prova física Playwright: fonte Cruzeiro x Bahia autorizada, início solicitado 575s. Base/12s: 30s PCM/três textos/61 consultas health/máximo 0,032s. Small/30s: 30s PCM/um texto/107 consultas/máximo 0,046s. Small/12s/quatro threads: **60s PCM/seis textos**, 77 consultas health/máximo 0,047s; dois clientes, reinício e parada no botão depois de FFmpeg entregar **1s PCM real**, status stopped. Sem erro JS, requisições externas/mídia no browser ou alteração de `/state`. Artefatos privados em `data/capture-browser-*`; guia `docs/GN-083-CAPTURE.md`. CTranslate2 informou zero dispositivos CUDA nesta execução; isso não é benchmark GPU.
+Correções ligadas ao teste: contexto de áudio ajustável 6..30s; expressões espaciais explícitas de condução entram como narração candidata, preservando prioridade comercial/replay/análise e veto histórico/futuro (testes sintéticos, sem alegar corpus real rotulado). Fase inicial na UI agora diz Início ainda não confirmado. Nova região é bloqueada quando atraso local do final da janela excede 5s; esse atraso não verifica o relógio da transmissão. Feed é reiniciado nos dois clientes ao reiniciar a sessão, com nomes de erro compreensíveis.
+Limitações: reconhecimento/interpretação ainda não demonstram região útil de maneira confiável no trecho real; GN-083/GN-044/045/058/084 permanecem abertas. Não há fusão automática de fontes reais nem persistência de eventos inferidos. Não marcar sistema como validado em partida inteira e não avançar F10. CI do HEAD final obrigatória antes do merge.
+Próxima tarefa: GN-083, melhorar/avaliar a interpretação do trecho com bola rolando, mantendo gabarito independente separado das previsões e sem fabricar métricas. O usuário pediu que o agente execute os testes; não devolver comandos como substituto de trabalho executável neste Windows.
+Como continuar: `docs/GN-083-CAPTURE.md`; `scripts.gn083_browser_check` para teste de interface em banco isolado. Usuário já confirmou autorização para `Ls4qkPrh4Tk` e indicou início perto de 9:35. Relatórios privados anteriores preservados. A seção seguinte registra a entrega anterior.
+
 ## Entrega atual — GN-012/GN-031/GN-085 Windows (2026-11-12)
 
 Atualizado: 2026-11-12

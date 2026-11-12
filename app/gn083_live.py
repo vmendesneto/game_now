@@ -30,12 +30,23 @@ BALL_TTL_SECONDS = 8.0
 QUEUE_CHUNKS = 80  # Approximately 40 seconds PCM with 500 ms producer chunks.
 
 
+async def wait_for_cpu(function, *args):
+    """Finish an in-flight native inference before acknowledging cancellation."""
+    task = asyncio.create_task(asyncio.to_thread(function, *args))
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        await asyncio.gather(task, return_exceptions=True)
+        raise
+
+
 class LiveObservation(StrictModel):
     source_id: str = Field(min_length=3, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
     sequence: int = Field(ge=0)
     start_seconds: float = Field(ge=0)
     end_seconds: float = Field(ge=0)
     text: str = Field(min_length=1, max_length=2048)
+    local_capture_age_seconds: float | None = Field(default=None, ge=0, allow_inf_nan=False)
 
 
 class LivePreviewRegistry:
@@ -64,7 +75,9 @@ class LivePreviewRegistry:
         if before != phase and phase in ("half_time", "second_half"):
             session["ball"] = None
             session["ball_time"] = None
-        if detected["ball_updates_allowed"]:
+        fresh = (observation.local_capture_age_seconds is None
+                 or observation.local_capture_age_seconds <= 5)
+        if detected["ball_updates_allowed"] and fresh:
             # Guard GN-056 requires one explicit, current, consistent team+zone.
             # Timestamp is ingestion-relative and NOT verified capture freshness.
             current = match.model_copy(deep=True)
@@ -148,6 +161,9 @@ async def follow_youtube_narration(
     on_observation: Callable[[dict], Awaitable[None]],
     transcriber=None,
     capture_factory=None,
+    source_kind: str = "youtube",
+    window_settings: WindowSettings | None = None,
+    on_pcm: Callable[[int], None] | None = None,
 ) -> LiveMonitorResult:
     """Consume a stream until its end / Ctrl+C, no fixed pre-game offset.
 
@@ -162,7 +178,7 @@ async def follow_youtube_narration(
     if not isinstance(url, str):
         raise ValueError("A public YouTube URL is required")
     source = AudioSource(
-        id=source_id, name="GN-083 live monitor", kind="youtube", url=url,
+        id=source_id, name="GN-083 live monitor", kind=source_kind, url=url,
         enabled=True, status="offline",
     )
     try:
@@ -174,7 +190,7 @@ async def follow_youtube_narration(
             model=model, max_seconds=60,
             initial_prompt=build_vocabulary_prompt(match),
         )),
-        WindowSettings(),
+        window_settings or WindowSettings(),
     )
     factory = capture_factory or youtube_pcm_chunks
     queue: asyncio.Queue[bytes | None] = asyncio.Queue(maxsize=QUEUE_CHUNKS)
@@ -194,6 +210,8 @@ async def follow_youtube_narration(
                 if maximum is not None:
                     block = block[:max(0, maximum - byte_count)]
                 if block:
+                    if on_pcm is not None:
+                        on_pcm(len(block))
                     # Limit input bursts (regular capture yields 0.5 s chunks).
                     for off in range(0, len(block), BYTES_PER_SECOND // 2):
                         piece = block[off:off + BYTES_PER_SECOND // 2]
@@ -224,8 +242,8 @@ async def follow_youtube_narration(
             block = await queue.get()
             if block is None:
                 break
-            await emit(await asyncio.to_thread(processor.push, source_id, block))
-        await emit(await asyncio.to_thread(processor.finish, source_id))
+            await emit(await wait_for_cpu(processor.push, source_id, block))
+        await emit(await wait_for_cpu(processor.finish, source_id))
 
     producer = asyncio.create_task(produce())
     consumer = asyncio.create_task(consume())

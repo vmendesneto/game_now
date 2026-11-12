@@ -204,9 +204,12 @@ async def youtube_pcm_chunks(
     source: AudioSource, *, yt_dlp_binary: str = "yt-dlp",
     ffmpeg_binary: str = "ffmpeg", chunk_ms: int = 500,
     start_seconds: float = 0,
+    realtime: bool = False,
 ) -> AsyncIterator[bytes]:
     """Decode audio from a public live broadcast or recorded YouTube video."""
     start_seconds = validate_start_seconds(start_seconds)
+    if type(realtime) is not bool:
+        raise CaptureError("realtime must be a boolean")
     live = await resolve_live_audio(source, yt_dlp_binary=yt_dlp_binary)
     if start_seconds and not live.is_recording:
         raise CaptureError("start_seconds requires a confirmed recorded video")
@@ -217,6 +220,8 @@ async def youtube_pcm_chunks(
     audio_source = AudioSource(id=source.id, name=source.name, kind="radio",
                                url=live.url, enabled=True, status="offline")
     seek = {"start_seconds": start_seconds} if start_seconds else {}
+    if realtime:
+        seek["realtime"] = True
     async with aclosing(pcm_chunks(audio_source, ffmpeg_binary=ffmpeg_binary,
                                    chunk_ms=chunk_ms, http_headers=live.headers, **seek)) as pcm:
         async for chunk in pcm:

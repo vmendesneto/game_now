@@ -127,7 +127,7 @@ class TranscriptFeed:
     ) -> None:
         if state not in _ALLOWED_STATES:
             raise ValueError("Unsupported ASR processing state")
-        if error_code is not None and error_code not in ("asr_error", "queue_full"):
+        if error_code is not None and error_code not in ("asr_error", "queue_full", "capture_error"):
             raise ValueError("Only safe error codes are exposed")
         with self._lock:
             key = self._register(match_id, source_id)
@@ -260,3 +260,8 @@ class TranscriptFeed:
                 if key[0] == match_id:
                     self._states.pop(key, None)
                     self._records.pop(key, None)
+
+    def reset_match(self, match_id: str) -> None:
+        """Start a new capture epoch and reset every subscribed browser."""
+        self.clear_match(match_id)
+        self._notify(match_id, {"kind": "snapshot", "data": self.snapshot(match_id)})

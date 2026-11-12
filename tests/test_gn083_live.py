@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,6 +11,47 @@ from app.asr import ASRResult, BYTES_PER_SECOND
 from app.contracts import Match, Team
 from app.gn083_live import LiveObservation, LivePreviewRegistry, follow_youtube_narration
 from app.main import create_app
+
+
+def test_stop_waits_for_cpu_inference_and_closes_capture():
+    started, release, ended = threading.Event(), threading.Event(), threading.Event()
+    capture_closed = []
+
+    class BlockingASR:
+        def transcribe_pcm(self, pcm):
+            started.set()
+            assert release.wait(3)
+            ended.set()
+            return ASRResult(model="tiny", language="pt", seconds=6, text="Teste", segments=())
+
+    async def capture(*args, **kwargs):
+        try:
+            for _ in range(12):
+                yield b"\x00\x00" * 8000
+                await asyncio.sleep(0)
+            await asyncio.Event().wait()
+        finally:
+            capture_closed.append(True)
+
+    async def scenario():
+        task = asyncio.create_task(follow_youtube_narration(
+            "https://www.youtube.com/watch?v=test", game(), max_seconds=60,
+            on_observation=lambda row: None, transcriber=BlockingASR(), capture_factory=capture))
+        try:
+            assert await asyncio.to_thread(started.wait, 2)
+            task.cancel()
+            await asyncio.sleep(.01)
+            assert not task.done() and not ended.is_set()
+            release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(task, timeout=2)
+            assert ended.is_set() and capture_closed == [True]
+        finally:
+            release.set()
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+    asyncio.run(scenario())
 
 
 def game(name="match-live-083"):

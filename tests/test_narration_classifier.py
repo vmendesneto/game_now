@@ -75,3 +75,26 @@ def test_text_bounds_and_input_types():
     with pytest.raises(ValueError, match="maximum length"):
         classify_narration("x" * (MAX_TEXT_CHARS + 1))
     assert classify_narration("x" * MAX_TEXT_CHARS).label == NarrationLabel.UNKNOWN
+
+
+@pytest.mark.parametrize("text", [
+    "Caio carrega pela direita", "Beto carrega pelo meio",
+    "O atacante carrega pelo lado esquerdo",
+    "Ele segue levando para a ponta esquerda do gramado",
+])
+def test_explicit_current_spatial_actions_are_narration_without_implying_ball_position(text):
+    assert classify_narration(text).label == NarrationLabel.LIVE_PLAY
+
+
+@pytest.mark.parametrize("text,label", [
+    ("Ontem, Caio carrega pela direita", "unknown"),
+    ("No jogo anterior ele carrega pelo meio", "unknown"),
+    ("Amanhã ele vai carregar pela direita", "unknown"),
+    ("No replay ele carrega pela esquerda", "replay"),
+    ("Promoção: ele carrega pela direita", "ad"),
+    ("Na minha opinião ele carrega pelo meio", "analysis"),
+    ("Ele carrega uma mochila", "unknown"),
+    ("Essa ponta esquerda é do móvel", "unknown"),
+])
+def test_spatial_actions_keep_context_priority_and_abstain_on_unrelated_words(text, label):
+    assert classify_narration(text).label.value == label

@@ -94,6 +94,7 @@ async def pcm_chunks(
     fixture_file: Path | None = None,
     http_headers: dict[str, str] | None = None,
     start_seconds: float = 0,
+    realtime: bool = False,
 ) -> AsyncIterator[bytes]:
     """Decode a radio stream into chunks of PCM s16le/mono/16k.
 
@@ -101,6 +102,8 @@ async def pcm_chunks(
     and local CLI diagnostics. It is never passed through HTTP endpoints.
     """
     start_seconds = validate_start_seconds(start_seconds)
+    if type(realtime) is not bool:
+        raise CaptureError("realtime must be a boolean")
     if source.kind != "radio" or not source.enabled:
         raise CaptureError("Only enabled radio sources can use GN-030")
     if not (100 <= chunk_ms <= 5000):
@@ -151,6 +154,8 @@ async def pcm_chunks(
     ]
     if start_seconds:
         args += ["-ss", str(start_seconds)]
+    if realtime:
+        args += ["-re"]
     args += [
         "-i", input_uri, "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE),
         "-f", "s16le", "-acodec", "pcm_s16le", "pipe:1",

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from contextlib import asynccontextmanager
 import asyncio
 import shutil
 import time
@@ -38,12 +39,20 @@ from app.transcription_feed import TranscriptFeed
 from app.retention_policy import TranscriptRetention
 from app.network_security import NetworkSecurityMiddleware, NetworkSecuritySettings
 from app.gn083_live import LiveObservation, LivePreviewRegistry
+from app.capture_runtime import CaptureRuntime, CaptureRequest, CaptureConflict
 
 STATIC = Path(__file__).resolve().parent / "static"
 
 
-def create_app(database_path: str | Path | None = None) -> FastAPI:
-    application = FastAPI(title="Game Now", version="0.2.0")
+def create_app(database_path: str | Path | None = None, *, capture_runner=None) -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(application):
+        try:
+            yield
+        finally:
+            await capture.close()
+
+    application = FastAPI(title="Game Now", version="0.2.0", lifespan=lifespan)
     engine = DemoEngine()
     store = SQLiteStore(database_path)
     flow = MatchFlowService(store)
@@ -54,6 +63,8 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         retention_seconds=retention.ttl_seconds,
     )
     live_previews = LivePreviewRegistry()
+    capture = CaptureRuntime(store, transcript_feed, live_previews, runner=capture_runner)
+    application.state.capture_runtime = capture
     application.state.transcript_feed = transcript_feed
     application.state.store = store
     logger = request_logger()
@@ -96,6 +107,12 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
     def conflict(exc: StoreConflict) -> None:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    def require_capture_idle(match_id: str):
+        try:
+            capture.require_idle(match_id)
+        except CaptureConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     @application.get("/", include_in_schema=False)
     async def index():
         return FileResponse(STATIC / "index.html")
@@ -110,6 +127,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
             "storage": "sqlite_persistent",
             "demo_state": "volatile_memory_only",
             "sources": "synthetic_only",
+            "capture": {"auto_start": False, "browser_control": True},
             "windows_hardware_tested": False,
         }
 
@@ -139,6 +157,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
 
     @application.put("/api/matches/{match_id}", response_model=Match)
     async def edit_match(match_id: str, config: MatchConfig):
+        require_capture_idle(match_id)
         try:
             match = store.update_match(match_id, config)
         except StoreConflict as exc:
@@ -149,6 +168,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
 
     @application.delete("/api/matches/{match_id}", status_code=204)
     async def remove_match(match_id: str):
+        require_capture_idle(match_id)
         if not store.delete_match(match_id):
             raise HTTPException(status_code=404, detail="Partida não encontrada")
         transcript_feed.clear_match(match_id)
@@ -164,6 +184,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
 
     @application.put("/api/matches/{match_id}/players", response_model=list[RosterPlayer])
     async def save_players(match_id: str, roster: list[RosterPlayer]):
+        require_capture_idle(match_id)
         try:
             result = store.replace_roster(match_id, roster)
         except StoreConflict as exc:
@@ -306,6 +327,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
 
     @application.post("/api/matches/{match_id}/actions")
     async def apply_match_action(match_id: str, action: MatchAction):
+        require_capture_idle(match_id)
         try:
             result = flow.apply(match_id, action)
         except StoreConflict as exc:
@@ -323,6 +345,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
 
     @application.post("/api/matches/{match_id}/corrections", status_code=201)
     async def apply_match_correction(match_id: str, correction: ManualCorrection):
+        require_capture_idle(match_id)
         try:
             result = corrections.apply(match_id, correction)
         except StoreConflict as exc:
@@ -340,6 +363,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
 
     @application.put("/api/matches/{match_id}/sources", response_model=list[AudioSource])
     async def save_sources(match_id: str, sources: list[AudioSource]):
+        require_capture_idle(match_id)
         try:
             result = store.replace_sources(match_id, sources)
         except StoreConflict as exc:
@@ -347,6 +371,28 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         if result is None:
             raise HTTPException(status_code=404, detail="Partida não encontrada")
         return result
+
+    @application.get("/api/matches/{match_id}/capture")
+    async def capture_status(match_id: str):
+        require_match(match_id)
+        return capture.status(match_id)
+
+    @application.post("/api/matches/{match_id}/capture/start", status_code=202)
+    async def start_capture(match_id: str, options: CaptureRequest, request: Request):
+        require_match(match_id)
+        if not request.client or request.client.host not in ("127.0.0.1", "::1", "testclient"):
+            raise HTTPException(status_code=403, detail="Inicie captura no servidor local")
+        try:
+            return await capture.start(match_id, options)
+        except (CaptureConflict, StoreConflict) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @application.post("/api/matches/{match_id}/capture/stop", status_code=202)
+    async def stop_capture(match_id: str, request: Request):
+        require_match(match_id)
+        if not request.client or request.client.host not in ("127.0.0.1", "::1", "testclient"):
+            raise HTTPException(status_code=403, detail="Pare captura no servidor local")
+        return await capture.stop(match_id)
 
     @application.get("/api/matches/{match_id}/transcripts")
     async def get_transcripts(
@@ -372,6 +418,8 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         host = request.client.host if request.client else ""
         if host not in ("127.0.0.1", "::1", "testclient") or request.headers.get("origin"):
             raise HTTPException(status_code=403, detail="Live preview accepts local CLI only")
+        if capture.active(match_id):
+            raise HTTPException(status_code=409, detail="Há captura ativa; não misture observações externas")
         match = require_match(match_id)
         try:
             return live_previews.receive(match, observation)
@@ -413,7 +461,11 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
                     continue
                 message = update_task.result()
                 allowed = {source.id for source in store.get_sources(match_id) or []}
-                if message["data"]["source_id"] in allowed:
+                if message["kind"] == "snapshot":
+                    await socket.send_json({"kind": "snapshot", "data": transcript_feed.snapshot(
+                        match_id, allowed_sources=allowed,
+                    )})
+                elif message["data"].get("source_id") in allowed:
                     await socket.send_json(message)
         except (WebSocketDisconnect, RuntimeError, OSError, asyncio.CancelledError):
             pass
@@ -434,6 +486,7 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
 
     @application.put("/api/matches/{match_id}/state", response_model=ContractBundle)
     async def save_persisted_state(match_id: str, snapshot: ContractBundle):
+        require_capture_idle(match_id)
         try:
             result = store.replace_state(match_id, snapshot)
         except StoreConflict as exc:
