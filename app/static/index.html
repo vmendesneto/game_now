@@ -264,7 +264,7 @@
             <p class="muted">A segunda gravação começa no mesmo tempo após o apito da primeira. Esses pontos fornecidos por você são o alinhamento inicial; diferenças entre as transmissões ainda podem ocorrer.</p>
           </div>
           <div class="form-pair">
-            <label>Reconhecimento local<select id="capture-model"><option value="base">Base</option><option value="tiny">Tiny (mais rápido)</option><option value="small">Small</option><option value="medium">Medium (mais pesado)</option></select></label>
+            <label>Reconhecimento local<select id="capture-model"><option value="base">Base</option><option value="tiny">Tiny (mais rápido)</option><option value="small" selected>Small</option><option value="medium">Medium (mais pesado)</option></select></label>
             <label>Início na gravação (segundos)<input id="capture-start" type="number" min="0" max="86400" step="0.1" value="0" required></label>
             <label>Duração do teste (segundos)<input id="capture-seconds" type="number" min="5" max="600" value="60" required></label>
             <label>Contexto de áudio (segundos)<input id="capture-window" type="number" min="6" max="30" value="12" required></label>
@@ -274,6 +274,7 @@
           <p class="muted">Até duas fontes simultâneas. Instale os modelos locais opcionais no servidor; o primeiro uso pode baixar o modelo. Bola, posse e região permanecem desconhecidas quando a narração não fornece evidências suficientes.</p>
           <div class="controls"><button id="capture-start-button" type="submit">Iniciar acompanhamento</button><button id="capture-stop" type="button" class="secondary" disabled>Parar acompanhamento</button><button id="capture-demo" type="button" class="secondary">Ver demonstração</button></div>
           <p id="capture-status" role="status" aria-live="polite">Nenhuma captura iniciada.</p>
+          <p id="capture-model-status" class="muted" role="status"></p>
           <p id="capture-message" class="form-message" role="status"></p>
         </form>
       </div>
@@ -291,6 +292,6 @@
   <script src="/static/setup_progress.js" defer></script>
   <script src="/static/transcript_diagnostics.js" defer></script>
   <script src="/static/fusion_diagnostics.js" defer></script>
-  <script src="/static/app.js?v=8" defer></script>
+  <script src="/static/app.js?v=9" defer></script>
 </body>
 </html>

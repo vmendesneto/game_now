@@ -1,5 +1,16 @@
 # STATUS — Game Now
 
+## Correção atual — GN-083: configuração da captura e fonte parcial (2026-11-12)
+
+Atualizado: 2026-11-12
+Última tarefa integral concluída: GN-085; GN-083 permanece [ ].
+Relato: texto transcrito sem ação no campo após início manual pelo usuário. Inspeção read-only encontrou Base/contínuo desde563s e segunda fonte em capture_failed antes de entregar PCM. Os primeiros17 textos atuais não geraram ações; depois45 textos tinham duas. O trecho claro citado pelo usuário, reanalisado com o elenco atual, continua gerando sete ações. Não é prova de defeito no sequenciador nem benchmark controlado entre modelos/janelas.
+Entrega: Small selecionado por padrão apenas na UI, mantendo opções e default da API compatível. Painel mostra o modelo da execução ativa e avisa que mudar a seleção só vale no próximo início; identifica acompanhamento parcial. Fonte com erro não zera o contador agregado de PCM da fonte saudável; correção também no frontend para exibir corretamente respostas de servidor ainda não reiniciado. Sem reinício automático, troca de modelo em execução ou tentativa automática de recuperar fonte.
+Evidência: Windows830 passed/4 skipped; regressões com erro na primeira ou segunda fonte preservam progresso e seleção saudável. Playwright real na porta8000 confirmou Base em execução, Small selecionado para o próximo início, aviso parcial, contador460s e zero erro JS, sem iniciar/parar a captura do usuário. Em servidor isolado8001, Small/30s reais autorizados desde575s gerou três textos e sete etapas visíveis no primeiro trecho: Erick vai à ponta adversária e Everton retorna ao centro; Nestor tem deslocamento ilustrativo cinza. Zero erro JS/estado persistido alterado. Artefatos privados `data/empty-pitch-diagnosis.json` e `data/narrated-sequence-browser/report.json`.
+Limitações: falha externa da segunda fonte não foi resolvida; configuração atual Base do usuário continua intacta. Default diferente não garante interpretação de todo lance. Sem métricas independentes ou validação de partida completa. A revisão de modelo só afeta a próxima captura iniciada pelo usuário.
+Próxima tarefa: GN-083, qualidade espacial e diagnóstico da disponibilidade da segunda fonte.
+Como continuar: usuário pode parar pelo site, escolher Small e iniciar quando quiser; 575s e2116s reproduzem o trecho conhecido, com apitos563/2104s. Não iniciar captura principal ou servidor automaticamente: usuário explicitou controle manual. Encerrar só o servidor isolado de teste8001.
+
 ## Ajuste atual — GN-083: distinguir jogadores no desenho (2026-11-12)
 
 Atualizado: 2026-11-12

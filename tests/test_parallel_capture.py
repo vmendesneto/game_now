@@ -19,6 +19,31 @@ def options(**changes):
             "kickoff_seconds":2104}], **changes}
 
 
+@pytest.mark.parametrize("failed_source", [SOURCE["id"], "second-source"])
+def test_failed_source_does_not_zero_healthy_audio_progress_or_erase_actions(tmp_path, failed_source):
+    async def runner(url, match, **kwargs):
+        if kwargs["source_id"] == failed_source:
+            raise RuntimeError("private upstream failure")
+        kwargs["on_pcm"](12*BYTES_PER_SECOND)
+        await kwargs["on_observation"]({"source_id":kwargs["source_id"], "sequence":0,
+            "start_seconds":0, "end_seconds":12, "text":"Azul com a bola no meio-campo pela direita"})
+        await asyncio.Event().wait()
+    with TestClient(create_app(tmp_path/"partial.sqlite3",capture_runner=runner)) as client:
+        setup(client)
+        client.put(BASE+"/sources",json=[SOURCE,{**SOURCE,"id":"second-source"}])
+        assert client.post(BASE+"/capture/start",json=options()).status_code==202
+        deadline=time.monotonic()+3
+        while time.monotonic()<deadline:
+            status=client.get(BASE+"/capture").json()
+            if status["observations"]==1 and any(s["state"]=="error" for s in status["streams"]):
+                break
+            time.sleep(.01)
+        assert status["state"]=="running" and status["captured_seconds"]==12
+        assert status["observations"]==1
+        assert client.get(BASE+"/live/preview").json()["fusion"]["active_source_id"]!=failed_source
+        assert "private upstream failure" not in str(status)
+
+
 @pytest.mark.parametrize("changes", [{"kickoff_seconds":None}, {"parallel_sources":[{"source_id":SOURCE["id"],"start_seconds":2116,"kickoff_seconds":2104}]},
     {"parallel_sources":[{"source_id":"second-source","start_seconds":4269,"kickoff_seconds":2104}]},
     {"parallel_sources":[{"source_id":"second-source","start_seconds":float('inf'),"kickoff_seconds":2104}]}])

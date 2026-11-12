@@ -104,8 +104,9 @@ class CaptureRuntime:
         states = {row["state"] for row in rows}
         state = next((value for value in ("stopping", "running", "starting") if value in states),
                      "error" if states == {"error"} else "stopped" if "stopped" in states else "finished")
+        usable_rows = [row for row in rows if row["state"] != "error"] or rows
         return {**rows[0], "state": state, "parallel": True, "streams": rows,
-                "captured_seconds": min(row["captured_seconds"] for row in rows),
+                "captured_seconds": min(row["captured_seconds"] for row in usable_rows),
                 "observations": sum(row["observations"] for row in rows),
                 "error_code": None if state in ("running", "starting") else rows[0]["error_code"]}
 

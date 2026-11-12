@@ -1,5 +1,10 @@
 # ROADMAP — Game Now
 
+### GN-083 — modelo ativo e falha parcial de captura (2026-11-12)
+
+- Painel passa a selecionar Small para o próximo início e informar o modelo ativo; acompanhamento parcial é explícito. Fonte com erro não zera progresso da fonte saudável. Sem reinício ou início automático.
+- Windows830 passed/4 skipped, regressão de falha em qualquer uma das duas fontes. Playwright read-only na captura do usuário; Small/30s reais em servidor isolado reproduziu sete etapas no campo. Sem corrigir falha externa da segunda fonte ou comprovar acurácia/partida completa; GN-083 permanece [ ]. Ver STATUS.
+
 ### GN-083 — deslocamento ilustrativo entre atletas (2026-11-12)
 
 - Pedido explícito do usuário: pequeno deslocamento ao trocar atleta em região igual/próxima. Apresentação limitada à área desenhada, estável no polling e sem deriva; sem pista nova, posição permanece desconhecida/cinza. Não produz coordenada física nem atualiza posse/região no backend.
