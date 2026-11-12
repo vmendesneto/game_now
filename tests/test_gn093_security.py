@@ -163,6 +163,7 @@ def test_session_expiration_signature_and_secrets():
     settings = NetworkSecuritySettings(True, TOKEN, SECRET)
     now = int(datetime(2026, 11, 11).timestamp())
     value = _session_cookie(settings, now=now)
+    assert SESSION_COOKIE.startswith("__Host-")
     assert _session_valid(settings, value, now=now)
     assert not _session_valid(settings, value, now=now + 8 * 3600)
     assert not _session_valid(settings, value + "bad", now=now)
