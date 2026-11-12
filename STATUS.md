@@ -1,18 +1,13 @@
 # STATUS — Game Now
 
-## GN-086 — benchmark concorrente (PR e CI pendentes, 2026-11-11)
+## GN-093 — segurança de acesso remoto (2026-11-11)
 
-- Código candidato: `scripts/benchmark_gn086.py` usa GN-043 por fonte em asyncio, buffer circular GN-034, contagem de inferências e concorrência, tempo CPU/parede, RSS de processo Linux/macOS e tracemalloc. A opção `--engine real --wav` executa CPUTranscriber separado por fonte com áudio WAV permitido; modo sintético usa mock, **não** infere fala.
-- `tests/test_gn086_benchmark.py` cobre 2/3 fontes, limite de bytes e validação de argumentos; `tests/test_gn086_real.py` executará 2 modelos tiny com fala portuguesa TTS offline no workflow de ASR. Sem resultados de CI nesta revisão, manter GN-086 [ ] até confirmação; GN-083/085 não foram executadas. CLI e restrições: `docs/GN-086.md`.
-- GN-036 incorporada na main via PR #52 após checks Python 3.11/3.12 e ASR CPU verde, commit `975ee20`. Próximo, após GN-086 e suas checks: GN-093 (controle de acesso/ameaças para exposição de rede sem liberar interface insegura).
+- Adicionado guard ASGI para HTTP e WebSocket: por padrão bloqueia peers não-loopback, host não local e cross-origin; com `GAME_NOW_REMOTE_ACCESS=1`, recusa HTTP simples e exige token forte, segredo HMAC independente, cookie HttpOnly/Secure/SameSite e Origin em mutações/WS. Comando opt-in `scripts.serve_secure` exige certificado/chave TLS para bind remoto; não ativa acesso LAN automaticamente.
+- `docs/GN-093.md` tem matriz de ameaças e limites. `tests/test_gn093_security.py` é teste de transporte ASGI/HTTPS simulado, **não** prova handshake/certificado/firewall/Windows. CI do PR #54 antes da atualização final de documentação/teste (run 43136644521): **660 passed/3 skipped** em Python 3.11/3.12. Prefixo `__Host-` já estava correto e ganhou asserção explícita; comandos Windows alterados para compatibilidade com PowerShell 5.1. GN-093 [x], sujeito a nova CI verde do último commit antes do merge; sem teste TLS/Windows físico.
 
+## GN-086 — comprovada em CI, 2026-11-11
 
-## GN-036 — gate conservador de silêncio opcional (2026-11-11)
-
-- `app/silence_gate.py` oferece análise RMS por quadros de 30 ms e filtro opt-in de janelas de baixa energia; comerciais, música e torcida com energia são tratados como atividade, **nunca identificados como silêncio por conteúdo**. Sem downloads, sem alteração de PCM ou relógio.
-- `RollingASRProcessor` aceita `silence_gate=PCMSilenceGate()` opcional; padrão permanece desligado para não suprimir fala baixa real antes de ensaio autorizado. Janela suprimida mantém sequência/offset; deduplicador limpa contexto após silêncio.
-- `scripts/benchmark_gn036_silence.py` e `tests/test_gn036_silence.py` usam áudio PCM **sintético** de silêncio, tom análogo à narração e tom análogo a propaganda. O benchmark mede somente chamadas evitadas ao modelo falso, não qualidade ASR, fala ou conteúdo real. A CI Python 3.11/3.12 do PR deve validar antes do merge.
-- GN-083 continua [ ] sem prova de início automático em narração real; GN-031 e GN-085 aguardam autorização/evidência Windows. Próximo trabalho: GN-086 benchmark de múltiplas transcrições reais sob CPU/RAM (pode depender de máquina física), GN-093 segurança antes de eventual LAN.
+- PR #53 incorporado na main (commit `dd8b890`). CI 43135477752: **654 passed, 3 skipped** em Python 3.11 e 3.12. Smoke CPU real 43135477705: **3 passed** com duas sessões de Whisper tiny independentes e fala TTS pt-BR; 6 inferências, duas simultâneas em pico, 5,008 s por fonte, **717,16 MiB de RSS pico**, **266,1% de CPU de um núcleo**, **0,97 segundos de áudio agregado por segundo de parede**. O conjunto de duas fontes não sustentou tempo real nessa VM. Modelo/duração/buffer ajustáveis por CLI. Sem desempenho real Windows, rádio, precisão ou 90 min. GN-086 [x] no ROADMAP; próximo GN-093.
 
 
 ## GN-016 — limpeza das sessões de captura (2026-11-11)
