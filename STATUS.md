@@ -1,5 +1,12 @@
 # STATUS — Game Now
 
+## GN-058 — infraestrutura de corpus humano (parcial; material real ausente, 2026-11-11)
+
+- `scripts/gn058_corpus.py` valida metadados e segmentos JSON locais com declaração explícita de autorização, valida IDs/tempo/labels v1, recusa duplicatas, gravações cruzando splits e fontes sem anotação, gera resumo sem frases, URLs ou mídia. A declaração humana de autorização não prova direitos, e os hashes não provam origem por si.
+- `tests/test_gn058_corpus.py` usa apenas exemplos inventados: 19 testes locais aprovados em Linux/Python 3.13 com contrato de enums equivalente; conferir a CI do PR Python 3.11/3.12 no código real antes do merge. `docs/GN-058.md` contém o formato e roteiro.
+- **GN-058 [ ]** até corpus real autorizado, gabarito independente, divisão por gravação e métricas verificadas. GN-012/GN-044/GN-083 seguem pendentes da validação física ou de áudio autorizado. Sem começar F10 antes do primeiro jogo validado.
+
+
 ## GN-012 — preparação do launcher Windows (parcial; validação física pendente, 2026-11-11)
 
 - `iniciar_windows.bat` mantém o diretório correto, reutiliza a .venv e prefere `py -3.12`, `py -3.11`, com fallback `python`; a nova rotina `scripts.gn012_launch` valida versão, recusa ambiente virtual incompleto sem apagá-lo, instala dependências e inicia somente `127.0.0.1:8000`. Nenhuma captação ou acesso remoto é ativado.
