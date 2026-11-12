@@ -68,6 +68,10 @@ python -m pytest -q
 
 O contrato reside em `app/contracts.py`, o schema exportado em `schemas/v1.schema.json`, fixtures em `fixtures/`, e a decisão de arquitetura em [docs/ADR-0001.md](docs/ADR-0001.md). Não edite o JSON schema manualmente: regenere com o script e revise o diff. Os testes verificam ambos.
 
+## Filtro opcional de silêncio (GN-036)
+
+O gate `app/silence_gate.py` pode ser injetado em `RollingASRProcessor` com `silence_gate=PCMSilenceGate()` para evitar inferência em janelas de PCM com energia muito baixa. Ele **não é detector de publicidade ou voz** e permanece desligado por padrão até validação em narração real permitida. Execute `python -m scripts.benchmark_gn036_silence` para comparar chamadas de um modelo fictício com quatro sinais sintéticos; não mede precisão, latência Whisper nem Windows.
+
 ## Controle de captura e encerramento (GN-016)
 
 O `CaptureSessionController` em `app/capture_supervisor.py` coordena o ciclo de vida dos workers no backend, encerra por fonte e espera o FFmpeg sair antes de retornar. Ele não habilita captura pela interface: a operação real permanece separada do modo demo. Testes Linux simulam fontes e confirmam que um subprocesso termina sem ficar órfão; o ensaio Windows ainda pertence à GN-085.
