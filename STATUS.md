@@ -1,5 +1,12 @@
 # STATUS — Game Now
 
+## GN-086 — benchmark concorrente (PR e CI pendentes, 2026-11-11)
+
+- Código candidato: `scripts/benchmark_gn086.py` usa GN-043 por fonte em asyncio, buffer circular GN-034, contagem de inferências e concorrência, tempo CPU/parede, RSS de processo Linux/macOS e tracemalloc. A opção `--engine real --wav` executa CPUTranscriber separado por fonte com áudio WAV permitido; modo sintético usa mock, **não** infere fala.
+- `tests/test_gn086_benchmark.py` cobre 2/3 fontes, limite de bytes e validação de argumentos; `tests/test_gn086_real.py` executará 2 modelos tiny com fala portuguesa TTS offline no workflow de ASR. Sem resultados de CI nesta revisão, manter GN-086 [ ] até confirmação; GN-083/085 não foram executadas. CLI e restrições: `docs/GN-086.md`.
+- GN-036 incorporada na main via PR #52 após checks Python 3.11/3.12 e ASR CPU verde, commit `975ee20`. Próximo, após GN-086 e suas checks: GN-093 (controle de acesso/ameaças para exposição de rede sem liberar interface insegura).
+
+
 ## GN-036 — gate conservador de silêncio opcional (2026-11-11)
 
 - `app/silence_gate.py` oferece análise RMS por quadros de 30 ms e filtro opt-in de janelas de baixa energia; comerciais, música e torcida com energia são tratados como atividade, **nunca identificados como silêncio por conteúdo**. Sem downloads, sem alteração de PCM ou relógio.
