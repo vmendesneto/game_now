@@ -12,6 +12,8 @@ on:
       - 'requirements-asr.txt'
       - 'tests/test_asr_real.py'
       - 'tests/test_asr_vocabulary_real.py'
+      - 'scripts/benchmark_gn086.py'
+      - 'tests/test_gn086_real.py'
       - '.github/workflows/asr-smoke.yml'
   pull_request:
     paths:
@@ -61,4 +63,4 @@ jobs:
       - name: Transcribe generated Portuguese speech on CPU with real model
         env:
           GAME_NOW_REAL_ASR: "1"
-        run: python -m pytest -q -s tests/test_asr_real.py tests/test_asr_vocabulary_real.py
+        run: python -m pytest -q -s tests/test_asr_real.py tests/test_asr_vocabulary_real.py tests/test_gn086_real.py

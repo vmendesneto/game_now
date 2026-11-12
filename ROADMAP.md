@@ -107,7 +107,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [ ] **GN-083 [P0]** Testar cinco a dez minutos de narração brasileira **autorizada, ao vivo ou gravada** e medir identificação da equipe, jogador e zona; evidência: métricas reais e gabarito, sem exigir transmissão ativa. Subetapa offline de transcrição/análise e avaliador com gabarito disponível em `app/gn083_offline.py`, `scripts/gn083_audit.py` e `docs/GN-083.md`. Modo direto YouTube→ASR com GN-031/GN-090 em `app/gn083_stream.py` (`--youtube-url`) para mídia permitida, sem escrever PCM; ainda não executado sobre a gravação do usuário. Captura Windows de 300 s / 9.600.000 bytes / 600 blocos confirmada pelo usuário em 2026-11-11; ainda faltam áudio local autorizado, ASR executado e métricas contra gabarito para concluir.
 - [ ] **GN-084 [P0]** Ensaiar uma partida inteira, medir latência fim a fim, cobertura e falhas de fonte; evidência: relatório com erros.
 - [ ] **GN-085 [P0]** Validar no Windows físico do usuário: FFmpeg, yt-dlp, modelos, áudio real e navegador; evidência: checklist executado pelo usuário.
-- [ ] **GN-086 [P1]** Medir memória/CPU em duas ou mais transcrições simultâneas, ajustar modelo e buffer; evidência: benchmark.
+- [ ] **GN-086 [P1]** Benchmark de 2–4 sessões concorrentes (CPU/RSS/throughput/limites de buffer) com backend sintético e teste opt-in real tiny/CPU em CI; aguardando CI e evidências para marcar concluída. Ferramenta em `scripts/benchmark_gn086.py` e guia `docs/GN-086.md`; não equivale a Windows físico.
 
 ## F09 — Segurança e operacionalização
 
