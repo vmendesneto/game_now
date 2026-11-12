@@ -1,5 +1,12 @@
 # STATUS — Game Now
 
+## GN-044 — ferramenta de benchmark Whisper (parcial; validação Windows pendente, 2026-11-11)
+
+- `scripts/benchmark_gn044_whisper.py`: executa cada modelo em processo independente, com parâmetros CPU ou CUDA (opt-in), amostras WAV locais de até 30s e texto de referência humana; mede WER por edição normalizada de palavras (rotina GN-083), latência, wall/CPU e pico RSS/working set do processo. Não serializa PCM, referências ou transcrições, nem abre YouTube. Configuração explicitamente exige `--permission-confirmed`; instalação ASR opt-in.
+- `tests/test_gn044_benchmark.py` testa manifesto, WER, processo independente, segurança de erros e modo worker usando modelo falso. `docs/GN-044.md` explica execução CPU/GPU no Windows, restrições e interpretação. **GN-044 fica [ ]** porque CI sintética não mede modelos reais em Windows, e ainda faltam referência humana autorizada e comparação real. Próxima ação humana eventual: coletar amostra autorizada + transcrição própria e executar a CLI no Windows, sem refazer testes de captura GN-083.
+- GN-093 PR #54 incorporada à main (commit `9e344a2`), CI final PR 43136963648: 660 passed/3 skipped em Python 3.11/3.12; CI pós-merge `43137044232` verde. Não foi testado handshake TLS/Windows físico.
+
+
 ## GN-093 — segurança de acesso remoto (2026-11-11)
 
 - Adicionado guard ASGI para HTTP e WebSocket: por padrão bloqueia peers não-loopback, host não local e cross-origin; com `GAME_NOW_REMOTE_ACCESS=1`, recusa HTTP simples e exige token forte, segredo HMAC independente, cookie HttpOnly/Secure/SameSite e Origin em mutações/WS. Comando opt-in `scripts.serve_secure` exige certificado/chave TLS para bind remoto; não ativa acesso LAN automaticamente.

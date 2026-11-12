@@ -63,7 +63,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-041 [P0]** Processar blocos contínuos de áudio com sobreposição e deduplicação de texto; evidência: benchmark e testes.
 - [x] **GN-042 [P0]** Gerar transcrições independentes por fonte com timestamps, idioma e estado de processamento; evidência: feed acessível.
 - [x] **GN-043 [P0]** Não bloquear API/site durante inferência; evidência: dois clientes recebendo updates simultâneos.
-- [ ] **GN-044 [P1]** Benchmark de modelos Whisper (tiny/base/small/medium) em Windows CPU e, se disponível, GPU; evidência: WER, latência, RAM.
+- [ ] **GN-044 [P1]** Benchmark Whisper tiny/base/small/medium em Windows CPU/GPU com WER, latência, RAM. Preparado CLI local `scripts/benchmark_gn044_whisper.py`, testes de métricas/manifesto e `docs/GN-044.md`; ainda faltam resultados físicos Windows e narração autorizada com referência humana antes de marcar [x].
 - [ ] **GN-045 [P1]** Benchmark Parakeet pt-BR ONNX contra Whisper em narração real, sem afirmar backend nativo; evidência: relatório comparativo.
 - [x] **GN-046 [P1]** Vocabulário personalizado de atletas, clubes e termos futebolísticos; evidência: teste A/B.
 
