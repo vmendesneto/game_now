@@ -1,5 +1,18 @@
 # STATUS — Game Now
 
+## Correção atual — GN-083: sequência dentro da janela e retorno ao centro (2026-11-12)
+
+Atualizado: 2026-11-12
+Última tarefa integral concluída: GN-085; GN-083 segue [ ].
+Correção do diagnóstico anterior: o trecho0–12s contém “Everton Ribeiro na faixa central”, mas o parser ignorava a menção elíptica sem verbo de recepção e a interface mostrava só a última ação da janela. Logo, parte do símbolo imóvel era perda de eventos, além da granularidade da região.
+Interpretação: menções elípticas de colegas são preservadas somente perto de ação atual nomeada, com elenco inequívoco e mesma equipe; posição fora do lance, formação, adversário em disputa e análise não são recepção. Menções recebem `named_sequence` e toque não confirmado; “devolviu pra” passa a ser destinatário citado. Guardas GN-052/GN-056 e contrato v1 preservados. “Ponta esquerda” sozinha não confirma faixa longitudinal de ataque.
+Apresentação: prévia inclui todas as ações da janela atual. `narration_sequence.js` exibe-as em ordem, sem reiniciar no polling, sem antecipar região de ação futura e sem mostrar histórico futuro no feed. A exibição é explicitamente texto com atraso e ritmo de apresentação, **não** tempo de cada toque ou sincronização com o áudio. Janela mais recente cancela pendências antigas, registrando a interrupção; troca de partida, fonte, demo, expiração ou retorno cancela timers. Bola completa validada tem prioridade; conflitos não podem voltar via sequência parcial.
+Inspeção: botão **Ver sequência deste trecho no campo** permite reproduzir uma janela da análise salva, com retorno ao acompanhamento, sem parar captura nem escrever na partida. O elenco/placar exibido na reprodução vem da análise indicada. Arquivo textual salvo foi reanalisado com as regras novas; versão anterior permanece privada em data/ball-sequence/report.json.
+Evidência: Windows **815 passed, 4 skipped**, cinco testes Node do sequenciador. Playwright real reproduziu **sete etapas** no texto salvo e em nova captação YouTube autorizada desde575s:30s PCM/três textos, small/quatro threads/contexto12s. Ordem Everton → Erick(esquerda) → Erick → Erick → Nestor citado → Everton(centro) → destino Nestor; Lucas Romero não ganhou posse inferida. Marcador passou de(500,516,67) para(500,310); posição inicial e etapas sem pista permanecem desconhecidas/cinzas. Saída da reprodução sem identificador/timer antigo; zero erro JS e estado salvo intacto. Corrigido hidden do botão sobrescrito pelo CSS. Artefatos privados `data/narrated-sequence-browser/report.json` e screenshots.
+Limitações: não houve verificação de tempos individuais, posição física, recepção de todos os nomes ou identificação de “Seraphim”; não criar aliases por semelhança. Regras de menção são hipóteses textuais, sem benchmark de acurácia. Não alegar que a bola passa automaticamente por toda pessoa citada nem que um símbolo no centro prova a localização inicial.
+Próxima tarefa: continuar GN-083 avaliando a sequência/qualidade espacial com referência independente.
+Como continuar: abrir análise salva e **Ver sequência deste trecho no campo**, ou iniciar acompanhamento normal; a ordem passa automaticamente pelos eventos da janela escolhida. Testes/CLI de browser adaptados ao passo efetivamente mostrado em cada cliente, sem exigir que já esteja no último evento. CI do HEAD final obrigatória antes de merge.
+
 ## Diagnóstico atual — GN-083: explicar ações sem deslocamento (2026-11-12)
 
 Atualizado: 2026-11-12

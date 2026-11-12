@@ -8,6 +8,8 @@
 
 ## Objetivo e escopo do MVP
 
+Correção parcial GN-083 (2026-11-12): preservação de menções elípticas em lance atual e apresentação ordenada das ações da janela, incluindo retorno à faixa central antes descartado. Ritmo visual explicitamente não é timestamp dos toques. Replay textual não altera captura/partida. Windows815 passed/4 skipped; sete etapas observadas com Playwright em texto salvo e30s de áudio real autorizado. **GN-083 permanece[ ]**, sem acurácia ou trajetória física validada. Detalhes atuais em STATUS.
+
 Diagnóstico parcial GN-083 (2026-11-12): auditoria textual de ações e áreas desenhadas, com frase/fonte/janela, diferencia mesma área de ausência de localização e de identificação de atleta. Relatório optativo salvo para revisão após reinício; sem alterar jogo ou inventar trajetória. Windows811 passed/4 skipped e Playwright com transcrições reais retidas passaram. **GN-083 segue [ ]**; explicação do marcador parado não é acurácia ou rastreamento. Detalhes atuais em STATUS.
 
 Subentrega atual GN-083 (2026-11-12): ações e atletas são apresentados independentemente de posição completa; histórico textual limitado e região parcial separada do próximo recebedor. Duas gravações autorizadas podem ser captadas simultaneamente com âncoras manuais por apito, seleção/failover GN-063 e veto a retrocesso/conflito, sem estado persistido ou mídia no browser. Windows 806 passed/4 skipped; ensaio de uma fonte 600s e primeiro paralelo 180s por fonte executados. **GN-083 permanece [ ]**, pois isso não mede acurácia/alinhamento independente ou valida partida inteira. Evidência atual em STATUS e `docs/GN-083-TRACKING.md`.

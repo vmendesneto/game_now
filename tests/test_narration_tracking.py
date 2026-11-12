@@ -88,3 +88,33 @@ def test_history_is_bounded_and_isolated_and_overlap_does_not_duplicate_identica
     other = registry.receive(game(), LiveObservation(source_id="radio-two", sequence=0,
         start_seconds=0, end_seconds=12, text="Beto recuperou.", local_capture_age_seconds=0))
     assert len(other["narration_actions"]) == 1
+
+
+def test_elliptical_current_sequence_keeps_teammates_spatial_return_and_no_defender_possession():
+    text=("Vem Caio, chamando o Davi do lado esquerdo do campo, Davi já carrega, "
+          "levando pra ponta esquerda, Beto trava a dele, Davi carrega, "
+          "Caio na faixa central, devolviu pra Davi.")
+    events=track_narration(game(),text)
+    assert events[0]["player_id"]=="caio" and events[0]["kind"]=="named_sequence"
+    assert not any(e["player_id"]=="beto" for e in events)
+    assert any(e["player_id"]=="davi" and e["region"] and e["region"]["lane"]=="left" for e in events)
+    central=next(e for e in events if e["player_id"]=="caio" and e["region"])
+    assert central["region"]["lane"]=="center" and central["region"]["bands"]==[1,2,3,4,5]
+    assert events[-1]["player_id"]=="davi" and events[-1]["kind"]=="pass_target"
+    assert events[-1]["region"] is None
+    assert all(not e["touch_confirmed"] and not e["audio_time_verified"] for e in events)
+
+
+def test_names_in_lineup_or_off_ball_position_are_not_elliptical_touches():
+    assert track_narration(game(),"Caio, Davi na faixa central") == []
+    events=track_narration(game(),"Caio carrega, Davi está no corredor esquerdo")
+    assert len(events)==1 and events[0]["player_id"]=="caio"
+
+
+def test_preview_exposes_all_current_actions_in_order_without_granting_complete_ball_permission():
+    registry=LivePreviewRegistry()
+    view=registry.receive(game(),LiveObservation(source_id="radio-one",sequence=0,start_seconds=0,end_seconds=12,
+        text="Caio carrega pelo lado esquerdo, Davi na faixa central, devolviu pra Caio",local_capture_age_seconds=1))
+    assert [a["player_id"] for a in view["current_narration_actions"]]==["caio","davi","caio"]
+    assert view["ball"] is None
+    assert all(a["audio_start_seconds"]==0 and a["audio_end_seconds"]==12 for a in view["current_narration_actions"])

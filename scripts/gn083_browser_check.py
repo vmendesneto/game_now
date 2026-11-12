@@ -79,6 +79,38 @@ def run(args):
                 spatial_tracking = (preview.get("latest_narration_region_action") or tracking) if preview else None
                 region = spatial_tracking.get("region") if spatial_tracking else None
                 mention = preview.get("spatial_mention") if preview and not tracking else None
+                sequence_items = preview.get("current_narration_actions", []) if preview else []
+                if sequence_items and not preview.get("ball"):
+                    # Each browser advances at its own explicitly labeled display
+                    # pace. Sample its DOM atomically rather than assuming the
+                    # final action has already replaced all intermediate steps.
+                    for page in pages:
+                        sample=page.evaluate("""items => {
+                          const field=document.querySelector('#field'),marker=field.querySelector('.ball-marker');
+                          const action=items.find(item=>item.id===field.dataset.narrationStep);
+                          if(!action||!marker)return null;
+                          const bounds=action.region?GameNowBallMarker.regionBounds(action.region):null;
+                          return {player:action.player_id,team:action.team_id,
+                            shownPlayer:marker.dataset.latestPlayerId||'',shownTeam:marker.dataset.latestTeamId||'',
+                            transform:marker.getAttribute('transform'),kind:marker.dataset.ballState,
+                            expected:bounds?`translate(${bounds.x+bounds.width/2} ${bounds.y+bounds.height/2})`:null,
+                            partialRect:!!field.querySelector('.narration-region'),
+                            regionHighlight:!!field.querySelector('.region-highlight')};
+                        }""",sequence_items)
+                        if sample:
+                            if args.expect_actions:
+                                assert sample["shownPlayer"]==(sample["player"] or "") and sample["shownTeam"]==sample["team"],sample
+                                if sample["player"]:visible_players.add(sample["player"])
+                                visible_teams.add(sample["team"])
+                            if sample["expected"]:
+                                assert sample["kind"]=="partial" and sample["transform"]==sample["expected"],sample
+                                assert sample["partialRect"] and not sample["regionHighlight"],sample
+                                spatial_mention_observed=True
+                                if sample["transform"] not in marker_positions:
+                                    marker_positions.append(sample["transform"])
+                                    page.locator("#field").screenshot(path=str(output/f"movement-{len(marker_positions)}.png"))
+                    # The static checks below concern the final snapshot only.
+                    tracking,region,mention=None,None,None
                 if args.expect_actions and preview:
                     for action in preview.get("narration_actions", []):
                         observed_actions[action["id"]] = action

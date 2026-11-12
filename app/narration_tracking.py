@@ -25,7 +25,7 @@ _SUBJECT = re.compile(
 _TARGET = re.compile(
     r"\b(?:serve|serviu|servindo|aciona|acionando|"
     r"retorna com|retornou com|retornando com|retornando para|"
-    r"devolve (?:para|pra|pro)|devolveu (?:para|pra|pro)|devolvendo (?:para|pra|pro)|"
+    r"devolve (?:para|pra|pro)|devolveu (?:para|pra|pro)|devolviu (?:para|pra|pro)|devolvendo (?:para|pra|pro)|"
     r"toca (?:para|pra|pro)|tocou (?:para|pra|pro)|passe (?:para|pra|pro)|"
     r"leva (?:para|pra|pro)|levando (?:para|pra|pro)|"
     r"abrindo o jogo (?:para|pra|pro)|recupera|recuperou|bola com|"
@@ -109,6 +109,27 @@ def track_narration(match: Match, text: str) -> list[dict]:
                 candidates.append({"start": start, "end": end, "cue_start": cue.start(),
                     "player_id": mention.player_id, "team_id": mention.team_id,
                     "kind": kind, "cue": cue.group().lower()})
+        # Elliptical play-by-play often cites the next teammate and corridor
+        # without repeating a reception verb. Preserve that as a weaker mention,
+        # never a confirmed touch and never a turnover inferred from a name.
+        strong = candidates.copy()
+        for mention in mentions:
+            if mention.kind != "player" or mention.status != "resolved" or not strong:
+                continue
+            if any(item["start"] <= mention.start and mention.end <= item["end"] for item in strong):
+                continue
+            nearby = min(strong, key=lambda item: abs(item["cue_start"]-mention.start))
+            if mention.team_id != nearby["team_id"] or abs(nearby["cue_start"]-mention.start) > 160:
+                continue
+            following = clause[mention.end:mention.end+50]
+            preceding = clause[max(0, mention.start-45):mention.start]
+            if re.match(r"^[\s,]*(?:trava|marca|pressiona|disputa|aperta|esta|ocupa|pede|espera|sem a bola)\b", following, re.I):
+                continue
+            if re.search(r"\b(?:marcacao|pressao|pernada|bracada|desarme) (?:do|da|de)\s*$", preceding, re.I):
+                continue
+            candidates.append({"start": mention.start, "end": mention.end,
+                "cue_start": mention.start, "player_id": mention.player_id, "team_id": mention.team_id,
+                "kind": "named_sequence", "cue": "menção em sequência"})
         candidates.sort(key=lambda e: (e["cue_start"], e["start"]))
         for index, item in enumerate(candidates):
             stop = candidates[index+1]["start"] if index+1 < len(candidates) else len(clause)
@@ -127,9 +148,11 @@ def track_narration(match: Match, text: str) -> list[dict]:
             team = match.home if match.home.id == item["team_id"] else match.away
             event = {"player_id": item["player_id"], "team_id": item["team_id"],
                      "kind": item["kind"], "cue": item["cue"], "text": fragment,
+                     "touch_confirmed": False,
                      "text_offset": sentence.start()+item["cue_start"],
                      "region": _geography(prefix+fragment, team.attack_direction),
-                     "basis": "explicit_named_action_in_narration", "audio_time_verified": False}
+                     "basis": ("elliptical_teammate_mention_in_current_play" if item["kind"] == "named_sequence"
+                               else "explicit_named_action_in_narration"), "audio_time_verified": False}
             if not events or (event["player_id"],event["kind"],event["text_offset"]) != (
                     events[-1]["player_id"],events[-1]["kind"],events[-1]["text_offset"]):
                 events.append(event)
