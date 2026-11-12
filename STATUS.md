@@ -1,5 +1,15 @@
 # STATUS — Game Now
 
+## GN-093 — proteção de rede (PR/CI pendentes, 2026-11-11)
+
+- Adicionado guard ASGI para HTTP e WebSocket: por padrão bloqueia peers não-loopback, host não local e cross-origin; com `GAME_NOW_REMOTE_ACCESS=1`, recusa HTTP simples e exige token forte, segredo HMAC independente, cookie HttpOnly/Secure/SameSite e Origin em mutações/WS. Comando opt-in `scripts.serve_secure` exige certificado/chave TLS para bind remoto; não ativa acesso LAN automaticamente.
+- `docs/GN-093.md` tem matriz de ameaças e limites. `tests/test_gn093_security.py` é teste de transporte ASGI/HTTPS simulado, **não** prova handshake/certificado/firewall/Windows. GN-093 [ ] até CI verde.
+
+## GN-086 — comprovada em CI, 2026-11-11
+
+- PR #53 incorporado na main (commit `dd8b890`). CI 43135477752: **654 passed, 3 skipped** em Python 3.11 e 3.12. Smoke CPU real 43135477705: **3 passed** com duas sessões de Whisper tiny independentes e fala TTS pt-BR; 6 inferências, duas simultâneas em pico, 5,008 s por fonte, **717,16 MiB de RSS pico**, **266,1% de CPU de um núcleo**, **0,97 segundos de áudio agregado por segundo de parede**. O conjunto de duas fontes não sustentou tempo real nessa VM. Modelo/duração/buffer ajustáveis por CLI. Sem desempenho real Windows, rádio, precisão ou 90 min. GN-086 [x] no ROADMAP; próximo GN-093.
+
+
 ## GN-086 — benchmark concorrente (PR e CI pendentes, 2026-11-11)
 
 - Código candidato: `scripts/benchmark_gn086.py` usa GN-043 por fonte em asyncio, buffer circular GN-034, contagem de inferências e concorrência, tempo CPU/parede, RSS de processo Linux/macOS e tracemalloc. A opção `--engine real --wav` executa CPUTranscriber separado por fonte com áudio WAV permitido; modo sintético usa mock, **não** infere fala.

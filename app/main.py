@@ -36,6 +36,7 @@ from app.logging_setup import request_logger
 from app.storage import SQLiteStore, StoreConflict
 from app.transcription_feed import TranscriptFeed
 from app.retention_policy import TranscriptRetention
+from app.network_security import NetworkSecurityMiddleware, NetworkSecuritySettings
 from app.gn083_live import LiveObservation, LivePreviewRegistry
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -80,6 +81,10 @@ def create_app(database_path: str | Path | None = None) -> FastAPI:
         response.headers["X-Request-ID"] = request_id
         return response
 
+    # Middleware protects every HTTP route and both WebSocket endpoints.
+    application.add_middleware(
+        NetworkSecurityMiddleware, settings=NetworkSecuritySettings.from_environment()
+    )
     application.mount("/static", StaticFiles(directory=STATIC), name="static")
 
     def require_match(match_id: str) -> Match:
