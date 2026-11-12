@@ -1,5 +1,12 @@
 # STATUS — Game Now
 
+## GN-012 — preparação do launcher Windows (parcial; validação física pendente, 2026-11-11)
+
+- `iniciar_windows.bat` mantém o diretório correto, reutiliza a .venv e prefere `py -3.12`, `py -3.11`, com fallback `python`; a nova rotina `scripts.gn012_launch` valida versão, recusa ambiente virtual incompleto sem apagá-lo, instala dependências e inicia somente `127.0.0.1:8000`. Nenhuma captação ou acesso remoto é ativado.
+- `tests/test_gn012_launch.py` cobre bootstrap novo/existente, falha de venv/pip, versão inválida, código de saída e bind local. Testes de orquestração executados em Linux/Python 3.13 (8 passed); CI Python 3.11/3.12 do PR deve ser verificada antes do merge. São mocks de subprocesso, **não execução física no Windows**.
+- **GN-012 fica [ ]**: executar `iniciar_windows.bat` na instalação limpa Windows, observar `/health`, desligamento por Ctrl+C e preservação do SQLite. GN-083/GN-044 aguardam suas provas específicas; GN-085 exige ensaio físico abrangente. As tarefas F10 só avançam depois de validar o primeiro jogo.
+
+
 ## GN-044 — ferramenta de benchmark Whisper (parcial; validação Windows pendente, 2026-11-11)
 
 - `scripts/benchmark_gn044_whisper.py`: executa cada modelo em processo independente, com parâmetros CPU ou CUDA (opt-in), amostras WAV locais de até 30s e texto de referência humana; mede WER por edição normalizada de palavras (rotina GN-083), latência, wall/CPU e pico RSS/working set do processo. Não serializa PCM, referências ou transcrições, nem abre YouTube. Configuração explicitamente exige `--permission-confirmed`; instalação ASR opt-in.

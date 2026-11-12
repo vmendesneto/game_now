@@ -21,7 +21,7 @@ Este roteiro cobre **Windows 10/11**, PowerShell, Git e Python **3.11/3.12**. Pr
    .\iniciar_windows.bat
    ~~~
 
-   O script cria `.venv` (se necessário), instala `requirements.txt` e executa Uvicorn somente em `127.0.0.1:8000`. Não precisa habilitar scripts PowerShell. A instalação inicial exige acesso ao PyPI.
+   O `.bat` escolhe Python 3.12 ou 3.11 (launcher `py` ou fallback `python`), e `scripts.gn012_launch` valida a versão da `.venv`, cria o ambiente quando ausente, instala `requirements.txt` e executa Uvicorn somente em `127.0.0.1:8000`. Se uma `.venv` existente estiver incompleta ou em versão incompatível, o programa **não a remove**; informe a falha e renomeie-a manualmente só após verificar seus dados. Não precisa habilitar scripts PowerShell. A instalação inicial exige acesso ao PyPI. A GN-012 segue pendente da prova de inicialização/parada no Windows físico.
 
 3. Com o terminal do servidor aberto, visite **http://127.0.0.1:8000**. Use **Próximo relato** e **Reiniciar** para observar a partida fictícia. Em **outro** PowerShell, na pasta do projeto:
 

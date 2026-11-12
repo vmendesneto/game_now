@@ -105,5 +105,5 @@ def test_json_output_is_machine_readable_and_status_truthful(monkeypatch, capsys
 
 def test_readme_and_windows_script_do_not_expose_network():
     root = Path(__file__).resolve().parents[1]
-    assert "--host 127.0.0.1" in (root / "iniciar_windows.bat").read_text()
+    assert '"--host", "127.0.0.1"' in (root / "scripts" / "gn012_launch.py").read_text()
     assert "docs/INSTALL_WINDOWS.md" in (root / "README.md").read_text()

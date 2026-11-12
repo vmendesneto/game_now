@@ -33,9 +33,13 @@ def test_source_storage_fails_closed_on_local_or_ambiguous_urls(url):
 
 
 def test_windows_launcher_does_not_open_lan_listener():
-    launcher = (Path(__file__).parents[1] / "iniciar_windows.bat").read_text(encoding="utf-8")
-    assert "--host 127.0.0.1" in launcher
+    root = Path(__file__).parents[1]
+    launcher = (root / "iniciar_windows.bat").read_text(encoding="utf-8")
+    bootstrap = (root / "scripts" / "gn012_launch.py").read_text(encoding="utf-8")
+    assert "scripts.gn012_launch" in launcher
+    assert '"--host", "127.0.0.1"' in bootstrap
     assert "--host 0.0.0.0" not in launcher
+    assert '"--host", "0.0.0.0"' not in bootstrap
 
 
 def test_network_capture_uses_loopback_not_original_url(monkeypatch):
