@@ -1018,19 +1018,26 @@ $("source-form").addEventListener("submit",async event=>{
 
 function showCaptureStatus(status){
   const running=["starting","running","stopping"].includes(status.state);
+  $("capture-model-status").textContent=status.model?
+    "Modelo desta execução: "+status.model+". Alterar a seleção vale apenas no próximo início.":"";
   const names={idle:"Nenhuma captura iniciada",starting:"Preparando captura/modelo",running:"Processando narração",
     stopping:"Encerrando captura e inferência",stopped:"Acompanhamento parado",finished:"Trecho concluído",error:"Acompanhamento interrompido por erro"};
   const errors={asr_failed:"Falha no reconhecimento local. Confira modelo, dependências e memória.",
     capture_failed:"A fonte não pôde ser processada. Confira disponibilidade e ferramentas do servidor.",
     upstream_http_403:"A origem recusou acesso (403). Escolha outra fonte autorizada.",
     upstream_http_404:"A mídia não está disponível (404).",upstream_http_429:"A origem limitou as requisições (429)."};
+  const availableStreams=status.streams?.filter(stream=>stream.state!=="error");
+  const capturedSeconds=availableStreams?.length?Math.min(...availableStreams.map(stream=>stream.captured_seconds||0)):
+    status.captured_seconds||0;
   $("capture-status").textContent=(names[status.state]||"Estado desconhecido")+" · "+
-    Math.floor(status.captured_seconds||0)+" s de áudio · "+(status.observations||0)+" trechos textuais"+
+    Math.floor(capturedSeconds)+" s de áudio · "+(status.observations||0)+" trechos textuais"+
     (status.error_code?" · "+(errors[status.error_code]||"Falha na origem da mídia."):"");
   if(status.streams)$("capture-status").textContent+=" · "+status.streams.map(stream=>
     (registeredSources.find(s=>s.id===stream.source_id)?.name||stream.source_id)+": "+
     (names[stream.state]||stream.state)+" ("+Math.floor(stream.captured_seconds)+" s)"+
     (stream.error_code?" · "+(errors[stream.error_code]||"Falha na origem da mídia."):"")).join(" · ");
+  if(running&&status.streams?.some(stream=>stream.state==="error"))
+    $("capture-status").textContent+=" · Acompanhamento parcial: uma das fontes falhou.";
   $("capture-start-button").disabled=running;
   $("capture-stop").disabled=!running||status.state==="stopping";
 }
