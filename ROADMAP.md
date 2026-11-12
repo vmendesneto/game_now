@@ -31,7 +31,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 - [x] **GN-010 [P0]** Criar backend Python e site estático funcional, separados por camadas; evidência: servidor HTTP inicializa.
 - [x] **GN-011 [P0]** Fixar versões e dependências Python, com instruções Python 3.11/3.12, venv, FFmpeg e configurações; evidência: instalação limpa documentada.
-- [ ] **GN-012 [P0]** Script `iniciar_windows.bat` ou PowerShell, sem necessidade de IDE; evidência: inicializa em Windows.
+- [ ] **GN-012 [P0]** Script `iniciar_windows.bat` ou PowerShell, sem necessidade de IDE; evidência: inicializa em Windows. Bootstrap Python stdlib com fallback 3.12/3.11, .venv protegida e testes determinísticos; **[ ] até iniciar e parar em Windows real** (GN-085 cobre integração física completa).
 - [x] **GN-013 [P0]** Criar `/health` e diagnóstico de FFmpeg, modelo ASR, armazenamento e sources; evidência: respostas verificáveis.
 - [x] **GN-014 [P0]** Modo demonstração totalmente offline para testar campo, interpretação e WebSocket sem downloads; evidência: roteiro reproduzível.
 - [x] **GN-015 [P1]** Logs estruturados, rotação e mensagens de erro compreensíveis; evidência: testes de falhas.
