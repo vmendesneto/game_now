@@ -1,5 +1,18 @@
 # STATUS — Game Now
 
+## Diagnóstico atual — GN-083: explicar ações sem deslocamento (2026-11-12)
+
+Atualizado: 2026-11-12
+Última tarefa integral concluída: GN-085; GN-083 permanece [ ].
+Pedido: usuário observou faixa lateral com troca Zé Lucas → Duarte → sem atleta → Fagner, sem deslocamento do símbolo. Exportados os 119 textos retidos das duas fontes e reanalisada a sequência, sem nova captação de áudio.
+Resultado: janela130–142s da captura associa Zé Lucas ao corredor direito do Cruzeiro; janela140–152s identifica domínio de **David Duarte**, sem região extraída; janelas150–202s não geram ação nomeada; janela200–212s identifica Fagner no mesmo corredor direito do Cruzeiro. Corredor esquerdo do Bahia e direito do Cruzeiro coincidem na orientação desenhada. Sem faixa longitudinal, a área ocupa as cinco faixas e ambos recebem a mesma âncora visual (500,516,67), não coordenada física. Isso explica o ponto imóvel, sem provar que a bola real esteve parada. “Não identificado” não significa bola sem dono.
+Entrega: `GET /api/matches/{id}/actions/diagnostics` reanalisa até200 textos em thread separada, com elenco/fingerprint, fonte, frase, janela e início de vídeo solicitado (não verificado). Novo painel mostra os motivos área nova/mesma área/sem localização/sem ação nomeada, filtra sem acentos e mantém última identificação textual separada de posse atual. Análise é explicitamente reanálise, não reconstrução da seleção histórica ou gabarito.
+Arquivo optativo: `scripts.export_action_diagnostics` salva JSON textual em `data/action-audits`; botão **Abrir análise salva** e `?saved=true` permitem revisar após reinício. Só exportação explícita persiste o relatório; não há arquivamento automático. Arquivo é limitado, nomeado por hash, filtrado pelas fontes ainda cadastradas e sinaliza mudança de contexto. Sem alterações da partida/placar/captação/guardas ou contrato v1.
+Evidência: suíte Windows **811 passed, 4 skipped**, quatro casos Node de geometria/auditoria, sintaxe/schema/diff válidos. Playwright real com análise dos textos reais já capturados: Zé Lucas/Fagner com mesma área, Duarte sem pista espacial, filtros incluindo “Ze Lucas”, desktop e390px sem overflow, zero erro JS e estado salvo idêntico. Corrigidos controles/coluna lateral forçando largura no modo demo mobile. Não é teste novo de áudio nem celular físico.
+Artefatos privados: `data/ball-sequence/report.md`, `report.json`, `rows.json`, `browser-report.json` e screenshots; JSON salvo em `data/action-audits`. Três relatórios preexistentes preservados. Limitações: o relatório usa configuração da reanálise e não comprova acurácia do ASR nem recuperação de toda ação real. Movimento contínuo dentro de uma região continua fora do que as pistas extraídas determinam.
+Próxima tarefa: continuar GN-083 avaliando extração espacial a partir dessas evidências, sem criar movimento artificial para aparentar cobertura.
+Como continuar: abrir **Por que a bola mudou — ou não mudou? → Abrir análise salva**; documentação `docs/GN-083-TRACKING.md`. CI do HEAD final antes de integrar; evitar nova captura longa só para testar esse painel textual.
+
 ## Entrega atual — GN-083: ações independentes e duas narrações em paralelo (2026-11-12)
 
 Atualizado: 2026-11-12

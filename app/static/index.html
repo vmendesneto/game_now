@@ -44,6 +44,15 @@
       </aside>
     </section>
 
+    <section class="panel action-audit" id="action-audit-panel" hidden aria-labelledby="action-audit-title">
+      <h2 id="action-audit-title">Por que a bola mudou — ou não mudou?</h2>
+      <p class="muted">Reanálise textual com o elenco indicado na análise. Mostra o que as regras extraem e onde o desenho colocaria o símbolo; não reconstrói a seleção histórica de fonte nem comprova a posição real.</p>
+      <div class="controls"><button id="action-audit-load" type="button">Analisar ações recebidas</button><button id="action-audit-saved" type="button" class="secondary">Abrir análise salva</button></div>
+      <label>Filtrar por jogador, fonte ou ação<input id="action-audit-filter" type="search" placeholder="Ex.: Fagner"></label>
+      <p id="action-audit-status" role="status">Nenhuma análise solicitada.</p>
+      <ol id="action-audit-list"></ol>
+    </section>
+
     <section class="config-area" aria-labelledby="configuration-title">
       <div class="config-heading"><div><div class="eyebrow">GN-020 · GN-021 · GN-023</div>
         <h2 id="configuration-title">Partidas e elencos</h2>
@@ -271,6 +280,7 @@
   </main>
   <script src="/static/field_geometry.js" defer></script>
   <script src="/static/ball_marker.js?v=4" defer></script>
+  <script src="/static/action_audit.js" defer></script>
   <script src="/static/pitch_presentation.js" defer></script>
   <script src="/static/demo_scoreboard.js" defer></script>
   <script src="/static/demo_sync.js" defer></script>
@@ -278,6 +288,6 @@
   <script src="/static/setup_progress.js" defer></script>
   <script src="/static/transcript_diagnostics.js" defer></script>
   <script src="/static/fusion_diagnostics.js" defer></script>
-  <script src="/static/app.js?v=4" defer></script>
+  <script src="/static/app.js?v=5" defer></script>
 </body>
 </html>

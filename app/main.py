@@ -40,6 +40,7 @@ from app.retention_policy import TranscriptRetention
 from app.network_security import NetworkSecurityMiddleware, NetworkSecuritySettings
 from app.gn083_live import LiveObservation, LivePreviewRegistry
 from app.capture_runtime import CaptureRuntime, CaptureRequest, CaptureConflict
+from app.action_diagnostics import diagnose_actions, load_saved_diagnostics
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -430,6 +431,18 @@ def create_app(database_path: str | Path | None = None, *, capture_runner=None) 
     async def get_live_preview(match_id: str):
         require_match(match_id)
         return live_previews.get(match_id)
+
+    @application.get("/api/matches/{match_id}/actions/diagnostics")
+    async def action_diagnostics(match_id: str, saved: bool = False):
+        match = require_match(match_id)
+        sources = store.get_sources(match_id) or []
+        if saved:
+            try:
+                return await asyncio.to_thread(load_saved_diagnostics, store.path.parent / "action-audits", match, sources)
+            except (OSError, ValueError, KeyError, TypeError):
+                raise HTTPException(status_code=404, detail="Análise salva indisponível ou inválida") from None
+        snapshot = transcript_feed.snapshot(match_id, limit=200, allowed_sources={s.id for s in sources})
+        return await asyncio.to_thread(diagnose_actions, match, snapshot, sources, capture.status(match_id))
 
     @application.websocket("/ws/matches/{match_id}/transcripts")
     async def transcript_websocket(match_id: str, socket: WebSocket):
