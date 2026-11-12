@@ -1,6 +1,6 @@
 # Game Now — acompanhamento de futebol a partir de narrações
 
-**Estado:** demonstração offline, configuração de partidas/fontes e controle/auditoria persistentes; módulo de captura rádio FFmpeg em CLI com fixtures aprovadas, ainda sem ingestão de rádio/YouTube pelo site ou ASR. Acompanhe [STATUS.md](STATUS.md) e [ROADMAP.md](ROADMAP.md).
+**Estado:** demo offline e acompanhamento de uma fonte cadastrada pelo navegador, com rádio/YouTube → FFmpeg → Whisper local → transcrição HTTP/WebSocket e prévia conservadora de região. Controles de início/parada testados em Windows com áudio YouTube autorizado e dois clientes reais. **A precisão da interpretação e uma partida inteira ainda não foram validadas.** Acompanhe [STATUS.md](STATUS.md) e [ROADMAP.md](ROADMAP.md).
 
 ## Executar a demonstração offline
 
@@ -21,6 +21,8 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 Abra http://127.0.0.1:8000 no navegador. Clique em **Próximo relato** para simular dois narradores com atraso, um comercial, um cruzamento, um gol duplicado, replay e silêncio. O estado de ambos os navegadores é compartilhado pelo WebSocket `/ws`.
+
+Para fonte real autorizada, selecione a partida e use **Fontes de narração → Acompanhar narração**. O botão inicia ASR local e o painel recebe apenas texto; o campo fica sem região quando não houver evidência suficiente. **Parar acompanhamento** encerra a captura. Requisitos, limites e provas reais: [docs/GN-083-CAPTURE.md](docs/GN-083-CAPTURE.md). A demo continua funcionando sem modelos opcionais.
 
 ## Endpoints
 
@@ -46,6 +48,9 @@ Abra http://127.0.0.1:8000 no navegador. Clique em **Próximo relato** para simu
 | `/api/matches/{id}/actions` | POST | Registrar operação de jogo (GN-024) |
 | `/api/matches/{id}/corrections` | GET, POST | Corrigir placar, posse e eventos com auditoria (GN-025) |
 | `/api/matches/{id}/sources` | GET, PUT | Criar, editar, habilitar e desabilitar fontes persistidas (GN-032; sem ingestão) |
+| `/api/matches/{id}/capture` | GET | Status e contagens do acompanhamento volátil |
+| `/api/matches/{id}/capture/start` | POST | Iniciar fonte cadastrada/autorizada, reconhecimento local e feed textual |
+| `/api/matches/{id}/capture/stop` | POST | Encerrar entrada e aguardar inferência em curso |
 | `/api/matches/{id}/state` | GET, PUT | Snapshot do contrato v1, incluindo eventos, transcrições e bola |
 
 ## Configuração e banco de dados
@@ -56,7 +61,7 @@ A GN-022 acrescenta identificação conservadora de atletas: `POST /api/matches/
 
 Na **GN-051**, `POST /api/matches/{id}/resolve-narration` recebe `{"text":"João do Azul recebe a bola, ele chuta"}` e devolve menções com índices no texto original, IDs somente quando únicos, lista de candidatos quando ambíguos e indicação da regra usada. O texto é limitado a 2.048 caracteres; a identificação se baseia exclusivamente no elenco salvo e nos nomes dos clubes, sem adivinhar posse, jogador ou zona no estado da partida. Referências como `ele` somente são vinculadas a um único antecedente explícito na frase. O uso opcional de `source_id`, `sequence`, `start_seconds`, `end_seconds` e `previous` permite carregar uma referência de uma janela anterior **apenas na mesma fonte**, em sequência imediata e com intervalo máximo de 8 segundos. Replay, comercial e texto sem pista de lance não criam contexto futuro. A API é diagnóstica e não altera o feed, o placar, a bola nem o contrato v1.
 
-O snapshot persistente está disponível em `/api/matches/{id}/state`. Ele exige um `ContractBundle` v1 válido e não altera a configuração da partida; edite partida/elenco pelos endpoints próprios. **O botão Próximo relato continua operando a demo separada**, sem preencher histórico das partidas cadastradas; integração entre eles ocorrerá numa etapa futura. Fontes reais e sua captura continuam não implementadas.
+O snapshot persistente está disponível em `/api/matches/{id}/state`. Ele exige um `ContractBundle` v1 válido e não altera a configuração da partida; edite partida/elenco pelos endpoints próprios. **Próximo relato opera a demo separada**. O acompanhamento real publica texto e prévia voláteis; não preenche placar, bola nem histórico persistido automaticamente.
 
 ## Testar
 
@@ -76,7 +81,7 @@ O gate `app/silence_gate.py` pode ser injetado em `RollingASRProcessor` com `sil
 
 ## Controle de captura e encerramento (GN-016)
 
-O `CaptureSessionController` em `app/capture_supervisor.py` coordena o ciclo de vida dos workers no backend, encerra por fonte e espera o FFmpeg sair antes de retornar. Ele não habilita captura pela interface: a operação real permanece separada do modo demo. Testes Linux simulam fontes e confirmam que um subprocesso termina sem ficar órfão; o ensaio Windows ainda pertence à GN-085.
+O `CaptureSessionController` em `app/capture_supervisor.py` continua disponível como primitivo de supervisão. O runtime do navegador em `app/capture_runtime.py` conecta captura e ASR, com controles locais, encerramento cooperativo, reset de feed e isolamento da demo. Seus testes e limites estão em [docs/GN-083-CAPTURE.md](docs/GN-083-CAPTURE.md).
 
 ## Política de fontes e retenção das transcrições (GN-094)
 
@@ -361,7 +366,7 @@ A CLI imprime um JSON reproduzível de **quatro fases fictícias**, com duas rá
 
 ## GN-090 — proteção de rede da captação CLI
 
-O servidor inicia em `127.0.0.1:8000`, incluindo `iniciar_windows.bat`. Não exponha `0.0.0.0` nem encaminhe a porta para a Internet antes da GN-093 (autenticação, HTTPS e revisão de ameaças). O cadastro de uma fonte não executa código nem inicia a captura; a interface permanece no modo demo.
+O servidor inicia em `127.0.0.1:8000`, incluindo `iniciar_windows.bat`. Não exponha `0.0.0.0` nem encaminhe a porta para a Internet sem seguir GN-093 (autenticação, HTTPS e revisão de ameaças). Cadastrar uma fonte não inicia captura; o acompanhamento depende de comando explícito de um cliente local e confirmação de autorização. A demo permanece separada.
 
 `app/secure_ingest.py` fornece um relay temporário que escuta somente em `127.0.0.1`, protegido por token efêmero, para cada fonte HTTP(S). Cada solicitação remota verifica todos os IPs DNS, bloqueia IPs privados/locais/reservados e fixa a conexão TCP ao endereço público validado, mantendo o Host e a verificação TLS do servidor original. Redirecionamentos são limitados e submetidos à mesma verificação. Playlists HLS são reescritas para que variantes, segmentos, mapas e chaves passem pelo relay. HLS com construções incomuns/indefinidas falha fechado.
 

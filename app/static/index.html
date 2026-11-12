@@ -222,7 +222,7 @@
       </div>
       <div class="panel config-form" id="sources-panel" hidden>
         <div class="panel-title">GN-032 · FONTES DE NARRAÇÃO</div>
-        <p class="muted">Cadastre rádios HTTP(S) e links públicos de YouTube. As fontes ficam salvas no SQLite; a captura não é iniciada pelo site nesta etapa.</p>
+        <p class="muted">Cadastre uma rádio ou gravação/transmissão YouTube autorizada. Depois escolha a fonte e inicie o acompanhamento abaixo. O áudio é processado no servidor e não é reproduzido aqui.</p>
         <form id="source-form">
           <div class="form-pair">
             <label>Nome da fonte<input id="source-name" maxlength="120" required></label>
@@ -232,7 +232,7 @@
             </select></label>
           </div>
           <label>URL pública<input id="source-url" type="url" maxlength="2048" placeholder="https://..."></label>
-          <label><input id="source-enabled" type="checkbox" checked> Fonte habilitada para captura futura</label>
+          <label><input id="source-enabled" type="checkbox" checked> Fonte habilitada para acompanhamento</label>
           <div class="controls">
             <button type="submit">Salvar fonte</button>
             <button type="button" id="source-cancel" class="secondary">Cancelar edição</button>
@@ -240,9 +240,25 @@
           <p id="source-message" class="form-message" role="status"></p>
         </form>
         <ul id="source-list" class="roster-list"></ul>
+        <form id="capture-form">
+          <h3>Acompanhar narração</h3>
+          <label>Fonte<select id="capture-source" required></select></label>
+          <div class="form-pair">
+            <label>Reconhecimento local<select id="capture-model"><option value="base">Base</option><option value="tiny">Tiny (mais rápido)</option><option value="small">Small</option><option value="medium">Medium (mais pesado)</option></select></label>
+            <label>Início na gravação (segundos)<input id="capture-start" type="number" min="0" max="86400" step="0.1" value="0" required></label>
+            <label>Duração do teste (segundos)<input id="capture-seconds" type="number" min="5" max="600" value="60" required></label>
+            <label>Contexto de áudio (segundos)<input id="capture-window" type="number" min="6" max="30" value="12" required></label>
+          </div>
+          <label><input id="capture-continuous" type="checkbox"> Continuar até eu parar ou a fonte terminar</label>
+          <label><input id="capture-permission" type="checkbox" required> Tenho autorização para captar e analisar esta fonte.</label>
+          <p class="muted">Uma fonte selecionada por partida. Instale os modelos locais opcionais no servidor; o primeiro uso pode baixar o modelo. Bola, posse e região permanecem desconhecidas quando a narração não fornece evidências suficientes.</p>
+          <div class="controls"><button id="capture-start-button" type="submit">Iniciar acompanhamento</button><button id="capture-stop" type="button" class="secondary" disabled>Parar acompanhamento</button><button id="capture-demo" type="button" class="secondary">Ver demonstração</button></div>
+          <p id="capture-status" role="status" aria-live="polite">Nenhuma captura iniciada.</p>
+          <p id="capture-message" class="form-message" role="status"></p>
+        </form>
       </div>
     </section>
-    <footer>Game Now · Contrato v1 · Um campo de <b>15 zonas</b> · Rádio/YouTube reais ainda não integrados</footer>
+    <footer>Game Now · Um campo de <b>15 zonas estimadas pela narração</b> · Sem reprodução de áudio ou vídeo</footer>
   </main>
   <script src="/static/field_geometry.js" defer></script>
   <script src="/static/pitch_presentation.js" defer></script>

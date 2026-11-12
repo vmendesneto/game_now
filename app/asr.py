@@ -116,6 +116,10 @@ class CPUTranscriber:
                 ) from exc
         return self._model
 
+    def prepare(self) -> None:
+        """Load/download weights before opening a stream, without processing media."""
+        self._load_model()
+
     def transcribe_pcm(self, pcm: bytes) -> ASRResult:
         if not isinstance(pcm, bytes) or not pcm or len(pcm) % 2:
             raise ValueError("Expected nonempty sample-aligned PCM s16le bytes")

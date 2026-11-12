@@ -3,6 +3,8 @@
   "use strict";
   const stateNames={idle:"Aguardando",buffering:"Bufferizando",processing:"Transcrevendo",
     ready:"Texto disponível",error:"Erro",stopped:"Parada"};
+  const errorNames={asr_error:"Falha no reconhecimento local",queue_full:"Processamento não acompanhou a fonte",
+    capture_error:"Falha na captura da fonte"};
   const kindNames={live_play:"Lance atual (candidato)",ad:"Comercial",conversation:"Conversa",
     replay:"Replay",analysis:"Análise",unknown:"Não classificado"};
   const eventNames={goal:"Gol",pass:"Passe",shot:"Chute",save:"Defesa",corner:"Escanteio",
@@ -86,7 +88,7 @@
     const sources=configured.filter(s=>!selected || s.id===selected).map(s=>{
       const info=states.get(s.id);
       return {label:s.name+" · "+(info && stateNames[info.state]||"Não iniciada")+
-        (info && info.last_error?" · "+info.last_error:"")+
+        (info && info.last_error?" · "+(errorNames[info.last_error]||"Falha no processamento"):"")+
         telemetryLabel(info && info.telemetry)};
     });
     const entries=prune(snapshot).entries.filter(e=>known.has(e.source_id) &&

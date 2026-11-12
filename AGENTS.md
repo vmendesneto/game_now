@@ -2,6 +2,8 @@
 
 Este arquivo é uma instrução de continuidade do projeto Game Now. **Comece sempre lendo `STATUS.md` e `ROADMAP.md`.**
 
+**Entrega operacional posterior em 2026-11-12:** GN-083 agora inicia/para fonte cadastrada pelo painel (`app/capture_runtime.py`), publicando transcrição HTTP/WS e prévia volátil, com limites, erros seguros e cancelamento cooperativo. Playwright real executou base/30s, small/30s e small/60s a partir de 9:35 da fonte autorizada; dois clientes, parada após PCM real, sem mídia no navegador nem escrita de estado. Suíte Windows 727 passed/4 skipped. Guia `docs/GN-083-CAPTURE.md`. **GN-083 permanece [ ]**: não há qualidade demonstrada de jogador/posse/região nem gabarito independente/partida completa. Uma fonte por partida nesta operação; não afirmar fusão de rádios reais. Próximo trabalho é melhorar/avaliar interpretação; usuário pediu execução autônoma dos testes neste Windows, sem devolver comandos como substituto de trabalho possível.
+
 **Continuidade atualizada em 2026-11-12:** GN-012/GN-031/GN-085 [x] neste Windows 11/Python 3.12: .venv limpa, dois contextos Chromium/Playwright, Ctrl+C/reinício/persistência, backup/restore e FFmpeg nativo encerrado antecipadamente. Suíte Windows 708 passed/4 skipped. Usuário confirmou autorização para Cruzeiro x Bahia (`Ls4qkPrh4Tk`); fluxo real YouTube→FFmpeg→Whisper tiny processou 300s/9.600.000 bytes em 75 janelas, sem retransmissão; seek 9:35 também testado com tiny/base por 30s. Evidências em `docs/GN-085-WINDOWS.md`; referências históricas abaixo a essas três tarefas pendentes foram superadas. Continuar GN-083, que permanece [ ] sem gabarito/métricas humanas; sem alegar precisão, GPU, captura no painel ou partida completa.
 
 ## Missão

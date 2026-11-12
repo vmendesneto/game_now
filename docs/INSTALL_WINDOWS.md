@@ -85,7 +85,7 @@ Se o pull falhar devido a mudanças locais, **não** use `git reset --hard` nem 
 | Página indisponível | Mantenha o `.bat` aberto; confira `--health` em outro terminal |
 | FFmpeg ausente após instalação | Abra novo terminal; execute `where.exe ffmpeg` |
 | yt-dlp instalado mas não encontrado | Use o executável da `.venv\Scripts` ou ative o ambiente |
-| Fontes cadastradas não capturam | Esperado: a interface ainda não ativa streams; somente CLI de diagnóstico |
+| Fontes cadastradas não capturam | Selecione fonte habilitada em Acompanhar narração, confirme autorização e inicie; ASR e FFmpeg são opcionais e precisam estar instalados no servidor. Veja GN-083-CAPTURE.md |
 | Partida demo desapareceu | Esperado após reiniciar; partidas salvas no SQLite permanecem |
 | Precisa abrir na LAN | Não use `0.0.0.0`; segurança de acesso remoto depende da GN-093 |
 

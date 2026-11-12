@@ -79,6 +79,9 @@ _LIVE_CUES = (
     "avanca pela direita", "avanca pela esquerda", "dispara pela esquerda",
     "cobrou o escanteio", "lateral para", "tiro de meta",
     "defendeu o chute", "falta em", "marcou o gol", "gol do",
+    "carrega pela direita", "carrega pela esquerda", "carrega pelo meio",
+    "carrega pelo lado direito", "carrega pelo lado esquerdo",
+    "levando para a ponta esquerda", "levando para a ponta direita",
 )
 
 

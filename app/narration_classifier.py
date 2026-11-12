@@ -15,6 +15,10 @@ import unicodedata
 from app.contracts import Category
 
 MAX_TEXT_CHARS = 2048
+_HISTORICAL_OR_FUTURE = re.compile(
+    r"\b(?:ontem|semana passada|no jogo passado|no jogo anterior|na partida anterior|"
+    r"amanha|se tivesse|quando comecar|vai carregar|vai levar para a ponta)\b"
+)
 
 
 class NarrationLabel(StrEnum):
@@ -72,6 +76,9 @@ CUES: tuple[tuple[NarrationLabel, tuple[str, ...]], ...] = (
         "falta em", "penalti para", "tiro de meta", "bola rolando",
         "toca de primeira", "avanca pela direita", "dispara pela esquerda",
         "escanteio para", "defesa do goleiro", "comete a falta",
+        "carrega pela direita", "carrega pela esquerda", "carrega pelo meio",
+        "carrega pelo lado direito", "carrega pelo lado esquerdo",
+        "levando para a ponta esquerda", "levando para a ponta direita",
     )),
 )
 
@@ -99,6 +106,8 @@ def classify_narration(text: str) -> NarrationDecision:
         return NarrationDecision(NarrationLabel.UNKNOWN, None)
     padded = " " + normalized + " "
     for label, phrases in CUES:
+        if label == NarrationLabel.LIVE_PLAY and _HISTORICAL_OR_FUTURE.search(normalized):
+            return NarrationDecision(NarrationLabel.UNKNOWN, None)
         for phrase in phrases:
             if " " + phrase + " " in padded:
                 return NarrationDecision(label, phrase)

@@ -33,17 +33,19 @@ let previousRenderedZoneKey=null;
 let lastDemoSnapshot=null;
 let demoPlayback=null;
 let activeLivePreview=null,livePollTimer=null,livePollEpoch=0;
+let livePreviewVisible=true;
 const livePhaseNames={
-  pre_game:"Pré-jogo",probable_start:"Início provável (aguardando confirmação)",
+  pre_game:"Início ainda não confirmado",probable_start:"Início provável (aguardando confirmação)",
   in_play:"Jogo em andamento",half_time:"Intervalo",second_half:"Segundo tempo"
 };
 const liveConfidenceNames={none:"sem evidência",low:"baixa",medium:"moderada",high:"alta"};
 function paintLivePreview(live){
   if(!chosenMatch)return;
+  $("connection").textContent="Servidor conectado · Acompanhamento";
   const game=chosenMatch;
-  const phase=live.active?live.phase:"sem atualizações recentes";
+  const phase=live.active?live.phase:(live.phase==="capture_stopped"?"Acompanhamento encerrado":"sem atualizações recentes");
   $("live-monitor-state").hidden=false;
-  $("live-monitor-state").textContent="GN-083 · "+(livePhaseNames[phase]||phase)+
+  $("live-monitor-state").textContent="Acompanhamento · "+(livePhaseNames[phase]||phase)+
     " · confiança heurística "+(liveConfidenceNames[live.confidence]||"não medida");
   $("home-name").textContent=game.home.name;
   $("away-name").textContent=game.away.name;
@@ -56,7 +58,7 @@ function paintLivePreview(live){
     "Narração analisada; nenhum evento/placar confirmado automaticamente.";
   $("last-text").textContent=live.ball?
     "Região estimada exclusivamente por posse e zona explícitas na narração.":
-    "Aguardando evidências suficientes de início e de posse + região.";
+    "Aguardando evidências suficientes de início e de posse + região. A transcrição está no painel abaixo.";
   $("possession").textContent="Desconhecida";
   $("player").textContent="Desconhecido";
   $("confidence").textContent="Sem região";
@@ -93,10 +95,21 @@ function paintLivePreview(live){
 }
 async function refreshLivePreview(matchId,epoch){
   try{
-    const response=await fetch("/api/matches/"+encodeURIComponent(matchId)+"/live/preview");
+    const base="/api/matches/"+encodeURIComponent(matchId);
+    const [response,statusResponse]=await Promise.all([fetch(base+"/live/preview"),fetch(base+"/capture")]);
     if(!response.ok)throw new Error("Monitor HTTP "+response.status);
-    const next=await response.json();
+    let next=await response.json();
+    const capture=statusResponse.ok?await statusResponse.json():null;
     if(epoch!==livePollEpoch||chosenMatch?.id!==matchId)return;
+    if(capture){
+      showCaptureStatus(capture);
+      if(!next&&capture.source_id){
+        const running=["starting","running","stopping"].includes(capture.state);
+        next={active:running,phase:running?"Aguardando narração":"capture_stopped",confidence:"none",
+          ball:null,ball_updates_allowed:false,last_audio_seconds:capture.captured_seconds};
+      }
+    }
+    if(!livePreviewVisible)return;
     if(next){
       activeLivePreview=next;
       paintLivePreview(next);
@@ -113,6 +126,7 @@ async function refreshLivePreview(matchId,epoch){
   }
 }
 function stopLivePolling(){
+  livePreviewVisible=true;
   livePollEpoch++;
   if(livePollTimer!==null){clearInterval(livePollTimer);livePollTimer=null;}
   activeLivePreview=null;
@@ -666,6 +680,12 @@ function resetSourceForm(){
   $("source-form").reset();
 }
 function showSavedSources(){
+  const picker=$("capture-source"),previous=picker.value;
+  picker.replaceChildren();
+  for(const source of registeredSources.filter(source=>source.enabled&&source.url)){
+    const option=document.createElement("option");option.value=source.id;option.textContent=source.name;picker.append(option);
+  }
+  if([...picker.options].some(option=>option.value===previous))picker.value=previous;
   const list=$("source-list");
   list.replaceChildren();
   if(!registeredSources.length){
@@ -747,8 +767,52 @@ $("source-form").addEventListener("submit",async event=>{
   next.push(source);
   try{
     await persistSavedSources(next);
-    formNotice("source-message","Fonte salva no SQLite; captura ainda indisponível.");
+    formNotice("source-message","Fonte salva. Selecione-a em Acompanhar narração para iniciar.");
   }catch(error){formNotice("source-message","Erro na fonte: "+error.message,true);}
+});
+
+function showCaptureStatus(status){
+  const running=["starting","running","stopping"].includes(status.state);
+  const names={idle:"Nenhuma captura iniciada",starting:"Preparando captura/modelo",running:"Processando narração",
+    stopping:"Encerrando captura e inferência",stopped:"Acompanhamento parado",finished:"Trecho concluído",error:"Acompanhamento interrompido por erro"};
+  const errors={asr_failed:"Falha no reconhecimento local. Confira modelo, dependências e memória.",
+    capture_failed:"A fonte não pôde ser processada. Confira disponibilidade e ferramentas do servidor.",
+    upstream_http_403:"A origem recusou acesso (403). Escolha outra fonte autorizada.",
+    upstream_http_404:"A mídia não está disponível (404).",upstream_http_429:"A origem limitou as requisições (429)."};
+  $("capture-status").textContent=(names[status.state]||"Estado desconhecido")+" · "+
+    Math.floor(status.captured_seconds||0)+" s de áudio · "+(status.observations||0)+" trechos textuais"+
+    (status.error_code?" · "+(errors[status.error_code]||"Falha na origem da mídia."):"");
+  $("capture-start-button").disabled=running;
+  $("capture-stop").disabled=!running||status.state==="stopping";
+}
+$("capture-continuous").addEventListener("change",()=>{
+  const continuous=$("capture-continuous").checked;
+  $("capture-seconds").disabled=continuous;$("capture-seconds").required=!continuous;
+});
+$("capture-form").addEventListener("submit",async event=>{
+  event.preventDefault();if(!chosenMatch)return;
+  livePreviewVisible=true;
+  $("capture-start-button").disabled=true;
+  try{
+    const status=await configApi("/api/matches/"+encodeURIComponent(chosenMatch.id)+"/capture/start","POST",{
+      source_id:$("capture-source").value,model:$("capture-model").value,
+      start_seconds:Number($("capture-start").value),
+      seconds:$("capture-continuous").checked?null:Number($("capture-seconds").value),
+      window_seconds:Number($("capture-window").value),permission_confirmed:$("capture-permission").checked});
+    showCaptureStatus(status);formNotice("capture-message","Acompanhamento iniciado. O painel de transcrição receberá somente texto.");
+    await loadTranscriptDiagnostics();
+  }catch(error){$("capture-start-button").disabled=false;formNotice("capture-message",error.message,true);}
+});
+$("capture-stop").addEventListener("click",async()=>{
+  if(!chosenMatch)return;
+  try{showCaptureStatus(await configApi("/api/matches/"+encodeURIComponent(chosenMatch.id)+"/capture/stop","POST"));}
+  catch(error){formNotice("capture-message",error.message,true);}
+});
+$("capture-demo").addEventListener("click",()=>{
+  livePreviewVisible=false;activeLivePreview=null;
+  if($("connection-dot").classList.contains("online"))$("connection").textContent="Conectado · Demo";
+  $("live-monitor-state").hidden=true;
+  if(lastDemoSnapshot)render(lastDemoSnapshot);
 });
 
 /* GN-075: separate text-only diagnostics of the selected SQLite match. */
