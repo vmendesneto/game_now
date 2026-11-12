@@ -118,3 +118,32 @@ Validação desta entrega:811 passed/4 skipped neste Windows, incluindo quatro
 casos Node de área/motivo. Playwright real reanalisou texto já capturado, verificou
 Zé Lucas/Fagner na mesma área, Duarte sem localização, filtros, estado intacto e
 390px sem overflow. Isso não é nova validação de áudio nem medição de acurácia.
+
+## Ordem de ações dentro de uma janela
+
+O retorno “Everton Ribeiro na faixa central” do primeiro trecho era perdido por
+não repetir um verbo de recepção. Menções elípticas de colegas agora são mantidas
+perto de uma ação atual, sem chamar cada menção de toque confirmado. Adversário
+na marcação/disputa e posicionamento sem bola não viram recepção; “devolviu pra”
+produz destino citado. Não há criação de alias por proximidade fonética.
+
+`current_narration_actions` entrega a lista da janela. O navegador exibe os
+passos em ordem, com **ritmo de apresentação** entre180–800ms por passo e até
+cerca de6s por bloco. Isso não mede o instante ou a duração de cada passe.
+O aviso de atraso/ordem textual permanece visível. Sem região nova, o marcador
+fica cinza no último ponto visual; a posição futura não aparece antes de sua
+etapa. Polling não reinicia a sequência. Trecho novo/fonte nova substitui a
+sequência anterior; pendências interrompidas são indicadas e timers antigos
+são cancelados. Posição completa validada continua prioritária.
+
+Na análise, **Ver sequência deste trecho no campo** usa o contexto do relatório,
+sem importar observações ou alterar o banco. **Voltar ao acompanhamento** restaura
+a prévia atual/demo; captação continua independente. O replay salvo fica
+explicitamente identificado como reprodução textual.
+
+Windows:815 passed/4 skipped e cinco testes Node do sequenciador. Playwright real
+verificou sete etapas no trecho salvo e em nova captação autorizada de30s desde
+575s/small/quatro threads/12s de janela, incluindo esquerdo→central, destino de
+devolução, saída sem etapa antiga, estado intacto e zero erro JS. Não verifica
+timestamps de palavras, recepção de todos os nomes, área de ataque ou posição
+física. GN-083 continua aberta.

@@ -87,6 +87,7 @@ class LivePreviewRegistry:
                 "action_history": [], "actions_time": None, "actions_initial_age": 0.,
                 "latest_action": None,
                 "latest_region_action": None,
+                "current_actions": [], "observation_sequence": None,
             }
         session = self._sessions[key]
         before = session["detector"].phase
@@ -108,6 +109,12 @@ class LivePreviewRegistry:
         age = observation.local_capture_age_seconds
         session["current_play"] = current_play_cue(observation.text)
         actions = track_narration(current, observation.text) if phase != "half_time" else []
+        session["current_actions"] = [{**item,"id":f"{observation.source_id}:{observation.sequence}:{index}",
+                                      "source_id": observation.source_id,
+                                      "audio_start_seconds": observation.start_seconds,
+                                      "audio_end_seconds": observation.end_seconds}
+                                      for index,item in enumerate(actions)]
+        session["observation_sequence"] = observation.sequence
         history = session["action_history"]
         for index, action in enumerate(actions):
             # Only identical text in overlapping windows is a duplicate. This
@@ -199,6 +206,8 @@ class LivePreviewRegistry:
             "narration_actions": session["action_history"].copy(),
             "latest_narration_action": session["latest_action"] if actions_fresh else None,
             "latest_narration_region_action": session["latest_region_action"] if actions_fresh else None,
+            "current_narration_actions": session["current_actions"].copy() if actions_fresh else [],
+            "observation_sequence": session["observation_sequence"],
             "persisted": False,
         }
 
@@ -228,7 +237,7 @@ class LivePreviewRegistry:
             if selected is None:
                 selected = max(views, key=lambda view: self._sessions[(match_id,view["source_id"])]["last_seen"])
                 selected = {**selected, "ball": None, "spatial_mention": None, "latest_narration_action": None,
-                            "latest_narration_region_action": None}
+                            "latest_narration_region_action": None, "current_narration_actions": []}
             else:
                 group["watermark"] = max(group["watermark"], selected["aligned_audio_seconds"])
             group["selected"] = selection.active_source_id
@@ -238,7 +247,10 @@ class LivePreviewRegistry:
                            and (view["ball"]["team_id"],view["ball"]["zone"]) !=
                                (selected["ball"]["team_id"],selected["ball"]["zone"])]
             if conflicting:
-                selected = {**selected, "ball": None, "spatial_mention": None, "latest_narration_region_action": None}
+                action = selected["latest_narration_action"]
+                selected = {**selected, "ball": None, "spatial_mention": None, "latest_narration_region_action": None,
+                            "latest_narration_action": {**action,"region":None} if action else None,
+                            "current_narration_actions": []}
             return {**selected, "visual_context": group["id"],
                     "group_phase": group["phase"], "group_phase_confidence": group["phase_confidence"],
                     "visual_timeline": group["watermark"] if group["watermark"] != float("-inf") else 0,

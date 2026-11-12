@@ -51,15 +51,34 @@ let lastDemoSnapshot=null;
 let demoPlayback=null;
 let activeLivePreview=null,livePollTimer=null,livePollEpoch=0;
 let livePreviewVisible=true;
+let auditReplayPreview=null;
+const liveSequence=window.GameNowNarrationSequence.create({onAdvance:()=>{
+  if(chosenMatch&&livePreviewVisible&&(auditReplayPreview||activeLivePreview))
+    paintLivePreview(auditReplayPreview||activeLivePreview);
+}});
 const livePhaseNames={
   pre_game:"Início ainda não confirmado",probable_start:"Início provável (aguardando confirmação)",
   in_play:"Jogo em andamento",half_time:"Intervalo",second_half:"Segundo tempo"
 };
 const liveConfidenceNames={none:"sem evidência",low:"baixa",medium:"moderada",high:"alta"};
-function paintLivePreview(live){
+function paintLivePreview(snapshot){
   if(!chosenMatch)return;
+  const live=liveSequence.update(auditReplayPreview||snapshot);
   $("connection").textContent="Servidor conectado · Acompanhamento";
-  const game=chosenMatch;
+  const game=live.presentation_match||chosenMatch;
+  const sequence=live.sequence_presentation;
+  $("narration-sequence-status").hidden=!sequence;
+  $("stop-text-replay").hidden=!auditReplayPreview;
+  if(sequence){
+    const item=live.latest_narration_action;
+    $("narration-sequence-status").textContent=(auditReplayPreview?"Reprodução do trecho salvo":"Sequência transcrita · exibição com atraso")+
+      " · ação "+(sequence.index+1)+" de "+sequence.count+
+      " · ordem textual; ritmo de exibição, sem tempos individuais medidos"+
+      (sequence.interrupted_actions?" · "+sequence.interrupted_actions+" ações anteriores substituídas por trecho mais novo":"");
+    if(item&&Number.isFinite(item.audio_start_seconds))$("narration-sequence-status").textContent+=
+      " · janela "+item.audio_start_seconds+"–"+item.audio_end_seconds+" s da captura";
+    if(item)field.dataset.narrationStep=item.id;
+  }else delete field.dataset.narrationStep;
   const phase=live.active?(live.group_phase||live.phase):(live.phase==="capture_stopped"?"Acompanhamento encerrado":"sem atualizações recentes");
   $("live-monitor-state").hidden=false;
   $("live-monitor-state").textContent="Acompanhamento · "+(livePhaseNames[phase]||phase)+
@@ -91,7 +110,7 @@ function paintLivePreview(live){
   const ball=live.active&&live.ball_updates_allowed?live.ball:null;
   const tracking=live.active?live.latest_narration_action:null;
   const spatialTracking=live.active?(live.latest_narration_region_action||tracking):null;
-  const partialRegion=!ball&&spatialTracking?spatialTracking.region:null;
+  const partialRegion=!ball&&spatialTracking&&(!sequence||tracking?.region)?spatialTracking.region:null;
   $("possession-label").textContent=tracking&&!ball?"Equipe do lance":"Posse provável";
   $("player-label").textContent=tracking&&!ball?"Atleta do lance":"Jogador provável";
   const mention=live.active&&!ball&&!tracking&&live.spatial_mention?.status==="partial"?live.spatial_mention:null;
@@ -158,7 +177,8 @@ function paintLivePreview(live){
     const player=game.players.find(p=>p.id===tracking.player_id);
     $("possession").textContent=team?.name||"Desconhecida";
     $("player").textContent=player?.name||"Não identificado";
-    $("last-text").textContent=(tracking.kind==="pass_target"?"Destino de passe citado: ":"Ação citada: ")+
+    $("last-text").textContent=(tracking.kind==="pass_target"?"Destino de passe citado: ":
+      tracking.kind==="named_sequence"?"Atleta citado na sequência; toque não confirmado: ":"Ação citada: ")+
       (player?.name||team?.name||"não identificado")+" · "+tracking.cue+
       (partialRegion?". Região parcial: "+partialRegion.label:". Localização não determinada neste lance")+".";
     const annotation=partialRegion?spatialTracking:tracking;
@@ -246,6 +266,8 @@ async function refreshLivePreview(matchId,epoch){
   }
 }
 function stopLivePolling(){
+  liveSequence.reset();auditReplayPreview=null;
+  $("narration-sequence-status").hidden=true;$("stop-text-replay").hidden=true;
   livePreviewVisible=true;
   livePollEpoch++;
   if(livePollTimer!==null){clearInterval(livePollTimer);livePollTimer=null;}
@@ -262,7 +284,9 @@ function render(snapshot) {
   $("possession-label").textContent="Posse provável";
   $("player-label").textContent="Jogador provável";
   lastDemoSnapshot=snapshot;
-  if(activeLivePreview&&chosenMatch){paintLivePreview(activeLivePreview);return;}
+  if((auditReplayPreview||activeLivePreview)&&chosenMatch){paintLivePreview(auditReplayPreview||activeLivePreview);return;}
+  delete field.dataset.narrationStep;
+  $("narration-sequence-status").hidden=true;$("stop-text-replay").hidden=true;
   const data=snapshot.data,match=data.match,ball=data.ball;
   const summary=window.GameNowScoreboard.summary(snapshot);
   $("home-name").textContent=summary.homeName;
@@ -371,6 +395,28 @@ demoSync.start();
 let configuredMatches = [];
 let actionAuditRows=[];
 let actionAuditSaved=false;
+let actionAuditReport=null;
+function replayAuditWindow(row){
+  if(!actionAuditReport||!chosenMatch)return;
+  const window=actionAuditReport.windows.find(w=>w.source_id===row.source_id&&w.sequence===row.sequence);
+  if(!window||!window.actions.length)return;
+  liveSequence.reset();livePreviewVisible=true;
+  const actions=window.actions.map((item,index)=>({...item,id:window.source_id+":"+window.sequence+":"+index,
+    audio_start_seconds:window.audio_start_seconds,audio_end_seconds:window.audio_end_seconds}));
+  auditReplayPreview={active:true,phase:"Reprodução textual de trecho",confidence:"none",ball:null,
+    match_id:chosenMatch.id,source_id:window.source_id,observation_sequence:window.sequence,
+    visual_context:"audit:"+crypto.randomUUID(),visual_timeline:window.audio_end_seconds,
+    last_audio_seconds:window.audio_end_seconds,ball_updates_allowed:false,spatial_mention:null,
+    narration_actions:actions,current_narration_actions:actions,presentation_match:actionAuditReport.match,
+    latest_narration_action:actions.at(-1),latest_narration_region_action:actions.findLast(a=>a.region)||null};
+  paintLivePreview(auditReplayPreview);
+  $("field").scrollIntoView({block:"center",behavior:"instant"});
+}
+$("stop-text-replay").addEventListener("click",()=>{
+  auditReplayPreview=null;liveSequence.reset();$("stop-text-replay").hidden=true;$("narration-sequence-status").hidden=true;
+  if(activeLivePreview)paintLivePreview(activeLivePreview);
+  else if(lastDemoSnapshot)render(lastDemoSnapshot);
+});
 function renderActionAudit(){
   const normalize=value=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
   const search=normalize($("action-audit-filter").value.trim());
@@ -381,6 +427,7 @@ function renderActionAudit(){
     const text=[row.player,row.team,row.source_name,row.text,row.action?.cue,row.explanation].join(" ");
     if(search&&!normalize(text).includes(search))continue;
     const item=document.createElement("li");item.dataset.reason=row.code;
+    item.dataset.sourceId=row.source_id;item.dataset.sequence=row.sequence;
     const title=document.createElement("strong");
     title.textContent=row.source_name+" · trecho "+stamp(row.audio_start_seconds)+"–"+stamp(row.audio_end_seconds)+
       " da captura"+(row.action?" · "+row.player+" / "+row.team+" · "+row.action.cue:"");
@@ -394,10 +441,18 @@ function renderActionAudit(){
     if(row.action?.kind==="pass_target"){
       const note=document.createElement("small");note.textContent="Destinatário citado; recepção não confirmada.";item.append(note);
     }
+    if(row.action?.kind==="named_sequence"){
+      const note=document.createElement("small");note.textContent="Menção em sequência de lance; recepção não confirmada.";item.append(note);
+    }
     if(row.anchor){
       const coordinate=document.createElement("small");
       coordinate.textContent="Âncora do desenho: ("+Math.round(row.anchor.x)+", "+Math.round(row.anchor.y)+"). É representação da área, não coordenada física.";
       item.append(coordinate);
+    }
+    if(row.action){
+      const replay=document.createElement("button");replay.type="button";replay.className="secondary";
+      replay.textContent="Ver sequência deste trecho no campo";
+      replay.addEventListener("click",()=>replayAuditWindow(row));item.append(replay);
     }
     if(shown<200)list.append(item);shown++;
   }
@@ -411,6 +466,7 @@ async function loadActionAudit(saved=false){
     const report=await configApi("/api/matches/"+encodeURIComponent(matchId)+"/actions/diagnostics"+(saved?"?saved=true":""));
     if(chosenMatch?.id!==matchId)return;
     actionAuditSaved=!!report.saved_report;
+    actionAuditReport=report;
     actionAuditRows=window.GameNowActionAudit.analyze(report);renderActionAudit();
     if(report.current_context_matches===false)$("action-audit-status").textContent+=" O elenco/configuração atual difere do usado nesta análise.";
   }catch(error){if(chosenMatch?.id===matchId)$("action-audit-status").textContent="Não foi possível analisar: "+error.message;}
@@ -453,7 +509,7 @@ async function configApi(path, method="GET", body) {
   return response.status===204?null:response.json();
 }
 function blankMatch() {
-  actionAuditRows=[];actionAuditSaved=false;$("action-audit-filter").value="";$("action-audit-list").replaceChildren();$("action-audit-panel").hidden=true;
+  actionAuditRows=[];actionAuditReport=null;actionAuditSaved=false;$("action-audit-filter").value="";$("action-audit-list").replaceChildren();$("action-audit-panel").hidden=true;
   stopLivePolling();
   if(lastDemoSnapshot)render(lastDemoSnapshot);
   stopTranscriptDiagnostics();
@@ -481,7 +537,7 @@ function blankMatch() {
   updateSetupProgress();
 }
 function showMatch(match) {
-  actionAuditRows=[];actionAuditSaved=false;$("action-audit-filter").value="";$("action-audit-list").replaceChildren();$("action-audit-panel").hidden=false;
+  actionAuditRows=[];actionAuditReport=null;actionAuditSaved=false;$("action-audit-filter").value="";$("action-audit-list").replaceChildren();$("action-audit-panel").hidden=false;
   $("action-audit-status").textContent="Nenhuma análise solicitada para esta partida.";
   chosenMatch=match;
   $("match-picker").value=match.id;
@@ -1007,6 +1063,7 @@ $("capture-stop").addEventListener("click",async()=>{
   catch(error){formNotice("capture-message",error.message,true);}
 });
 $("capture-demo").addEventListener("click",()=>{
+  auditReplayPreview=null;liveSequence.reset();$("narration-sequence-status").hidden=true;$("stop-text-replay").hidden=true;
   livePreviewVisible=false;activeLivePreview=null;
   if($("connection-dot").classList.contains("online"))$("connection").textContent="Conectado · Demo";
   $("live-monitor-state").hidden=true;

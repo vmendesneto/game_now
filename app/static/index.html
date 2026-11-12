@@ -25,6 +25,8 @@
         </div>
         <div class="meta"><span id="clock" aria-label="Relógio da demonstração">00:00 · 1º tempo</span><span id="direction">Azul ataca →</span></div>
         <p id="live-monitor-state" role="status" aria-live="polite" class="muted" hidden></p>
+        <p id="narration-sequence-status" role="status" class="muted" hidden></p>
+        <button id="stop-text-replay" type="button" class="secondary" hidden>Voltar ao acompanhamento</button>
         <div class="field-wrap"><svg id="field" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Campo de futebol com 15 zonas de localização aproximada" xmlns="http://www.w3.org/2000/svg"></svg></div>
         <div class="field-foot"><span><i class="legend-square"></i> Região provável (não posição exata)</span><span id="ball-status" role="status" aria-live="polite">Posição incerta</span></div>
       </div>
@@ -281,6 +283,7 @@
   <script src="/static/field_geometry.js" defer></script>
   <script src="/static/ball_marker.js?v=4" defer></script>
   <script src="/static/action_audit.js" defer></script>
+  <script src="/static/narration_sequence.js" defer></script>
   <script src="/static/pitch_presentation.js" defer></script>
   <script src="/static/demo_scoreboard.js" defer></script>
   <script src="/static/demo_sync.js" defer></script>
@@ -288,6 +291,6 @@
   <script src="/static/setup_progress.js" defer></script>
   <script src="/static/transcript_diagnostics.js" defer></script>
   <script src="/static/fusion_diagnostics.js" defer></script>
-  <script src="/static/app.js?v=5" defer></script>
+  <script src="/static/app.js?v=6" defer></script>
 </body>
 </html>
