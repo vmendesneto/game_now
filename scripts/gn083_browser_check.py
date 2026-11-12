@@ -49,12 +49,20 @@ def run(args):
             started = True
             deadline = time.monotonic() + args.seconds + 300
             requests, max_api_seconds = 0, 0.
+            in_play_observed = False
             while time.monotonic() < deadline:
                 at = time.monotonic()
                 health = second.request.get(base + "/health")
                 max_api_seconds = max(max_api_seconds, time.monotonic() - at)
                 assert health.ok
                 status = first.request.get(base + path + "/capture").json()
+                preview = first.request.get(base + path + "/live/preview").json()
+                if preview and preview["active"] and preview["phase"] == "in_play" and not in_play_observed:
+                    in_play_observed = True
+                    if args.expect_in_play:
+                        for page in pages:
+                            expect(page.locator("#live-monitor-state")).to_contain_text("Jogo em andamento")
+                        first.screenshot(path=str(output / "in-play.png"), full_page=True)
                 requests += 1
                 if status["state"] in ("finished", "error", "stopped"):
                     break
@@ -64,6 +72,8 @@ def run(args):
             assert status["state"] == "finished", status
             assert status["captured_seconds"] == args.seconds, status
             assert status["observations"] > 0, status
+            if args.expect_in_play:
+                assert in_play_observed, "Current play was not confirmed during the recording"
             for page in pages:
                 expect(page.locator("#transcript-entry-list li")).not_to_have_count(0)
                 expect(page.locator("#transcript-entry-list")).not_to_contain_text("Nenhuma transcrição")
@@ -113,6 +123,7 @@ def run(args):
                       "audio_retransmitted": False, "javascript_errors": errors,
                       "external_browser_requests": len(external), "media_browser_requests": len(media),
                       "accuracy_measured": False}
+            report["in_play_observed"] = in_play_observed
             (output / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
             return report
         finally:
@@ -134,6 +145,8 @@ def main():
     parser.add_argument("--window-seconds", type=int, default=12, choices=range(6, 31))
     parser.add_argument("--model", choices=("tiny", "base", "small", "medium"), default="base")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--expect-in-play", action="store_true",
+                        help="Require live-play phase in both browsers during this known game excerpt")
     args = parser.parse_args()
     if not args.permission_confirmed:
         parser.error("Confirm authorization for the registered source")

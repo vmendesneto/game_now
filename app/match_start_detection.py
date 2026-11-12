@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import asdict, dataclass
+from hashlib import sha256
+import math
 import re
 import unicodedata
 
@@ -46,7 +48,8 @@ _FIRST_KICKOFF = re.compile(
     r"deu (?:a )?saida (?:de bola|no meio campo)|"
     r"(?:esta|ta) valendo (?:o jogo|a partida)|"
     r"bola em jogo (?:agora|nesse momento)|"
-    r"bola ja esta rolando)\b"
+    r"bola ja esta rolando|"
+    r"(?:o )?(?:juiz|arbitro) apitou e (?:esta|ta) valendo(?: (?:o jogo|a partida))?)\b"
 )
 _SECOND_KICKOFF = re.compile(
     r"\b(?:comecou (?:o segundo tempo|a segunda etapa)|"
@@ -84,6 +87,17 @@ _LIVE_CUES = (
     "levando para a ponta esquerda", "levando para a ponta direita",
 )
 
+# Phase evidence only. These patterns never infer possession, player or zone.
+# Football narration often omits the noun "bola", and ASR can alter grammatical
+# gender ("ponta esquerdo"). Require a completed action + spatial football cue.
+_SPATIAL_PLAY = re.compile(
+    r"\b(?:carrega|carregando|leva|levando|avanca|avancando)\b.{0,64}?"
+    r"\b(?:ponta (?:esquerd[ao]|direit[ao])|lado (?:esquerdo|direito) do (?:campo|gramado)|"
+    r"faixa central|grande area)\b"
+)
+_PLAY_OUT = re.compile(r"\b(?:ja )?saiu jogando\b")
+_UNCONFIRMED_ACTION = re.compile(r"\b(?:nao|nunca|jamais|poderia|teria|talvez|se tivesse)\b")
+
 
 @dataclass(frozen=True, slots=True)
 class PhaseEvidence:
@@ -91,6 +105,7 @@ class PhaseEvidence:
     cue: str
     start_seconds: float
     end_seconds: float
+    utterance_key: str = ""
 
 
 class MatchStartDetector:
@@ -110,10 +125,12 @@ class MatchStartDetector:
         self._last_sequence: int | None = None
         self._last_start: float | None = None
         self._last_signature: tuple[str, str] | None = None
+        self._source_id: str | None = None
 
     @staticmethod
     def _is_blocked(text: str, folded: str) -> bool:
-        if _NOT_CURRENT.search(folded) or _ADDITIONAL_BLOCK.search(folded):
+        if (_NOT_CURRENT.search(folded) or _ADDITIONAL_BLOCK.search(folded)
+                or _UNCONFIRMED_ACTION.search(folded)):
             return True
         category = classify_narration(text).label
         return category in (
@@ -123,12 +140,19 @@ class MatchStartDetector:
 
     @staticmethod
     def _current_play_cue(text: str, folded: str) -> str | None:
-        if classify_narration(text).label != NarrationLabel.LIVE_PLAY:
-            return None
-        return next((cue for cue in _LIVE_CUES if cue in folded), None)
+        if classify_narration(text).label == NarrationLabel.LIVE_PLAY:
+            cue = next((cue for cue in _LIVE_CUES if cue in folded), None)
+            if cue:
+                return cue
+        spatial = _SPATIAL_PLAY.search(folded)
+        if spatial:
+            return "spatial_current_play"
+        if _PLAY_OUT.search(folded):
+            return "played_out_from_defense"
+        return None
 
-    def _record(self, kind: str, cue: str, start: float, end: float) -> None:
-        signature = kind, cue
+    def _record(self, kind: str, cue: str, start: float, end: float, utterance_key: str = "") -> None:
+        signature = kind, utterance_key or cue
         # Adjacent ASR windows may repeat a phrase. Overlap is not independent
         # evidence, even when sequence numbers differ.
         if signature == self._last_signature and self._recent and (
@@ -136,7 +160,7 @@ class MatchStartDetector:
         ):
             return
         self._last_signature = signature
-        self._recent.append(PhaseEvidence(kind, cue, start, end))
+        self._recent.append(PhaseEvidence(kind, cue, start, end, utterance_key))
 
     def _recent_kind(self, kind: str, at: float, window: float = 75) -> list[PhaseEvidence]:
         return [e for e in self._recent if e.kind == kind and 0 <= at - e.end_seconds <= window]
@@ -147,7 +171,11 @@ class MatchStartDetector:
         supported = bool(starts) and bool(plays) and any(
             p.end_seconds >= s.start_seconds for p in plays for s in starts
         )
-        independent = len(plays) >= 3 and len({p.cue for p in plays}) >= 3
+        # Distinct narrations may legitimately use the SAME football verb.
+        # Do not demand three different dictionary phrases; reject repeated text.
+        independent = (len(plays) >= 3 and len({p.utterance_key for p in plays}) >= 3
+                       and len({p.start_seconds for p in plays}) >= 3
+                       and max(p.end_seconds for p in plays) - min(p.start_seconds for p in plays) >= 12)
         if not (supported or independent):
             if not second and starts and self.phase == "pre_game":
                 self.phase = "probable_start"
@@ -173,16 +201,21 @@ class MatchStartDetector:
         if (not isinstance(source, str) or not source.strip()
                 or type(seq) is not int or seq < 0
                 or type(start) not in (float, int) or type(end) not in (float, int)
+                or not math.isfinite(start) or not math.isfinite(end)
                 or not 0 <= start <= end or not isinstance(text, str)
                 or not text.strip() or len(text) > 2048):
             raise ValueError("Invalid GN-083 narration observation")
+        if self._source_id is not None and self._source_id != source:
+            raise ValueError("GN-083 detector cannot combine sources")
         if (self._last_sequence is not None and seq <= self._last_sequence
                 or self._last_start is not None and start < self._last_start):
             raise ValueError("Out-of-order GN-083 narration observation")
+        self._source_id = source
         self._last_sequence, self._last_start = seq, float(start)
         folded = _fold(text)
         if self._is_blocked(text, folded):
             return self.snapshot()
+        utterance_key = sha256(folded.encode("utf-8")).hexdigest()
 
         # Half-time can only occur after established first-half play.
         if self.phase == "in_play":
@@ -206,7 +239,7 @@ class MatchStartDetector:
                 self._record("second_start", second_cue.group(), start, end)
             play = self._current_play_cue(text, folded)
             if play:
-                self._record("play", play, start, end)
+                self._record("play", play, start, end, utterance_key)
             self._confirm_play(end, second=True)
             return self.snapshot()
 
@@ -215,7 +248,7 @@ class MatchStartDetector:
             self._record("first_start", first_cue.group(), start, end)
         play = self._current_play_cue(text, folded)
         if play:
-            self._record("play", play, start, end)
+            self._record("play", play, start, end, utterance_key)
         self._confirm_play(end, second=False)
         return self.snapshot()
 

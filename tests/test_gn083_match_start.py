@@ -113,3 +113,61 @@ def test_first_half_not_confirmed_by_interval_or_second_half_words():
     detector = MatchStartDetector()
     assert detector.consume(row(0, "Termina o primeiro tempo"))["phase"] == "pre_game"
     assert detector.consume(row(1, "Começa o segundo tempo"))["phase"] == "pre_game"
+
+
+def test_join_midgame_without_whistle_accepts_distinct_plays_using_the_same_cue():
+    detector = MatchStartDetector()
+    assert detector.consume(row(0, "Caio com a bola pela direita"))["phase"] == "pre_game"
+    assert detector.consume(row(1, "Beto com a bola no campo de defesa"))["phase"] == "pre_game"
+    result = detector.consume(row(2, "Davi com a bola perto da área"))
+    assert result["phase"] == "in_play"
+    assert result["reason"] == "multiple_independent_plays"
+    assert result["confidence"] == "medium"
+
+
+def test_colloquial_spatial_play_and_playing_out_confirm_midgame():
+    # Invented wording, not a transcription/gold-label corpus from the source.
+    detector = MatchStartDetector()
+    samples = (
+        "Caio carrega, levando pra ponta esquerdo do gramado",
+        "Beto recebe e já saiu jogando para Davi",
+        "Agora a equipe retomou, Davi já saiu jogando pela defesa",
+    )
+    for seq, text in enumerate(samples):
+        result = detector.consume(row(seq, text, start=seq * 10))
+    assert result["phase"] == "in_play"
+    assert result["first_play_audio_seconds"] == 0  # first observed play, not actual kickoff
+
+
+@pytest.mark.parametrize("prefix", ["No replay", "Ontem", "Daqui a pouco", "Talvez", "Na minha opinião", "Oferecimento"])
+def test_new_midgame_cues_preserve_context_veto(prefix):
+    detector = MatchStartDetector()
+    for seq in range(4):
+        text = f"{prefix}: atleta {seq} carrega levando pra ponta esquerda do gramado e já saiu jogando"
+        assert detector.consume(row(seq, text))["phase"] == "pre_game"
+
+
+def test_same_audio_interval_and_duplicate_wording_do_not_supply_independent_evidence():
+    detector = MatchStartDetector()
+    for seq, name in enumerate(("Caio", "Beto", "Davi")):
+        assert detector.consume(row(seq, name + " com a bola", start=0))["phase"] == "pre_game"
+    detector = MatchStartDetector()
+    for seq, text in enumerate(("Caio já saiu jogando.", "CAIO JÁ SAIU JOGANDO!", "Caio  já saiu jogando")):
+        assert detector.consume(row(seq, text))["phase"] == "pre_game"
+
+
+def test_juiz_apitou_e_esta_valendo_is_provisional_until_current_play():
+    detector = MatchStartDetector()
+    assert detector.consume(row(0, "O juiz apitou e está valendo"))["phase"] == "probable_start"
+    assert detector.consume(row(1, "Caio carrega levando pra ponta esquerda do gramado"))["phase"] == "in_play"
+    detector = MatchStartDetector()
+    assert detector.consume(row(0, "Não é verdade que o juiz apitou e está valendo"))["phase"] == "pre_game"
+
+
+def test_phase_detector_cannot_mix_sources_or_accept_infinite_times():
+    detector = MatchStartDetector()
+    detector.consume(row(0, "Caio com a bola"))
+    with pytest.raises(ValueError, match="combine sources"):
+        detector.consume(row(1, "Beto com a bola", source="other-source"))
+    with pytest.raises(ValueError, match="Invalid"):
+        MatchStartDetector().consume(row(0, "Começou o jogo", start=float("inf")))
