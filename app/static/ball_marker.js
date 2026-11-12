@@ -3,6 +3,15 @@
 (function(root){
   const geometry=typeof module==="object"&&module.exports?require("./field_geometry.js"):root.GameNowField;
   const lanes=["left","center","right"],directions=["left_to_right","right_to_left"];
+  function regionBounds(region){
+    if(!region||!Array.isArray(region.bands)||!region.bands.length||region.bands.length>5||
+      !region.bands.every(b=>Number.isInteger(b)&&b>=1&&b<=5)||
+      !(region.lane===null||lanes.includes(region.lane))||!directions.includes(region.attack_direction))return null;
+    const cells=region.bands.flatMap(band=>(region.lane===null?lanes:[region.lane]).map(lane=>
+      geometry.zoneCellBounds({band,lane},region.attack_direction)));
+    const x=Math.min(...cells.map(c=>c.x)),y=Math.min(...cells.map(c=>c.y));
+    return {x,y,width:Math.max(...cells.map(c=>c.x+c.width))-x,height:Math.max(...cells.map(c=>c.y+c.height))-y};
+  }
   function present(previous,input){
     const context=input.context;
     if(typeof context!=="string"||!context)throw new TypeError("Marker context required");
@@ -19,6 +28,9 @@
       return {...base,x:cell.x+cell.width/2,y:cell.y+cell.height/2,kind:"estimated",hasAnchor:true,
         status:"Bola representada no centro da região estimada; não é posição exata"};
     }
+    const region=regionBounds(input.region);
+    if(region)return {...base,x:region.x+region.width/2,y:region.y+region.height/2,kind:"partial",hasAnchor:true,
+      status:"Símbolo na região citada; posição exata da bola desconhecida"};
     const corridor=input.corridor;
     if(corridor&&lanes.includes(corridor.lane)&&
        (corridor.lane==="center"||directions.includes(corridor.attack_direction))){
@@ -45,7 +57,7 @@
       return result;
     }};
   }
-  const api=Object.freeze({present,createMemory});
+  const api=Object.freeze({present,createMemory,regionBounds});
   if(typeof module==="object"&&module.exports)module.exports=api;
   else root.GameNowBallMarker=api;
 })(typeof window!=="undefined"?window:globalThis);

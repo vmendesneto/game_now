@@ -5,6 +5,7 @@ Reports metadata only; Playwright traces/screenshots remain private in data/.
 """
 import argparse
 import json
+import re
 from pathlib import Path
 import time
 from urllib.parse import urlsplit
@@ -44,6 +45,11 @@ def run(args):
             first.locator("#capture-start").fill(str(args.start_seconds))
             first.locator("#capture-seconds").fill(str(args.seconds))
             first.locator("#capture-window").fill(str(args.window_seconds))
+            if args.parallel_source_id:
+                first.locator("#capture-parallel").check()
+                first.locator("#capture-kickoff").fill(str(args.kickoff_seconds))
+                first.locator("#capture-second-source").select_option(args.parallel_source_id)
+                first.locator("#capture-second-kickoff").fill(str(args.parallel_kickoff_seconds))
             first.locator("#capture-permission").check()
             first.locator("#capture-start-button").click()
             expect(first.locator("#capture-message")).to_contain_text("Acompanhamento iniciado")
@@ -53,6 +59,9 @@ def run(args):
             in_play_observed = False
             spatial_mention_observed = False
             marker_positions = []
+            observed_actions = {}
+            visible_players, visible_teams = set(), set()
+            selected_sources, last_visual_time = [], 0.
             while time.monotonic() < deadline:
                 at = time.monotonic()
                 health = second.request.get(base + "/health")
@@ -60,15 +69,36 @@ def run(args):
                 assert health.ok
                 status = first.request.get(base + path + "/capture").json()
                 preview = first.request.get(base + path + "/live/preview").json()
-                if args.expect_movement and preview and preview.get("spatial_mention"):
-                    mention = preview["spatial_mention"]
+                if args.parallel_source_id and preview and preview.get("fusion"):
+                    assert preview["visual_timeline"] >= last_visual_time
+                    last_visual_time = preview["visual_timeline"]
+                    selected = preview["fusion"]["active_source_id"]
+                    if selected and (not selected_sources or selected_sources[-1] != selected):
+                        selected_sources.append(selected)
+                tracking = preview.get("latest_narration_action") if preview else None
+                spatial_tracking = (preview.get("latest_narration_region_action") or tracking) if preview else None
+                region = spatial_tracking.get("region") if spatial_tracking else None
+                mention = preview.get("spatial_mention") if preview and not tracking else None
+                if args.expect_actions and preview:
+                    for action in preview.get("narration_actions", []):
+                        observed_actions[action["id"]] = action
+                    if tracking:
+                        for page in pages:
+                            marker = page.locator("#field .ball-marker")
+                            expect(marker).to_have_attribute("data-latest-player-id", tracking["player_id"] or "")
+                            expect(marker).to_have_attribute("data-latest-team-id", tracking["team_id"])
+                            expect(page.locator("#possession-label")).to_have_text("Equipe do lance")
+                        if tracking["player_id"]:
+                            visible_players.add(tracking["player_id"])
+                        visible_teams.add(tracking["team_id"])
+                if args.expect_movement and (region or mention):
                     transforms = []
                     for page in pages:
-                        expected = page.evaluate("""mention => {
-                          const cell=GameNowField.zoneCellBounds({band:3,lane:mention.lane},
-                            mention.attack_direction||'left_to_right');
+                        expected = page.evaluate("""({region,mention}) => {
+                          const cell=region?GameNowBallMarker.regionBounds(region):
+                            GameNowField.zoneCellBounds({band:3,lane:mention.lane},mention.attack_direction||'left_to_right');
                           return `translate(${cell.x+cell.width/2} ${cell.y+cell.height/2})`;
-                        }""", mention)
+                        }""", {"region": region, "mention": mention})
                         marker = page.locator("#field .ball-marker")
                         expect(marker).to_have_attribute("data-ball-state", "partial")
                         expect(marker).to_have_attribute("transform", expected)
@@ -76,18 +106,18 @@ def run(args):
                     if transforms[0] not in marker_positions:
                         marker_positions.append(transforms[0])
                         first.locator("#field").screenshot(path=str(output / f"movement-{len(marker_positions)}.png"))
-                if preview and preview.get("spatial_mention") and not spatial_mention_observed:
+                if (region or mention) and not spatial_mention_observed:
                     spatial_mention_observed = True
                     if args.expect_spatial_mention:
                         for page in pages:
-                            rect = page.locator("#field .spatial-mention[data-cell-count='5']")
+                            rect = page.locator("#field .spatial-mention, #field .narration-region")
                             expect(rect).to_have_count(1)
                             assert float(rect.get_attribute("width")) > 900
-                            expect(page.locator("#ball-status")).to_have_text("Corredor citado · bola incerta")
+                            expect(page.locator("#ball-status")).to_have_text(re.compile(r"(?:Corredor citado|Região parcial citada) · bola incerta"))
                             expect(page.locator("#field .region-highlight")).to_have_count(0)
                             marker=page.locator("#field .ball-marker")
                             expect(marker).to_have_attribute("data-ball-state","partial")
-                            if preview["spatial_mention"]["lane"]=="center":
+                            if (region or mention)["lane"]=="center":
                                 expect(marker).to_have_attribute("transform","translate(500 310)")
                         first.locator("#field").screenshot(path=str(output / "partial-corridor.png"))
                 if preview and preview["active"] and preview["phase"] == "in_play" and not in_play_observed:
@@ -105,12 +135,18 @@ def run(args):
             assert status["state"] == "finished", status
             assert status["captured_seconds"] == args.seconds, status
             assert status["observations"] > 0, status
+            if args.parallel_source_id:
+                assert len(status["streams"]) == 2 and all(s["observations"] > 0 for s in status["streams"])
+                assert len(set(selected_sources)) == 2, "Both sources must actually contribute selected play"
             if args.expect_in_play:
                 assert in_play_observed, "Current play was not confirmed during the recording"
             if args.expect_spatial_mention:
                 assert spatial_mention_observed, "No partial corridor reached the actual pitch"
             if args.expect_movement:
                 assert len(marker_positions) >= 2, "Narration did not produce two different visible positions"
+            if args.expect_actions:
+                assert len(observed_actions) >= 10, "Fewer than ten named action annotations"
+                assert len(visible_players) >= 4 and len(visible_teams) == 2, "Actors/teams did not update in both browsers"
             for page in pages:
                 expect(page.locator("#transcript-entry-list li")).not_to_have_count(0)
                 expect(page.locator("#transcript-entry-list")).not_to_contain_text("Nenhuma transcrição")
@@ -168,6 +204,11 @@ def run(args):
             report["spatial_mention_observed"] = spatial_mention_observed
             report["distinct_visible_positions"] = marker_positions
             report["movement_observed"] = len(marker_positions) >= 2
+            report["named_actions"] = len(observed_actions)
+            report["visible_players"] = sorted(visible_players)
+            report["visible_teams"] = sorted(visible_teams)
+            report["selected_source_sequence"] = selected_sources
+            report["capture_streams"] = status.get("streams", [])
             report["ball_symbol_persisted_after_evidence_expired"] = True
             (output / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
             return report
@@ -197,7 +238,14 @@ def main():
                         help="Require a visibly partial five-band corridor without a confirmed ball zone")
     parser.add_argument("--expect-movement", action="store_true",
                         help="Require two different marker positions matching the received corridors in both browsers")
+    parser.add_argument("--expect-actions", action="store_true",
+                        help="Require ten named actions and visible updates of four players and both teams")
+    parser.add_argument("--parallel-source-id")
+    parser.add_argument("--kickoff-seconds", type=float)
+    parser.add_argument("--parallel-kickoff-seconds", type=float)
     args = parser.parse_args()
+    if args.parallel_source_id and (args.kickoff_seconds is None or args.parallel_kickoff_seconds is None):
+        parser.error("Parallel recordings require both kickoff anchors")
     if not args.permission_confirmed:
         parser.error("Confirm authorization for the registered source")
     print(json.dumps(run(args), ensure_ascii=False, indent=2))

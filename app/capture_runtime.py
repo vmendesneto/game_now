@@ -1,6 +1,6 @@
 """Explicit browser-controlled capture. Only text/metadata reach clients.
 
-One selected source per match; no implicit fusion of unsynchronized broadcasts.
+Up to two explicitly aligned sources; no implicit fusion of unknown clocks.
 Workers and models are volatile and never restart just because a server starts.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ import sys
 import time
 from typing import Literal
 
-from pydantic import Field, StrictBool, field_validator
+from pydantic import Field, StrictBool, field_validator, model_validator
 
 from app.asr import ASRError, ASRSettings, CPUTranscriber, BYTES_PER_SECOND, asr_diagnostics
 from app.asr_vocabulary import build_vocabulary_prompt
@@ -28,6 +28,12 @@ from app.source_validation import validate_source_urls
 from app.youtube_capture import youtube_pcm_chunks
 
 
+class ParallelCaptureSource(StrictModel):
+    source_id: Id
+    start_seconds: float = Field(ge=0, le=86400, allow_inf_nan=False, strict=True)
+    kickoff_seconds: float = Field(ge=0, le=86400, allow_inf_nan=False, strict=True)
+
+
 class CaptureRequest(StrictModel):
     source_id: Id
     permission_confirmed: StrictBool
@@ -36,6 +42,20 @@ class CaptureRequest(StrictModel):
     seconds: float | None = Field(default=60, ge=5, le=600, allow_inf_nan=False, strict=True)
     window_seconds: int = Field(default=12, ge=6, le=30, strict=True)
     cpu_threads: int = Field(default=min(4, os.cpu_count() or 1), ge=1, le=16, strict=True)
+    kickoff_seconds: float | None = Field(default=None, ge=0, le=86400, allow_inf_nan=False, strict=True)
+    parallel_sources: list[ParallelCaptureSource] = Field(default_factory=list, max_length=1)
+
+    @model_validator(mode="after")
+    def aligned_starts(self):
+        if self.parallel_sources:
+            if self.kickoff_seconds is None:
+                raise ValueError("Informe o apito inicial nas duas gravações")
+            for source in self.parallel_sources:
+                if source.source_id == self.source_id:
+                    raise ValueError("Escolha duas fontes diferentes")
+                if abs((self.start_seconds-self.kickoff_seconds)-(source.start_seconds-source.kickoff_seconds)) > .25:
+                    raise ValueError("Os inícios precisam representar o mesmo tempo após o apito")
+        return self
 
     @field_validator("permission_confirmed")
     @classmethod
@@ -62,31 +82,68 @@ class CaptureRuntime:
         self.store, self.feed, self.previews = store, feed, previews
         self.runner = runner or follow_youtube_narration
         self.check_tools = runner is None
-        self.sessions: dict[str, dict] = {}
+        self.sessions: dict[tuple[str, str], dict] = {}
         self.closed = False
 
     def active(self, match_id: str) -> bool:
-        session = self.sessions.get(match_id)
-        return bool(session and not session["task"].done())
+        return any(key[0] == match_id and not session["task"].done() for key, session in self.sessions.items())
 
     def require_idle(self, match_id: str) -> None:
         if self.active(match_id):
             raise CaptureConflict("Pare a captura antes de editar ou excluir esta partida/fontes/elenco")
 
     def status(self, match_id: str) -> dict:
-        session = self.sessions.get(match_id)
-        if session is None:
+        sessions = [item for key, item in self.sessions.items() if key[0] == match_id]
+        if not sessions:
             return {"state": "idle", "source_id": None, "captured_seconds": 0,
                     "observations": 0, "error_code": None, "audio_retransmitted": False}
-        return {key: value for key, value in session.items()
-                if key not in {"task", "captures", "clock", "captured_at"}}
+        rows = [{key: value for key, value in session.items()
+                 if key not in {"task", "captures", "clock", "captured_at"}} for session in sessions]
+        if len(rows) == 1:
+            return rows[0]
+        states = {row["state"] for row in rows}
+        state = next((value for value in ("stopping", "running", "starting") if value in states),
+                     "error" if states == {"error"} else "stopped" if "stopped" in states else "finished")
+        return {**rows[0], "state": state, "parallel": True, "streams": rows,
+                "captured_seconds": min(row["captured_seconds"] for row in rows),
+                "observations": sum(row["observations"] for row in rows),
+                "error_code": None if state in ("running", "starting") else rows[0]["error_code"]}
 
     async def start(self, match_id: str, request: CaptureRequest) -> dict:
         if self.closed:
             raise CaptureConflict("O servidor está encerrando")
         self.require_idle(match_id)
-        if sum(not item["task"].done() for item in self.sessions.values()) >= 2:
+        requests = [request.model_copy(update={"parallel_sources": []})] + [
+            request.model_copy(update={"source_id": source.source_id, "start_seconds": source.start_seconds,
+                "kickoff_seconds": source.kickoff_seconds, "parallel_sources": []}) for source in request.parallel_sources]
+        if sum(not item["task"].done() for item in self.sessions.values()) + len(requests) > 2:
             raise CaptureConflict("Limite de duas capturas simultâneas neste servidor")
+        sources = {source.id: source for source in self.store.get_sources(match_id) or []}
+        for item in requests:
+            source = sources.get(item.source_id)
+            if source is None or not source.enabled or not source.url:
+                raise CaptureConflict("Selecione uma fonte cadastrada, habilitada e com URL")
+            if len(requests) > 1 and source.kind != "youtube":
+                raise CaptureConflict("Alinhamento por apito exige duas gravações YouTube")
+            validate_source_urls([source])
+        for old_key in tuple(self.sessions):
+            if old_key[0] == match_id:
+                del self.sessions[old_key]
+        self.feed.reset_match(match_id)
+        self.previews.clear_match(match_id)
+        group_id = None
+        if len(requests) > 1:
+            group_id = self.previews.set_alignment(match_id, {item.source_id: item.start_seconds-item.kickoff_seconds for item in requests})
+        try:
+            for item in requests:
+                await self._start_one(match_id, item, group_id=group_id)
+        except Exception:
+            await self.stop(match_id)
+            raise
+        return self.status(match_id)
+
+    async def _start_one(self, match_id: str, request: CaptureRequest, *, group_id: str | None = None) -> None:
+        key = (match_id, request.source_id)
         match = self.store.get_match(match_id)
         source = next((item for item in self.store.get_sources(match_id) or []
                        if item.id == request.source_id), None)
@@ -102,20 +159,21 @@ class CaptureRuntime:
                 raise CaptureConflict("FFmpeg não encontrado no servidor")
             if source.kind == "youtube" and shutil.which(executable("yt-dlp")) is None:
                 raise CaptureConflict("yt-dlp não encontrado no servidor")
-        if len(self.sessions) >= 32 and match_id not in self.sessions:
+        if len(self.sessions) >= 32 and key not in self.sessions:
             for old_id in tuple(self.sessions):
-                if not self.active(old_id):
+                if self.sessions[old_id]["task"].done():
                     del self.sessions[old_id]
                     break
-        self.feed.reset_match(match_id)
-        self.previews.clear_match(match_id)
         session = {"state": "starting", "source_id": source.id, "model": request.model,
                    "requested_start_seconds": request.start_seconds,
                    "requested_seconds": request.seconds, "window_seconds": request.window_seconds,
+                   "kickoff_seconds": request.kickoff_seconds,
                    "cpu_threads": request.cpu_threads,
                    "captured_seconds": 0., "observations": 0, "error_code": None,
                    "audio_retransmitted": False, "captures": deque(maxlen=256)}
-        self.sessions[match_id] = session
+        self.sessions[key] = session
+        if group_id is not None:
+            session["visual_context"] = group_id
         self.feed.set_state(match_id, source.id, "buffering")
 
         def received(byte_count):
@@ -187,24 +245,26 @@ class CaptureRuntime:
                     "asr_error" if isinstance(exc, ASRError) else "capture_error"))
             finally:
                 session["captures"].clear()
-                self.previews.clear_match(match_id)
+                self.previews.clear_source(match_id, source.id)
                 if session["state"] != "error":
                     self.feed.set_state(match_id, source.id, "stopped")
 
         session["task"] = asyncio.create_task(work())
         def completed(task):
             # A task cancelled before its first turn never enters work/finally.
-            if task.cancelled() and self.sessions.get(match_id) is session:
+            if task.cancelled() and self.sessions.get(key) is session:
                 session["state"] = "stopped"
                 session["captures"].clear()
-                self.previews.clear_match(match_id)
+                self.previews.clear_source(match_id, source.id)
                 self.feed.set_state(match_id, source.id, "stopped")
+            if not self.active(match_id):
+                self.previews.clear_match(match_id)
         session["task"].add_done_callback(completed)
-        return self.status(match_id)
 
     async def stop(self, match_id: str) -> dict:
-        if self.active(match_id):
-            session = self.sessions[match_id]
+        for key, session in self.sessions.items():
+            if key[0] != match_id or session["task"].done():
+                continue
             if session["state"] != "stopping":
                 session["state"] = "stopping"
                 session["task"].cancel()
@@ -213,6 +273,6 @@ class CaptureRuntime:
 
     async def close(self):
         self.closed = True
-        for match_id in tuple(self.sessions):
+        for match_id in {key[0] for key in self.sessions}:
             await self.stop(match_id)
         await asyncio.gather(*(item["task"] for item in self.sessions.values()), return_exceptions=True)

@@ -44,3 +44,12 @@ test("memory is bounded and invalid evidence cannot create a marker position",()
   assert.equal(present(null,{context:"a",zone:{band:99,lane:"left"},direction:"left_to_right"}).kind,"unknown");
   assert.equal(present(null,{context:"a",corridor:{lane:"left",attack_direction:null}}).kind,"unknown");
 });
+
+test("partial longitudinal regions use their whole uncertainty area, not an invented exact zone",()=>{
+  const defense=present(null,{context:"a",region:{bands:[1,2],lane:null,attack_direction:"left_to_right"}});
+  assert.equal(defense.x,200);assert.equal(defense.y,310);assert.equal(defense.kind,"partial");
+  const attack=present(defense,{context:"a",region:{bands:[4,5],lane:null,attack_direction:"left_to_right"}});
+  assert.equal(attack.x,800);assert.equal(attack.y,310);
+  assert.equal(Object.hasOwn(attack,"zone"),false);
+  assert.equal(present(null,{context:"a",region:{bands:[9],lane:null,attack_direction:"left_to_right"}}).kind,"unknown");
+});

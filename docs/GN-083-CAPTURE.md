@@ -1,8 +1,51 @@
 # GN-083 — acompanhamento pelo navegador
 
-Entrega de 2026-11-12: o site agora inicia e para a captura de uma fonte
+Entrega de 2026-11-12: o site agora inicia e para a captura de até duas fontes
 cadastrada, executa ASR local e publica texto para os clientes conectados.
 GN-083 permanece aberta: integração funcionando não é precisão demonstrada.
+
+## Duas gravações em paralelo
+
+Cadastre ambas antes de iniciar e marque **Acompanhar duas gravações em paralelo**.
+Informe os segundos do apito em cada vídeo. A segunda gravação começa no mesmo
+tempo após o apito que a primeira. Para as fontes autorizadas pelo usuário:
+
+| Vídeo | Apito informado | Início deste teste |
+| --- | --- | --- |
+| `Ls4qkPrh4Tk` | 563s (9:23) | 575s (9:35) |
+| `KHLaE8n0aTY` | 2104s (35:04) | 2116s (35:16) |
+
+O `t=4269s` da URL fornecida não define o apito. Esses pontos são âncoras humanas,
+não sincronização medida ou prova de seek exato. O servidor valida que as duas
+entradas representam o mesmo tempo após o apito. Há limite global de duas
+capturas/modelos; cada fonte mantém contexto, feed, erro e encerramento próprios.
+O botão de parada encerra ambas; uma fonte terminar/falhar não apaga a outra.
+
+A seleção GN-063 usa ação atual e frescor; propaganda/comentário sem lance não
+ganha prioridade apenas por ter chegado por último. Timestamp alinhado anterior
+ao último lance selecionado é bloqueado. Evidência completa conflitante é
+ocultada. O painel informa qual fonte contribui, sem misturar o atleta de uma
+com a região de outra. Continuam possíveis silêncio simultâneo e erros de ASR.
+A fase observada por uma fonte permanece no cabeçalho ao trocar de narrador;
+isso não concede à outra fonte permissão para emitir posição completa sem suas
+próprias evidências. Posição em cache não mantém elegibilidade durante propaganda.
+
+Exemplo de opções adicionais ao `POST .../capture/start`:
+
+```json
+{"source_id":"youtube-authorized","permission_confirmed":true,"model":"small","start_seconds":575,"seconds":180,"window_seconds":12,"kickoff_seconds":563,"parallel_sources":[{"source_id":"gn083-youtube-second","start_seconds":2116,"kickoff_seconds":2104}]}
+```
+
+Teste no banco isolado já cadastrado:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.gn083_browser_check --port 8001 --match-id cruzeiro-bahia-gn083 --source-id youtube-authorized --start-seconds 575 --seconds 180 --window-seconds 12 --model small --permission-confirmed --expect-in-play --expect-spatial-mention --expect-movement --expect-actions --parallel-source-id gn083-youtube-second --kickoff-seconds 563 --parallel-kickoff-seconds 2104 --output data/dual-check
+```
+
+O roteiro exige contribuições selecionadas de ambas as fontes, sem retrocesso,
+dois clientes, atores/regiões, término, reinício e parada com PCM real. Artefatos
+ficam privados. A integração não comprova acurácia ou alinhamento independente.
+Ver `docs/GN-083-TRACKING.md` para a distinção entre ação citada, posse e posição.
 
 Correção de fase: o acompanhamento pode começar com o jogo já em andamento.
 Não exige escutar o apito nem três expressões diferentes: confirma por três
@@ -53,7 +96,8 @@ Python da .venv. O modelo é preparado antes de abrir a fonte, evitando acumular
 áudio enquanto pesos são baixados pela primeira vez. O padrão usa até quatro
 threads CPU, sem serviço de reconhecimento pago. Não há backend GPU novo.
 
-Uma fonte é selecionada por partida, sem misturar transmissões não alinhadas.
+Até duas fontes podem ser captadas; uma fonte atual é selecionada por vez para
+a prévia, sem misturar transmissões não alinhadas.
 O servidor limita a duas capturas ativas no total. Buffer de aproximadamente
 40s; se a CPU não acompanhar, ocorre erro explícito. O FFmpeg é ritmado em
 tempo real para gravações. URLs sempre passam por GN-037/GN-090; não aceita URL
