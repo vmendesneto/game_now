@@ -118,6 +118,8 @@ def test_remote_tls_login_bearer_cookie_origin_and_websocket(monkeypatch, tmp_pa
         assert "password" in client.get("/_auth/login").text
         assert client.post("/_auth/login", data={"token": TOKEN},
                            headers={"Origin": "https://evil.test"}).status_code == 403
+        assert client.post("/_auth/login", data={"token": "á"},
+                           headers={"Origin": "https://testserver"}).status_code == 401
         assert client.post("/_auth/login", data={"token": "wrong"},
                            headers={"Origin": "https://testserver"}).status_code == 401
         response = client.post(
@@ -139,10 +141,10 @@ def test_remote_tls_login_bearer_cookie_origin_and_websocket(monkeypatch, tmp_pa
                            headers={"Origin": "https://testserver"}).status_code == 200
 
         with pytest.raises(WebSocketDisconnect) as closed:
-            with client.websocket_connect("/ws", headers={"Origin": "https://evil.test"}):
+            with client.websocket_connect("wss://testserver/ws", headers={"Origin": "https://evil.test"}):
                 pass
         assert closed.value.code == 1008
-        with client.websocket_connect("/ws", headers={"Origin": "https://testserver"}) as sock:
+        with client.websocket_connect("wss://testserver/ws", headers={"Origin": "https://testserver"}) as sock:
             assert sock.receive_json()
         assert client.post("/_auth/logout",
                            headers={"Origin": "https://testserver"},
@@ -152,7 +154,7 @@ def test_remote_tls_login_bearer_cookie_origin_and_websocket(monkeypatch, tmp_pa
     with TestClient(app, base_url="https://testserver") as api:
         assert api.get("/health", headers={"Authorization": "Bearer " + TOKEN}).status_code == 200
         assert api.post("/api/demo/next", headers={"Authorization": "Bearer " + TOKEN}).status_code == 200
-        with api.websocket_connect("/ws", headers={"Authorization": "Bearer " + TOKEN}) as ws:
+        with api.websocket_connect("wss://testserver/ws", headers={"Authorization": "Bearer " + TOKEN}) as ws:
             assert ws.receive_json()
         assert api.get("/health", headers={"Authorization": "Bearer wrong"}).status_code == 401
 
@@ -164,4 +166,5 @@ def test_session_expiration_signature_and_secrets():
     assert _session_valid(settings, value, now=now)
     assert not _session_valid(settings, value, now=now + 8 * 3600)
     assert not _session_valid(settings, value + "bad", now=now)
+    assert not _session_valid(settings, value + "é", now=now)
     assert not _session_valid(NetworkSecuritySettings(True, TOKEN, "z" * 40), value, now=now)

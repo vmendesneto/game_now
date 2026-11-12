@@ -82,7 +82,9 @@ def _headers(scope: dict) -> dict[str, str]:
 
 def _local_host_allowed(host: str) -> bool:
     authority = host.rsplit(":", 1)[0] if host.count(":") == 1 else host
-    return authority in ("localhost", "127.0.0.1", "testserver", "[::1]")
+    if host.startswith("[::1]"):
+        return host == "[::1]" or (host.startswith("[::1]:") and host[6:].isdigit())
+    return authority in ("localhost", "127.0.0.1", "testserver")
 
 
 def _is_https(scope: dict) -> bool:
@@ -107,7 +109,7 @@ def _session_cookie(settings: NetworkSecuritySettings, *, now: int | None = None
 
 
 def _session_valid(settings: NetworkSecuritySettings, raw: str, *, now: int | None = None) -> bool:
-    if not raw or len(raw) > 256:
+    if not raw or len(raw) > 256 or not raw.isascii():
         return False
     fields = raw.split(".")
     if len(fields) != 3:
@@ -132,7 +134,7 @@ def _session_valid(settings: NetworkSecuritySettings, raw: str, *, now: int | No
 def _authentication(settings: NetworkSecuritySettings, headers: dict[str, str]) -> str | None:
     expected = "Bearer " + settings.access_token
     supplied = headers.get("authorization", "")
-    if len(supplied) <= len(expected) + 16 and hmac.compare_digest(supplied, expected):
+    if supplied.isascii() and len(supplied) <= len(expected) + 16 and hmac.compare_digest(supplied, expected):
         return "bearer"
     try:
         cookies = SimpleCookie()
@@ -219,7 +221,8 @@ class NetworkSecurityMiddleware:
             supplied = parse_qs(body.decode("utf-8"), strict_parsing=True).get("token", [""])[0]
         except (UnicodeDecodeError, ValueError):
             supplied = ""
-        if len(supplied) > 256 or not hmac.compare_digest(supplied, self.settings.access_token):
+        if (not supplied.isascii() or len(supplied) > 256
+                or not hmac.compare_digest(supplied, self.settings.access_token)):
             await _reject(scope, send, 401)
             return
         cookie = (
