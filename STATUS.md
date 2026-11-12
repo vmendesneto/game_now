@@ -1,5 +1,15 @@
 # STATUS — Game Now
 
+## Correção atual — GN-083: bola sempre dentro do campo (2026-11-12)
+
+Atualizado: 2026-11-12
+Última tarefa integral concluída: GN-085; GN-083 continua [ ].
+Evidência: usuário observou bola fora do campo ao abrir/recarregar sem localização recente. Removida âncora inicial na margem: estado desconhecido usa círculo central (500,310), cinza e com rótulo explícito de posição desconhecida, sem criar zona/posse. Última indicação continua preservada visualmente quando vence. Cache do módulo atualizado por versão na URL.
+Testes: Windows, seis testes pytest de marcador/field/pitch aprovados (incluindo seis casos Node do marcador), sintaxe JS e diff válidos. Playwright real no painel principal verificou desenho completo dentro das linhas em estado inicial, vencido e reset; sempre um símbolo. Artefatos privados `data/ball-inside-browser.json` e `.png`; teste visual determinístico, sem novo áudio e sem alteração de estado da partida.
+Limitações: posição neutra inicial é convenção visual; não é localização inferida. Referências históricas abaixo à bola na margem foram substituídas por esta correção.
+Próxima tarefa: continuar GN-083 e sua avaliação independente de qualidade.
+Como continuar: `app/static/ball_marker.js`, `tests/test_ball_marker.cjs`; preservar o símbolo dentro do campo em estados desconhecidos e resets. CI do HEAD definitivo obrigatória antes do merge.
+
 ## Correção atual — GN-083: corredor citado e bola sempre visível (2026-11-12)
 
 Atualizado: 2026-11-12

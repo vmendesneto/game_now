@@ -133,8 +133,10 @@ essa indicação para autorizar um lance.
 
 Por pedido do usuário, o símbolo da bola permanece visível: no centro do desenho
 do corredor citado (círculo central em corredor central), em cinza no último
-marcador visual quando faltam dados atuais, ou na margem antes da primeira
-evidência. A âncora do símbolo não comprova uma faixa longitudinal ou coordenada
+marcador visual quando faltam dados atuais, ou no círculo central, cinza e com
+posição desconhecida, antes da primeira evidência ou após reset. O símbolo fica
+sempre dentro do campo (correção solicitada pelo usuário e conferida com
+Playwright nos estados inicial, vencido e reset). A âncora do símbolo não comprova uma faixa longitudinal ou coordenada
 exata. Ao vencer a informação, zona/posse/jogador continuam desconhecidos e o
 rótulo explica isso. Contextos e resets não reaproveitam posições alheias.
 

@@ -20,17 +20,20 @@ test("missing new evidence keeps a visibly stale visual anchor without current r
   assert.match(later.status,/posição atual desconhecida/);
   assert.equal(Object.hasOwn(later,"zone"),false);
 });
-test("before first evidence an always-visible neutral symbol does not claim midfield",()=>{
+test("before first evidence the neutral symbol stays inside at center without claiming a location",()=>{
   const marker=present(null,{context:"game:a"});
-  assert.equal(marker.kind,"unknown");assert.equal(marker.hasAnchor,false);assert.equal(marker.x,18);
-  assert.notEqual(marker.x,500);
+  assert.equal(marker.kind,"unknown");assert.equal(marker.hasAnchor,false);
+  assert.equal(marker.x,500);assert.equal(marker.y,310);
+  assert.match(marker.status,/posição da bola desconhecida/);
+  assert.equal(Object.hasOwn(marker,"zone"),false);
 });
 test("different match/source, new server epoch and replay rewind never reuse another context",()=>{
   const first=present(null,{context:"game:a",epoch:"server1",timeline:50,corridor:{lane:"center"}});
   for(const input of [{context:"game:b",epoch:"server1",timeline:51},
     {context:"game:a",epoch:"server2",timeline:51},{context:"game:a",epoch:"server1",timeline:0},
     {context:"game:a",epoch:"server1",timeline:51,reset:true}]){
-    assert.equal(present(first,input).kind,"unknown");
+    const reset=present(first,input);
+    assert.equal(reset.kind,"unknown");assert.equal(reset.x,500);assert.equal(reset.y,310);
   }
 });
 test("memory is bounded and invalid evidence cannot create a marker position",()=>{

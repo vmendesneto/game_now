@@ -4,6 +4,8 @@
 >
 > Regra: `[x]` significa **implementado + evidência verificável**; `[ ]` significa pendente. Não marcar como concluído só por ter escrito código. Atualizar `STATUS.md` e `ROADMAP.md` no mesmo commit em que a tarefa é concluída.
 
+> Correção GN-083 em 2026-11-12: bola permanece **dentro do campo**, inclusive sem primeira evidência/reset (símbolo cinza no círculo central, posição desconhecida), substituindo a âncora na margem descrita no histórico. Seis testes pytest de UI/marcador e Playwright real com checagem dos limites do símbolo aprovados. GN-083 continua [ ]; apresentação visual não mede acurácia.
+
 ## Objetivo e escopo do MVP
 
 Um único jogo de futebol é acompanhado por **duas ou mais fontes de narração**, incluindo rádios online e transmissões públicas do YouTube. O servidor local Windows capta somente o áudio, realiza transcrição e interpretação; o site exibe **um campinho com a região estimada da bola**, provável posse, nomes dos jogadores, placar e eventos com nível de confiança. **Não retransmitir áudio ou vídeo no site**. Nunca apresentar localização aproximada como coordenada física real.

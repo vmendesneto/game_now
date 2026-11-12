@@ -31,9 +31,9 @@
       return {...base,x:saved.x,y:saved.y,kind:"stale",hasAnchor:true,
         status:"Último marcador visual; posição atual desconhecida"};
     }
-    // Off the playing boundary: no arbitrary midfield position before any evidence.
-    return {...base,x:18,y:310,kind:"unknown",hasAnchor:false,
-      status:"Bola visível na margem; posição desconhecida"};
+    // Neutral drawing anchor stays inside the pitch; it is not location evidence.
+    return {...base,x:500,y:310,kind:"unknown",hasAnchor:false,
+      status:"Símbolo no círculo central; posição da bola desconhecida"};
   }
   function createMemory(maxContexts=32){
     if(!Number.isInteger(maxContexts)||maxContexts<1||maxContexts>128)throw new RangeError("Invalid marker memory bound");
