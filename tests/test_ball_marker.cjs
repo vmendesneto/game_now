@@ -2,6 +2,59 @@
 const test=require("node:test"),assert=require("node:assert/strict");
 const {present,createMemory}=require("../app/static/ball_marker.js");
 
+test("Everton to Nestor separates drawing anchors even without a new spatial cue",()=>{
+  const first=present(null,{context:"a",actorId:"everton",corridor:{lane:"center"}});
+  const next=present(first,{context:"a",actorId:"nestor"});
+  assert.notDeepEqual([next.x,next.y],[first.x,first.y]);
+  assert.ok(Math.hypot(next.x-first.x,next.y-first.y)<60);
+  assert.equal(next.kind,"stale");assert.equal(next.illustrative,true);
+  assert.match(next.status,/posição atual desconhecida/);
+  assert.match(next.status,/Deslocamento ilustrativo/);
+  assert.equal(Object.hasOwn(next,"zone"),false);
+  for(let i=0;i<30;i++){
+    const poll=present(next,{context:"a",actorId:"nestor"});
+    assert.equal(poll.x,next.x);assert.equal(poll.y,next.y);
+  }
+});
+
+test("same region player exchanges stay bounded without cumulative drifting",()=>{
+  for(const direction of ["left_to_right","right_to_left"]){
+    for(const lane of ["left","center","right"]){
+      for(const band of [1,2,3,4,5]){
+        const region={bands:[band],lane,attack_direction:direction};
+        let marker=null;
+        for(let i=0;i<100;i++){
+          const previous=marker;
+          marker=present(marker,{context:"a",actorId:i%2?"nestor":"everton",region});
+          if(previous)assert.ok(Math.hypot(marker.x-previous.x,marker.y-previous.y)>20);
+          const bounds=marker.visualBounds;
+          assert.ok(marker.x>=bounds.x+30&&marker.x<=bounds.x+bounds.width-30);
+          assert.ok(marker.y>=bounds.y+30&&marker.y<=bounds.y+bounds.height-30);
+        }
+      }
+    }
+  }
+});
+
+test("no jitter for repeated actor, unidentified actor or unknown initial location",()=>{
+  const first=present(null,{context:"a",actorId:"everton",region:{bands:[3],lane:"center",attack_direction:"left_to_right"}});
+  for(const actorId of ["everton",null,undefined]){
+    const next=present(first,{context:"a",actorId});
+    assert.equal(next.x,first.x);assert.equal(next.y,first.y);assert.equal(next.illustrative,false);
+  }
+  const unknown=present(null,{context:"a",actorId:"everton"});
+  const next=present(unknown,{context:"a",actorId:"nestor"});
+  assert.equal(next.kind,"unknown");assert.equal(next.x,500);assert.equal(next.y,310);
+});
+
+test("new region wins over illustrative displacement and rewind clears actor history",()=>{
+  const first=present(null,{context:"a",epoch:"one",timeline:20,actorId:"everton",region:{bands:[4,5],lane:"left",attack_direction:"right_to_left"}});
+  const next=present(first,{context:"a",epoch:"one",timeline:21,actorId:"nestor",corridor:{lane:"center"}});
+  assert.equal(next.x,500);assert.equal(next.y,310);assert.equal(next.illustrative,false);
+  const reset=present(first,{context:"a",epoch:"one",timeline:0,actorId:"nestor"});
+  assert.equal(reset.kind,"unknown");assert.equal(reset.x,500);
+});
+
 test("central corridor anchors symbol at center without claiming longitudinal band",()=>{
   const marker=present(null,{context:"game:a",timeline:12,corridor:{lane:"center",attack_direction:null}});
   assert.equal(marker.x,500);assert.equal(marker.y,310);assert.equal(marker.kind,"partial");

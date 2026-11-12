@@ -32,9 +32,10 @@ function drawPitch() {
 function paintBallMarker(marker){
   const uncertain=marker.kind==="stale"||marker.kind==="unknown";
   if(uncertain)$("ball-status").textContent=marker.status;
+  else if(marker.illustrative)$("ball-status").textContent+=" · deslocamento ilustrativo entre atletas";
   const radius=marker.kind==="unknown"?14:22;
   const group=add("g",{transform:"translate("+marker.x+" "+marker.y+")",
-    "class":"ball-marker","data-ball-state":marker.kind,role:"img","aria-label":marker.status,
+    "class":"ball-marker","data-ball-state":marker.kind,"data-illustrative":!!marker.illustrative,role:"img","aria-label":marker.status,
     opacity:uncertain?0.65:1});
   add("title",{},group).textContent=marker.status;
   add("circle",{r:radius,fill:uncertain?"#a9b1ba":"#fffdf6",stroke:marker.kind==="partial"?"#f2c66d":
@@ -171,7 +172,8 @@ function paintLivePreview(snapshot){
   $("ball-status").textContent=hasBall?"Zona textual estimada":partialRegion?"Região parcial estimada · bola incerta":mention?"Corredor citado · bola incerta":"Zona desconhecida";
   const marker=ballMarkerMemory.update({context:"live:"+chosenMatch.id+":"+(live.visual_context||live.source_id||"unknown"),
     timeline:live.visual_timeline??live.last_audio_seconds,epoch:live.visual_context,
-    zone:markerZone,direction:markerDirection,region:partialRegion,corridor:mention});
+    zone:markerZone,direction:markerDirection,region:partialRegion,corridor:mention,
+    actorId:ball?.player_id||tracking?.player_id||null});
   paintBallMarker(marker);
   if(tracking&&!ball){
     const team=[game.home,game.away].find(t=>t.id===tracking.team_id);

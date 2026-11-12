@@ -1,5 +1,16 @@
 # STATUS — Game Now
 
+## Ajuste atual — GN-083: distinguir jogadores no desenho (2026-11-12)
+
+Atualizado: 2026-11-12
+Última tarefa integral concluída: GN-085; GN-083 permanece [ ].
+Pedido: usuário solicitou pequeno movimento ilustrativo na troca de atleta, por exemplo Everton Ribeiro → Rodrigo Nestor, mesmo sem nova região. Entrega exclusivamente visual em `ball_marker.js`: duas âncoras próximas alternam dentro da última área desenhada quando muda o atleta identificado e o ponto seria coincidente/próximo. Sem deslocamento contínuo, sem deriva acumulada, sem movimento por jogador ausente ou antes de qualquer região. Região nova distante prevalece. Polling/mesmo atleta permanecem estáveis; contexto/época/retrocesso reiniciam a memória.
+Sem nova pista espacial, marcador continua cinza com posição atual desconhecida; deslocamento é explicitamente ilustrativo, sem distância/direção medidas. Não cria posse, região, evento ou coordenada de backend; guardas e schema v1 preservados.
+Evidência: Windows828 passed/4 skipped; quatro novos casos Node incluem cem trocas por região em todos os lados/sentidos e cinco faixas, sem sair dos limites. Playwright real em desktop1360px e mobile emulado390px reproduziu sete ações do texto salvo: mesmo Erick mantém ponto; Everton(500,310) → Nestor(536,328) distingue os atores, com Nestor ainda incerto/cinza. Repetições estáveis, zero erro JS, sem overflow e estado persistido idêntico. Artefatos privados `data/player-marker-browser/report.json` e screenshots. Sintaxe/diff válidos, sem mudança de schema.
+Limitações: deslocamento não é trajetória física, passe confirmado ou medida de posição. Teste de texto real salvo, sem nova captação de áudio nem celular físico; GN-083 continua sem benchmark independente.
+Próxima tarefa: GN-083, validação independente da interpretação espacial.
+Como continuar: recarregar o painel e reproduzir o primeiro trecho da análise salva; a troca final Everton/Nestor passa a diferenciar os pontos. A captura em curso não exige reinício por esta mudança de JavaScript.
+
 ## Correção atual — GN-083: ponta no campo adversário (2026-11-12)
 
 Atualizado: 2026-11-12

@@ -1,5 +1,10 @@
 # ROADMAP — Game Now
 
+### GN-083 — deslocamento ilustrativo entre atletas (2026-11-12)
+
+- Pedido explícito do usuário: pequeno deslocamento ao trocar atleta em região igual/próxima. Apresentação limitada à área desenhada, estável no polling e sem deriva; sem pista nova, posição permanece desconhecida/cinza. Não produz coordenada física nem atualiza posse/região no backend.
+- Windows828 passed/4 skipped, quatro casos Node novos e Playwright desktop/mobile emulado com texto real salvo, Everton → Nestor em pontos diferentes. Sem JS/overflow/mutação de estado. GN-083 continua [ ]; ver STATUS e artefatos privados `data/player-marker-browser/report.json`.
+
 ### GN-083 — ponta ofensiva relativa ao adversário (2026-11-12)
 
 - Correção parcial testada no Windows: ponta em ação nomeada estima faixas4–5 relativas ao clube; campo defensivo explícito prevalece. Setas indicam o ataque e segundo tempo já configurado não sofre inversão dupla.
