@@ -4,6 +4,23 @@ Entrega de 2026-11-12: o site agora inicia e para a captura de uma fonte
 cadastrada, executa ASR local e publica texto para os clientes conectados.
 GN-083 permanece aberta: integração funcionando não é precisão demonstrada.
 
+Correção de fase: o acompanhamento pode começar com o jogo já em andamento.
+Não exige escutar o apito nem três expressões diferentes: confirma por três
+narrações distintas da mesma fonte, em tempos distintos, abrangendo pelo menos
+12s. A assinatura normalizada impede tratar repetição de ASR como nova evidência.
+Condução com localização textual e saída jogando também contam para a fase,
+preservando os vetos a replay/comercial/análise/histórico/negação. Essas pistas
+**não** acrescentam evidência de posse/região à guarda da bola.
+
+O usuário confirmou **9:35 = 575s** como trecho de jogo e localizou o anúncio
+de apito em **9:23 = 563s**. Nenhum valor é hardcoded no detector. Replay das
+30 transcrições reais capturadas desde 575s confirmou `in_play` no final dos
+primeiros 32s, sem apito nem fase manual. Nova captura real de 60s, mesmo início,
+small/contexto12s/quatro threads, passou pelo Playwright com **Jogo em andamento
+nos dois clientes**. Relatório e screenshot privados em `data/midgame-browser`.
+Suíte local da correção: 738 passed/4 skipped; depois dez testes live passaram,
+incluindo um novo teste que mantém a bola desconhecida após confirmar fase.
+
 ## Operação
 
 1. Execute `iniciar_windows.bat` e selecione a partida/elenco.
@@ -103,3 +120,5 @@ Reprodução opcional em banco isolado com a fonte já cadastrada:
 O comando altera a sessão volátil, inicia/reinicia/para uma fonte autorizada e
 verifica dois clientes e ausência de escrita em `/state`; não substitui avaliação
 humana de lances, comparação GN-044/045 ou ensaio de partida completa GN-084.
+Acrescente `--expect-in-play` para exigir que o estado Jogo em andamento apareça
+efetivamente nos dois navegadores durante um trecho previamente conferido.

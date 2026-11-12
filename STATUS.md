@@ -1,5 +1,16 @@
 # STATUS — Game Now
 
+## Correção atual — GN-083: reconhecer entrada no meio do jogo (2026-11-12)
+
+Atualizado: 2026-11-12
+Última tarefa integral concluída: GN-085. GN-083 segue [ ], com correção de fase comprovada em trecho real.
+Problema/correção: captura em **9:35 = 575 segundos** realmente entrava no jogo, mas o detector exigia três expressões diferentes do dicionário e não reconhecia variações de condução espacial/sair jogando presentes no ASR. `app/match_start_detection.py` passa a aceitar três narrações distintas da mesma fonte, em instantes distintos e cobrindo pelo menos 12s, sem depender de três verbos diferentes nem de capturar o apito. Frases repetidas usam assinatura normalizada com hash (sem guardar novo texto no detector); comerciais, replay, análise, futuro/histórico e negativas continuam vetados. Pistas espaciais novas servem somente à fase, não a posse/jogador/zona.
+Evidência: reprocessadas as 30 transcrições reais já capturadas em 9:35, sem nova captação nem fase manual injetada: `in_play` apareceu na sequência 2, final de 32s do trecho. Depois **Playwright real/Windows/small/quatro threads/contexto12s**, novamente a partir de 575s: 60s PCM, seis textos, **os dois clientes exibiram Jogo em andamento**. Reinício/parada após 1s PCM real e `/state` intacto; zero erros JS, mídia ou HTTP externo no browser. Relatórios privados `data/midgame-replay.json`, `data/midgame-browser/report.json` e screenshot `in-play.png`.
+Testes locais: suíte completa **738 passed, 4 skipped**; depois **10 passed** em `tests/test_gn083_live.py`, incluindo um teste novo de separação fase/bola. Testes também cobrem cue repetida com frases diferentes, frase duplicada, intervalo de áudio idêntico, replay/negação/futuro, mistura de fontes e timestamps infinitos. A frase afirmativa “o juiz apitou e está valendo” agora é reconhecida como início provisório, ainda exigindo narração atual para confirmar. Usuário refinou a referência humana do apito para **9:23 = 563s**; a correção foi validada começando em 575s e não usa nenhum desses horários como regra automática.
+Limitações: reconhecer partida em andamento não comprova precisão de região/posse/jogador, relógio oficial, segundo tempo nesta gravação ou partida inteira. Campo permanece desconhecido quando faltar evidência explícita, sem fabricar coordenadas/placar. Gabarito de qualidade GN-083 e GN-084 continuam pendentes. CI do HEAD final precisa ficar verde antes de merge.
+Próxima tarefa: continuar GN-083 na interpretação e avaliação de lances, preservando a detecção de jogo já iniciado. Não voltar a exigir apito inicial nem usar minuto fixo para forçar fase.
+Como continuar: `scripts.gn083_browser_check ... --start-seconds 575 --seconds 60 --expect-in-play`; comandos completos em `docs/GN-083-CAPTURE.md`.
+
 ## Entrega atual — GN-083: captura real pelo painel (parcial, 2026-11-12)
 
 Atualizado: 2026-11-12

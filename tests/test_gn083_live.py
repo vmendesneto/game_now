@@ -113,6 +113,22 @@ def test_registry_isolates_sources_matches_and_does_not_persist():
     assert registry.get(first.id) is None
 
 
+def test_midgame_phase_confirmation_never_supplies_missing_ball_evidence():
+    registry = LivePreviewRegistry()
+    match = game()
+    phrases = (
+        "Atleta carrega levando pra ponta esquerdo do gramado",
+        "Outro atleta já saiu jogando para o companheiro",
+        "A equipe recuperou, seu goleiro já saiu jogando pela defesa",
+    )
+    for seq, text in enumerate(phrases):
+        result = registry.receive(match, row(seq, text))
+        assert result["ball"] is None
+    assert result["phase"] == "in_play"
+    assert result["reason"] == "multiple_independent_plays"
+    assert result["persisted"] is False
+
+
 def test_api_preview_does_not_change_sqlite_or_demo(tmp_path):
     with TestClient(create_app(tmp_path / "gn083.sqlite3")) as client:
         match=game()
