@@ -1,5 +1,10 @@
 # ROADMAP — Game Now
 
+### GN-083 — ponta ofensiva relativa ao adversário (2026-11-12)
+
+- Correção parcial testada no Windows: ponta em ação nomeada estima faixas4–5 relativas ao clube; campo defensivo explícito prevalece. Setas indicam o ataque e segundo tempo já configurado não sofre inversão dupla.
+- Evidência:828 passed/4 skipped; Playwright real com sete etapas do texto salvo, ponta no campo adversário e retorno ao centro, mais direção oposta artificial, sem erro JS ou mutação do estado. Não é nova captura nem medição de acurácia física. GN-083 permanece [ ]. Ver STATUS e artefatos privados `data/attacking-wing-browser/report.json`.
+
 > **Fonte oficial do planejamento.** Atualizado em **2026-11-12**. Antes de trabalhar, ler [STATUS.md](STATUS.md), este arquivo e [AGENTS.md](AGENTS.md).
 >
 > Regra: `[x]` significa **implementado + evidência verificável**; `[ ]` significa pendente. Não marcar como concluído só por ter escrito código. Atualizar `STATUS.md` e `ROADMAP.md` no mesmo commit em que a tarefa é concluída.

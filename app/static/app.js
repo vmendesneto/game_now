@@ -89,7 +89,9 @@ function paintLivePreview(snapshot){
   $("home-score").textContent=game.home_score;
   $("away-score").textContent=game.away_score;
   $("clock").textContent="Relógio real não confirmado";
-  $("direction").textContent="Prévia textual · placar cadastrado";
+  const attackDirection=team=>GameNowField.currentAttackDirection(team.attack_direction,game.period,live.phase);
+  $("direction").textContent=[game.home,game.away].map(team=>
+    team.name+" ataca "+(attackDirection(team)==="left_to_right"?"→":"←")).join(" · ");
   $("action").textContent=livePhaseNames[phase]||phase;
   $("last-confirmed-event").textContent=
     "Narração analisada; nenhum evento/placar confirmado automaticamente.";
@@ -118,9 +120,7 @@ function paintLivePreview(snapshot){
   if(ball&&ball.zone){
     const team=[game.home,game.away].find(t=>t.id===ball.team_id);
     if(team){
-      let direction=team.attack_direction;
-      if(live.phase==="second_half")direction=direction==="left_to_right"?
-        "right_to_left":"left_to_right";
+      const direction=attackDirection(team);
       const cell=zoneCellBounds(ball.zone,direction);
       markerZone=ball.zone;markerDirection=direction;
       add("rect",{x:cell.x+4,y:cell.y+4,width:cell.width-8,height:cell.height-8,
@@ -140,7 +140,8 @@ function paintLivePreview(snapshot){
       add("rect",{x:bounds.x+4,y:bounds.y+4,width:bounds.width-8,height:bounds.height-8,
         fill:"#f2c66d22",stroke:"#f2c66d","stroke-width":3,"stroke-dasharray":"12 8",
         "class":"narration-region","data-region-label":partialRegion.label});
-      $("confidence").textContent="Região parcial citada";
+      $("confidence").textContent=partialRegion.depth_basis==="attacking_wing_estimate"||partialRegion.depth_basis==="recent_same_player_context"?
+        "Região parcial estimada por contexto":"Região parcial citada";
     }
   }else if(mention){
     const laneNames={left:"esquerdo",center:"central",right:"direito"};
@@ -167,7 +168,7 @@ function paintLivePreview(snapshot){
     else if(reason==="not_current_live_play")$("last-text").textContent="O último trecho não trouxe um lance com localização suficiente. Veja a transcrição abaixo.";
   }
   const hasBall=!!(ball&&ball.zone);
-  $("ball-status").textContent=hasBall?"Zona textual estimada":partialRegion?"Região parcial citada · bola incerta":mention?"Corredor citado · bola incerta":"Zona desconhecida";
+  $("ball-status").textContent=hasBall?"Zona textual estimada":partialRegion?"Região parcial estimada · bola incerta":mention?"Corredor citado · bola incerta":"Zona desconhecida";
   const marker=ballMarkerMemory.update({context:"live:"+chosenMatch.id+":"+(live.visual_context||live.source_id||"unknown"),
     timeline:live.visual_timeline??live.last_audio_seconds,epoch:live.visual_context,
     zone:markerZone,direction:markerDirection,region:partialRegion,corridor:mention});

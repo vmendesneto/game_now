@@ -98,7 +98,7 @@ class LivePreviewRegistry:
         session["audio_end"] = observation.end_seconds
         phase = detected["phase"]
         current = match.model_copy(deep=True)
-        if phase == "second_half":
+        if phase == "second_half" and current.period != "second_half":
             current.period = "second_half"
             for team in (current.home, current.away):
                 team.attack_direction = (
