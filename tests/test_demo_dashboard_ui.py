@@ -71,7 +71,7 @@ def test_real_demo_http_scenario_matches_every_visible_step(tmp_path):
     )
     proc = subprocess.run(
         [node, "-e", js, str(STATIC / "demo_scoreboard.js")],
-        input=json.dumps(snapshots), text=True,
+        input=json.dumps(snapshots), text=True, encoding="utf-8",
         capture_output=True, timeout=30,
     )
     assert proc.returncode == 0, proc.stderr

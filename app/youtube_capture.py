@@ -15,7 +15,7 @@ import shutil
 from typing import AsyncIterator
 from urllib.parse import urlsplit
 
-from app.audio_capture import CaptureError, pcm_chunks
+from app.audio_capture import CaptureError, pcm_chunks, validate_start_seconds
 from app.contracts import AudioSource
 from app.source_validation import validate_source_urls
 from app.storage import StoreConflict
@@ -29,6 +29,7 @@ class ResolvedLiveAudio:
     format_id: str
     headers: dict[str, str]
     input_has_video: bool = False
+    is_recording: bool = False
 
 
 async def resolve_live_audio(
@@ -177,6 +178,8 @@ async def resolve_live_audio(
         return ResolvedLiveAudio(
             url=url, format_id=str(selected.get("format_id", "audio")),
             headers=headers, input_has_video=input_has_video,
+            is_recording=(live_status in {"was_live", "not_live"} or is_recording_without_status)
+                         and metadata.get("is_live") is not True,
         )
     finally:
         if process.returncode is None:
@@ -200,17 +203,22 @@ def _needs_playback_wait(url: str) -> bool:
 async def youtube_pcm_chunks(
     source: AudioSource, *, yt_dlp_binary: str = "yt-dlp",
     ffmpeg_binary: str = "ffmpeg", chunk_ms: int = 500,
+    start_seconds: float = 0,
 ) -> AsyncIterator[bytes]:
     """Decode audio from a public live broadcast or recorded YouTube video."""
+    start_seconds = validate_start_seconds(start_seconds)
     live = await resolve_live_audio(source, yt_dlp_binary=yt_dlp_binary)
+    if start_seconds and not live.is_recording:
+        raise CaptureError("start_seconds requires a confirmed recorded video")
     if _needs_playback_wait(live.url):
         # The yt-dlp downloader waits before its first network read, but our
         # metadata-only resolver (--skip-download) would otherwise skip it.
         await asyncio.sleep(5.5)
     audio_source = AudioSource(id=source.id, name=source.name, kind="radio",
                                url=live.url, enabled=True, status="offline")
+    seek = {"start_seconds": start_seconds} if start_seconds else {}
     async with aclosing(pcm_chunks(audio_source, ffmpeg_binary=ffmpeg_binary,
-                                   chunk_ms=chunk_ms, http_headers=live.headers)) as pcm:
+                                   chunk_ms=chunk_ms, http_headers=live.headers, **seek)) as pcm:
         async for chunk in pcm:
             yield chunk
 

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import AsyncIterator, Callable
 
 from app.asr import ASRSettings, BYTES_PER_SECOND, CPUTranscriber
-from app.audio_capture import CaptureError
+from app.audio_capture import CaptureError, validate_start_seconds
 from app.asr_vocabulary import build_vocabulary_prompt
 from app.asr_windows import RollingASRProcessor, WindowSettings
 from app.contracts import AudioSource, Match
@@ -28,6 +28,7 @@ class YoutubeTranscriptionRun:
     requested_seconds: float
     complete: bool
     observations: tuple[dict, ...]
+    requested_media_start_seconds: float = 0
 
 
 async def transcribe_youtube_source(
@@ -38,6 +39,7 @@ async def transcribe_youtube_source(
     ffmpeg_binary: str = "ffmpeg",
     model: str = "tiny",
     capture_first: bool = False,
+    start_seconds: float = 0,
     transcriber=None,
     capture_factory: Callable[..., AsyncIterator[bytes]] | None = None,
 ) -> YoutubeTranscriptionRun:
@@ -49,6 +51,7 @@ async def transcribe_youtube_source(
     an access workaround and never retries a denied remote request.
     The caller must independently establish authorization.
     """
+    start_seconds = validate_start_seconds(start_seconds)
     if not isinstance(seconds, (int, float)) or isinstance(seconds, bool) or not 5 <= seconds <= 600:
         raise ValueError("YouTube ASR duration must be between 5 and 600 seconds")
     if not isinstance(url, str):
@@ -86,8 +89,10 @@ async def transcribe_youtube_source(
     # or CPU-heavy Whisper window cannot hold the FFmpeg pipe unread.
     captured = bytearray() if capture_first else None
     try:
+        seek = {"start_seconds": start_seconds} if start_seconds else {}
         async with aclosing(factory(
             source, yt_dlp_binary=yt_dlp_binary, ffmpeg_binary=ffmpeg_binary,
+            **seek,
         )) as stream:
             async for block in stream:
                 if not isinstance(block, bytes) or not block or len(block) % 2:
@@ -127,4 +132,5 @@ async def transcribe_youtube_source(
         source_id=source_id, processed_seconds=total / BYTES_PER_SECOND,
         processed_bytes=total, requested_seconds=seconds, complete=total >= maximum,
         observations=tuple(rows),
+        requested_media_start_seconds=start_seconds,
     )

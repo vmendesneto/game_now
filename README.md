@@ -68,6 +68,8 @@ python -m pytest -q
 
 O contrato reside em `app/contracts.py`, o schema exportado em `schemas/v1.schema.json`, fixtures em `fixtures/`, e a decisão de arquitetura em [docs/ADR-0001.md](docs/ADR-0001.md). Não edite o JSON schema manualmente: regenere com o script e revise o diff. Os testes verificam ambos.
 
+GN-012/GN-031/GN-085 validadas no Windows 11 em 2026-11-12: instalação limpa, Ctrl+C/reinício com persistência e fluxo de gravação autorizada YouTube→FFmpeg→Whisper. A suíte local passou com **708 testes/4 skips**. O cenário opcional Playwright testa Chromium real, dois clientes, demo completa, cadastros e tela móvel emulada. Instalação, comandos, screenshots e limites estão em [docs/GN-085-WINDOWS.md](docs/GN-085-WINDOWS.md); GN-083/084 continuam sem métricas humanas/partida completa.
+
 ## Filtro opcional de silêncio (GN-036)
 
 O gate `app/silence_gate.py` pode ser injetado em `RollingASRProcessor` com `silence_gate=PCMSilenceGate()` para evitar inferência em janelas de PCM com energia muito baixa. Ele **não é detector de publicidade ou voz** e permanece desligado por padrão até validação em narração real permitida. Execute `python -m scripts.benchmark_gn036_silence` para comparar chamadas de um modelo fictício com quatro sinais sintéticos; não mede precisão, latência Whisper nem Windows.

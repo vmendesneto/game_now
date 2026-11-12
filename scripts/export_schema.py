@@ -12,6 +12,6 @@ if __name__ == "__main__":
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
         json.dumps(ContractBundle.model_json_schema(), ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
+        encoding="utf-8", newline="\n",
     )
     print(output)

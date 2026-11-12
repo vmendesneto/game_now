@@ -2,6 +2,8 @@
 
 Este arquivo é uma instrução de continuidade do projeto Game Now. **Comece sempre lendo `STATUS.md` e `ROADMAP.md`.**
 
+**Continuidade atualizada em 2026-11-12:** GN-012/GN-031/GN-085 [x] neste Windows 11/Python 3.12: .venv limpa, dois contextos Chromium/Playwright, Ctrl+C/reinício/persistência, backup/restore e FFmpeg nativo encerrado antecipadamente. Suíte Windows 708 passed/4 skipped. Usuário confirmou autorização para Cruzeiro x Bahia (`Ls4qkPrh4Tk`); fluxo real YouTube→FFmpeg→Whisper tiny processou 300s/9.600.000 bytes em 75 janelas, sem retransmissão; seek 9:35 também testado com tiny/base por 30s. Evidências em `docs/GN-085-WINDOWS.md`; referências históricas abaixo a essas três tarefas pendentes foram superadas. Continuar GN-083, que permanece [ ] sem gabarito/métricas humanas; sem alegar precisão, GPU, captura no painel ou partida completa.
+
 ## Missão
 
 Construir um site que mostra o andamento **de uma partida** em campinho de futebol, estimando **região da bola, posse, jogador e eventos** a partir de **múltiplas narrações de rádio e YouTube, ao vivo ou gravadas para testes reprodutíveis**, com Windows do usuário como servidor inicial. **Não** reproduzir áudio ou vídeo das fontes no site.

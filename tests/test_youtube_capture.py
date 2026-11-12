@@ -10,6 +10,37 @@ from app.audio_capture import CaptureError
 from app.contracts import AudioSource
 import app.youtube_capture as youtube_capture
 
+pytestmark = pytest.mark.usefixtures("python_script_launchers")
+
+
+@pytest.mark.parametrize("recorded", [True, False])
+def test_seek_is_forwarded_only_for_confirmed_recordings(monkeypatch, recorded):
+    async def resolve(*args, **kwargs):
+        return youtube_capture.ResolvedLiveAudio(
+            url="https://cdn.example.org/audio", format_id="test", headers={},
+            is_recording=recorded,
+        )
+    calls = []
+
+    async def decode(item, **options):
+        calls.append(options)
+        yield b"\x00\x00"
+
+    monkeypatch.setattr(youtube_capture, "resolve_live_audio", resolve)
+    monkeypatch.setattr(youtube_capture, "pcm_chunks", decode)
+
+    async def collect():
+        async with aclosing(youtube_capture.youtube_pcm_chunks(source(), start_seconds=575)) as stream:
+            return [block async for block in stream]
+
+    if recorded:
+        assert asyncio.run(collect()) == [b"\x00\x00"]
+        assert calls[0]["start_seconds"] == 575
+    else:
+        with pytest.raises(CaptureError, match="confirmed recorded"):
+            asyncio.run(collect())
+        assert calls == []
+
 
 def source(name="normal"):
     return AudioSource(id="youtube-test", name="YouTube", kind="youtube",
@@ -59,6 +90,7 @@ def test_live_audio_only_selection_excludes_cookies(tmp_path):
     resolved=asyncio.run(youtube_capture.resolve_live_audio(
         source(),yt_dlp_binary=executable))
     assert resolved.format_id=="audio-high"
+    assert resolved.is_recording is False
     assert resolved.url=="https://cdn.example.org/audio-high.m3u8"
     assert resolved.headers=={"User-Agent":"GameNow-Test"}
     assert "Cookie" not in resolved.headers
@@ -288,6 +320,7 @@ def test_recorded_video_is_accepted_even_when_not_live(tmp_path):
         source("recorded"), yt_dlp_binary=binary,
     ))
     assert result.format_id == "m4a"
+    assert result.is_recording is True
     assert result.url.endswith("/game.m4a")
     assert result.input_has_video is False
 
@@ -304,6 +337,7 @@ def test_recorded_livestream_is_accepted(tmp_path):
         source("archived"), yt_dlp_binary=binary,
     ))
     assert result.format_id == "archive"
+    assert result.is_recording is True
 
 
 @pytest.mark.parametrize("status", ["is_upcoming", "post_live", "unavailable", "unknown"])
