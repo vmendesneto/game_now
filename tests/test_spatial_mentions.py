@@ -79,10 +79,45 @@ def test_recent_corridor_is_distinct_from_ball_and_clears_on_new_text_staleness_
     assert view["spatial_mention"]["lane"] == "left"
     view = registry.receive(match, observation(2, "Oferecimento de uma loja"))
     assert view["spatial_mention"] is None
-    view = registry.receive(match, observation(3, "Caio carrega pelo lado esquerdo do gramado", age=6))
+    view = registry.receive(match, observation(3, "Caio carrega pelo lado esquerdo do gramado", age=16))
     assert view["spatial_mention"] is None
     registry.clear_match(match.id)
     assert registry.get(match.id) is None
+
+
+def test_processing_delay_consumes_partial_ttl_without_using_ball_freshness_limit():
+    clock = [100.]
+    registry = LivePreviewRegistry(clock=lambda: clock[0])
+    match = game()
+    view = registry.receive(match, observation(0, "Caio do Azul já leva para o lado esquerdo", age=5.18))
+    assert view["spatial_mention"]["lane"] == "left"
+    assert view["spatial_mention"]["age_seconds"] == 5.18
+    assert view["ball"] is None
+    clock[0] += 9
+    assert registry.get(match.id)["spatial_mention"] is not None
+    clock[0] += 1
+    assert registry.get(match.id)["spatial_mention"] is None
+    registry.receive(match, observation(1, "Começou o jogo"))
+    view = registry.receive(match, observation(2,
+        "Caio do Azul com a bola no meio-campo pela esquerda", age=5.18))
+    assert view["phase"] == "in_play"
+    assert view["ball"] is None  # Full position still requires <=5s local age.
+    assert view["spatial_mention"]["lane"] == "left"
+
+
+@pytest.mark.parametrize("verb", ["leva", "toca", "passa", "joga", "conduz"])
+def test_explicit_current_distribution_to_a_side_without_word_ball(verb):
+    result = spatial_mention(game(), f"Caio do Azul já {verb} para Beto do lado direito")
+    # Opposing team in the same local context remains ambiguous.
+    assert result["status"] == "unknown"
+    result = spatial_mention(game(), f"Caio do Azul já {verb} para o lado direito")
+    assert result["lane"] == "right" and result["status"] == "partial"
+    assert result["band"] is None and result["possession_confirmed"] is False
+
+
+@pytest.mark.parametrize("prefix", ["Ontem", "No replay", "Oferecimento", "Não", "Talvez", "Na minha opinião", "Daqui a pouco"])
+def test_new_distribution_cues_keep_semantic_veto(prefix):
+    assert spatial_mention(game(), prefix + ": Caio do Azul já leva para o lado direito")["status"] == "unknown"
 
 
 def test_complete_ball_candidate_takes_priority_over_partial_corridor():
