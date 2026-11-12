@@ -23,10 +23,12 @@ from app.contracts import AudioSource, EstimatedBallState, Match, StrictModel
 from app.match_start_detection import MatchStartDetector
 from app.source_validation import validate_source_urls
 from app.storage import StoreConflict
+from app.spatial_mentions import spatial_mention
 from app.youtube_capture import youtube_pcm_chunks
 
 PREVIEW_STALE_SECONDS = 30.0
 BALL_TTL_SECONDS = 8.0
+SPATIAL_MENTION_TTL_SECONDS = 15.0
 QUEUE_CHUNKS = 80  # Approximately 40 seconds PCM with 500 ms producer chunks.
 
 
@@ -64,6 +66,8 @@ class LivePreviewRegistry:
             self._sessions[key] = {
                 "detector": MatchStartDetector(), "ball": None,
                 "ball_time": None, "last_seen": None, "audio_end": 0.,
+                "spatial_mention": None, "spatial_time": None, "spatial_initial_age": 0.,
+                "ball_diagnostic": "phase_not_confirmed",
             }
         session = self._sessions[key]
         before = session["detector"].phase
@@ -72,6 +76,23 @@ class LivePreviewRegistry:
         session["last_seen"] = now
         session["audio_end"] = observation.end_seconds
         phase = detected["phase"]
+        current = match.model_copy(deep=True)
+        if phase == "second_half":
+            current.period = "second_half"
+            for team in (current.home, current.away):
+                team.attack_direction = (
+                    "left_to_right" if team.attack_direction == "right_to_left"
+                    else "right_to_left"
+                )
+        mention = spatial_mention(current, observation.text)
+        age = observation.local_capture_age_seconds
+        session["spatial_mention"] = mention if (
+            mention["status"] == "partial" and (age is None or age <= 5)
+            and phase not in ("half_time",)
+        ) else None
+        session["spatial_time"] = now
+        session["spatial_initial_age"] = age or 0.
+        session["ball_diagnostic"] = "phase_not_confirmed" if not detected["ball_updates_allowed"] else "audio_too_old"
         if before != phase and phase in ("half_time", "second_half"):
             session["ball"] = None
             session["ball_time"] = None
@@ -80,14 +101,6 @@ class LivePreviewRegistry:
         if detected["ball_updates_allowed"] and fresh:
             # Guard GN-056 requires one explicit, current, consistent team+zone.
             # Timestamp is ingestion-relative and NOT verified capture freshness.
-            current = match.model_copy(deep=True)
-            if phase == "second_half":
-                current.period = "second_half"
-                for team in (current.home, current.away):
-                    team.attack_direction = (
-                        "left_to_right" if team.attack_direction == "right_to_left"
-                        else "right_to_left"
-                    )
             current_ball = EstimatedBallState(updated_at=datetime.now(timezone.utc))
             if session["ball"] is not None:
                 current_ball = EstimatedBallState(
@@ -100,6 +113,7 @@ class LivePreviewRegistry:
                 current, current_ball,
                 BallGuardRequest(text=observation.text, observed_age_seconds=0),
             )
+            session["ball_diagnostic"] = decision.reason
             if decision.decision == "candidate" and decision.candidate_zone is not None:
                 session["ball"] = {
                     "team_id": decision.team_id, "player_id": decision.player_id,
@@ -120,11 +134,19 @@ class LivePreviewRegistry:
             and now - session["ball_time"] <= BALL_TTL_SECONDS
             and age <= PREVIEW_STALE_SECONDS
         ) else None
+        mention_age = (session["spatial_initial_age"] + (now - session["spatial_time"])
+                       if session["spatial_time"] is not None else float("inf"))
+        mention = session["spatial_mention"] if (
+            ball is None and age <= PREVIEW_STALE_SECONDS and mention_age <= SPATIAL_MENTION_TTL_SECONDS
+        ) else None
         return {
             **detected, "match_id": key[0], "source_id": key[1],
             "active": age <= PREVIEW_STALE_SECONDS,
             "last_audio_seconds": session["audio_end"],
             "ball": ball, "audio_retransmitted": False,
+            "spatial_mention": ({**mention, "age_seconds": round(mention_age, 2),
+                                 "audio_end_seconds": session["audio_end"]} if mention else None),
+            "ball_diagnostic": session["ball_diagnostic"],
             "persisted": False,
         }
 

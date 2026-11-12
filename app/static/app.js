@@ -4,6 +4,7 @@ const ns = "http://www.w3.org/2000/svg";
 const $ = (id) => document.getElementById(id);
 const field = $("field");
 const {fieldCells, zoneCellBounds} = window.GameNowField;
+const ballMarkerMemory=window.GameNowBallMarker.createMemory();
 const add = (tag, attrs, parent = field) => {
   const el = document.createElementNS(ns, tag);
   Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, String(v)));
@@ -27,6 +28,22 @@ function drawPitch() {
     add("rect",{x:i?800:36,y:165,width:164,height:290,fill:"none",stroke:"#e4fbe8","stroke-width":3});
     add("rect",{x:i?899:36,y:230,width:65,height:160,fill:"none",stroke:"#e4fbe8","stroke-width":3});
   });
+}
+function paintBallMarker(marker){
+  const uncertain=marker.kind==="stale"||marker.kind==="unknown";
+  if(uncertain)$("ball-status").textContent=marker.status;
+  const radius=marker.kind==="unknown"?14:22;
+  const group=add("g",{transform:"translate("+marker.x+" "+marker.y+")",
+    "class":"ball-marker","data-ball-state":marker.kind,role:"img","aria-label":marker.status,
+    opacity:uncertain?0.65:1});
+  add("title",{},group).textContent=marker.status;
+  add("circle",{r:radius,fill:uncertain?"#a9b1ba":"#fffdf6",stroke:marker.kind==="partial"?"#f2c66d":
+    uncertain?"#c4cbd3":"#c2f76d","stroke-width":3,
+    "stroke-dasharray":uncertain||marker.kind==="partial"?"5 3":"none"},group);
+  const inner=add("g",{transform:"scale("+(radius/22)+")"},group);
+  add("polygon",{points:"0,-10 9,-3 6,8 -6,8 -9,-3",fill:uncertain?"#596675":"#1d2935"},inner);
+  [[0,-10,0,-21],[9,-3,20,-7],[6,8,12,18],[-6,8,-12,18],[-9,-3,-20,-7]].forEach(line=>
+    add("line",{x1:line[0],y1:line[1],x2:line[2],y2:line[3],stroke:uncertain?"#596675":"#1d2935","stroke-width":2},inner));
 }
 let previousRenderedEventId=null;
 let previousRenderedZoneKey=null;
@@ -64,6 +81,8 @@ function paintLivePreview(live){
   $("confidence").textContent="Sem região";
   drawPitch();
   const ball=live.active&&live.ball_updates_allowed?live.ball:null;
+  const mention=live.active&&!ball&&live.spatial_mention?.status==="partial"?live.spatial_mention:null;
+  let markerZone=null,markerDirection=null;
   if(ball&&ball.zone){
     const team=[game.home,game.away].find(t=>t.id===ball.team_id);
     if(team){
@@ -71,10 +90,11 @@ function paintLivePreview(live){
       if(live.phase==="second_half")direction=direction==="left_to_right"?
         "right_to_left":"left_to_right";
       const cell=zoneCellBounds(ball.zone,direction);
+      markerZone=ball.zone;markerDirection=direction;
       add("rect",{x:cell.x+4,y:cell.y+4,width:cell.width-8,height:cell.height-8,
         rx:8,fill:"#c2f76d66",stroke:"#deff9e","stroke-width":4,"class":"region-highlight"});
-      add("text",{x:cell.x+cell.width/2,y:cell.y+cell.height/2,
-        fill:"#f4ffe7","font-size":24,"font-weight":800,
+      add("text",{x:cell.x+cell.width/2,y:cell.y+22,
+        fill:"#f4ffe7","font-size":18,"font-weight":800,
         "dominant-baseline":"middle","text-anchor":"middle"}).textContent="REGIÃO";
       $("possession").textContent=team.name;
       const player=game.players.find(p=>p.id===ball.player_id);
@@ -82,15 +102,44 @@ function paintLivePreview(live){
       $("confidence").textContent="Regra textual (não calibrada)";
     }
   }
+  if(mention){
+    const laneNames={left:"esquerdo",center:"central",right:"direito"};
+    const laneName=laneNames[mention.lane];
+    if(laneName){
+      const cells=[1,2,3,4,5].map(band=>zoneCellBounds({band,lane:mention.lane},mention.attack_direction||"left_to_right"));
+      const x=Math.min(...cells.map(cell=>cell.x)),y=Math.min(...cells.map(cell=>cell.y));
+      const width=Math.max(...cells.map(cell=>cell.x+cell.width))-x;
+      const height=Math.max(...cells.map(cell=>cell.y+cell.height))-y;
+      add("rect",{x:x+4,y:y+4,width:width-8,height:height-8,rx:8,
+        fill:"#f2c66d22",stroke:"#f2c66d","stroke-width":3,"stroke-dasharray":"12 8",
+        "class":"spatial-mention","data-spatial-mention":mention.lane,"data-cell-count":5});
+      add("text",{x:x+width/2,y:y+height/2-42,fill:"#ffe3a9","font-size":20,"font-weight":800,
+        "dominant-baseline":"middle","text-anchor":"middle"}).textContent="CORREDOR CITADO";
+      $("last-text").textContent="O último trecho citou o corredor "+laneName+
+        ". Faixa longitudinal, posse e posição da bola não confirmadas.";
+      $("confidence").textContent="Informação espacial parcial";
+    }
+  }else if(!ball){
+    const reason=live.ball_diagnostic||"";
+    if(reason==="audio_too_old")$("last-text").textContent="O texto chegou atrasado para representar a posição atual da bola.";
+    else if(reason.startsWith("possession_"))$("last-text").textContent="O último trecho não confirmou posse e região suficientes para localizar a bola.";
+    else if(reason.startsWith("region_"))$("last-text").textContent="A posse foi citada, mas falta uma indicação espacial suficiente no último trecho.";
+    else if(reason==="not_current_live_play")$("last-text").textContent="O último trecho não trouxe um lance com localização suficiente. Veja a transcrição abaixo.";
+  }
   const hasBall=!!(ball&&ball.zone);
-  $("ball-status").textContent=hasBall?"Zona textual estimada":"Zona desconhecida";
+  $("ball-status").textContent=hasBall?"Zona textual estimada":mention?"Corredor citado · bola incerta":"Zona desconhecida";
+  const marker=ballMarkerMemory.update({context:"live:"+chosenMatch.id+":"+(live.source_id||"unknown"),
+    timeline:live.last_audio_seconds,zone:markerZone,direction:markerDirection,corridor:mention});
+  paintBallMarker(marker);
   field.setAttribute("aria-label",hasBall?
     "Região aproximada inferida de narração; não é rastreamento óptico":
+    mention?"Corredor citado na narração, sem faixa longitudinal ou posição confirmada da bola":
     "Campo sem região confiável durante "+phase);
+  field.setAttribute("aria-label",field.getAttribute("aria-label")+". "+marker.status);
   $("progress").textContent="Áudio desde captura: "+Math.floor(live.last_audio_seconds)+" s";
   $("feed").replaceChildren();
   const li=document.createElement("li");li.className="empty";
-  li.textContent="Monitor local: áudio não reproduzido; transcrição não exibida.";
+  li.textContent="A transcrição do acompanhamento está no painel abaixo.";
   $("feed").append(li);
 }
 async function refreshLivePreview(matchId,epoch){
@@ -105,7 +154,7 @@ async function refreshLivePreview(matchId,epoch){
       showCaptureStatus(capture);
       if(!next&&capture.source_id){
         const running=["starting","running","stopping"].includes(capture.state);
-        next={active:running,phase:running?"Aguardando narração":"capture_stopped",confidence:"none",
+        next={active:running,source_id:capture.source_id,phase:running?"Aguardando narração":"capture_stopped",confidence:"none",
           ball:null,ball_updates_allowed:false,last_audio_seconds:capture.captured_seconds};
       }
     }
@@ -166,11 +215,15 @@ function render(snapshot) {
     add("rect",{x:cell.x+4,y:cell.y+4,width:cell.width-8,height:cell.height-8,
       rx:8,fill:"#c2f76d66",stroke:"#deff9e","stroke-width":4,
       "class":view.animate?"region-highlight region-change":"region-highlight"});
-    add("text",{x:cell.x+cell.width/2,y:cell.y+cell.height/2,
-      fill:"#f4ffe7","font-size":24,"font-weight":800,
+    add("text",{x:cell.x+cell.width/2,y:cell.y+22,
+      fill:"#f4ffe7","font-size":18,"font-weight":800,
       "dominant-baseline":"middle","text-anchor":"middle"},field).textContent="REGIÃO";
   }
+  const marker=ballMarkerMemory.update({context:"demo:"+match.id,epoch:snapshot.stream_id,
+    timeline:snapshot.step,reset:snapshot.step===0,zone:view.zone,direction:view.direction});
+  paintBallMarker(marker);
   field.setAttribute("aria-label",view.ariaLabel);
+  field.setAttribute("aria-label",view.ariaLabel+". "+marker.status);
   previousRenderedEventId=active?.id??null;
   previousRenderedZoneKey=view.zoneKey;
   $("progress").textContent=snapshot.step+" / "+snapshot.total_steps+" relatos";
@@ -238,6 +291,7 @@ $("reset").addEventListener("click",async()=>{
 });
 updateDemoControls();
 drawPitch();
+paintBallMarker(window.GameNowBallMarker.present(null,{context:"loading"}));
 demoSync.start();
 
 /* CRUD UI: match configuration and player positions are separate from the demo feed. */

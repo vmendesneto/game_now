@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 
 def run(args):
     from playwright.sync_api import expect, sync_playwright
-    base = "http://127.0.0.1:8000"
+    base = f"http://127.0.0.1:{args.port}"
     path = "/api/matches/" + args.match_id
     output = args.output
     output.mkdir(parents=True, exist_ok=True)
@@ -27,13 +27,14 @@ def run(args):
                 contexts.append(context)
                 context.tracing.start(screenshots=True, snapshots=True)
                 context.on("request", lambda request: (
-                    external.append(request.url) if urlsplit(request.url).netloc != "127.0.0.1:8000" else None))
+                    external.append(request.url) if urlsplit(request.url).netloc != f"127.0.0.1:{args.port}" else None))
                 page = context.new_page()
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 context.on("request", lambda request: media.append(request.url)
                            if request.resource_type == "media" else None)
                 pages.append(page)
                 page.goto(base)
+                expect(page.locator("#field .ball-marker")).to_have_count(1)
                 page.locator("#match-picker").select_option(args.match_id)
                 expect(page.locator("#capture-source option[value='" + args.source_id + "']")).to_have_count(1)
             first, second = pages
@@ -50,6 +51,7 @@ def run(args):
             deadline = time.monotonic() + args.seconds + 300
             requests, max_api_seconds = 0, 0.
             in_play_observed = False
+            spatial_mention_observed = False
             while time.monotonic() < deadline:
                 at = time.monotonic()
                 health = second.request.get(base + "/health")
@@ -57,6 +59,20 @@ def run(args):
                 assert health.ok
                 status = first.request.get(base + path + "/capture").json()
                 preview = first.request.get(base + path + "/live/preview").json()
+                if preview and preview.get("spatial_mention") and not spatial_mention_observed:
+                    spatial_mention_observed = True
+                    if args.expect_spatial_mention:
+                        for page in pages:
+                            rect = page.locator("#field .spatial-mention[data-cell-count='5']")
+                            expect(rect).to_have_count(1)
+                            assert float(rect.get_attribute("width")) > 900
+                            expect(page.locator("#ball-status")).to_have_text("Corredor citado · bola incerta")
+                            expect(page.locator("#field .region-highlight")).to_have_count(0)
+                            marker=page.locator("#field .ball-marker")
+                            expect(marker).to_have_attribute("data-ball-state","partial")
+                            if preview["spatial_mention"]["lane"]=="center":
+                                expect(marker).to_have_attribute("transform","translate(500 310)")
+                        first.locator("#field").screenshot(path=str(output / "partial-corridor.png"))
                 if preview and preview["active"] and preview["phase"] == "in_play" and not in_play_observed:
                     in_play_observed = True
                     if args.expect_in_play:
@@ -74,9 +90,15 @@ def run(args):
             assert status["observations"] > 0, status
             if args.expect_in_play:
                 assert in_play_observed, "Current play was not confirmed during the recording"
+            if args.expect_spatial_mention:
+                assert spatial_mention_observed, "No partial corridor reached the actual pitch"
             for page in pages:
                 expect(page.locator("#transcript-entry-list li")).not_to_have_count(0)
                 expect(page.locator("#transcript-entry-list")).not_to_contain_text("Nenhuma transcrição")
+                expect(page.locator("#field .ball-marker")).to_have_count(1)
+                expect(page.locator("#field .ball-marker")).to_have_attribute(
+                    "data-ball-state", "stale" if spatial_mention_observed else "unknown")
+                expect(page.locator("#field .spatial-mention")).to_have_count(0)
             assert first.request.get(base + path + "/state").json() == persisted_before
             assert not external and not media and not errors, (external, media, errors)
             assert first.locator("audio,video,iframe").count() == 0
@@ -124,6 +146,8 @@ def run(args):
                       "external_browser_requests": len(external), "media_browser_requests": len(media),
                       "accuracy_measured": False}
             report["in_play_observed"] = in_play_observed
+            report["spatial_mention_observed"] = spatial_mention_observed
+            report["ball_symbol_persisted_after_evidence_expired"] = True
             (output / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
             return report
         finally:
@@ -145,8 +169,11 @@ def main():
     parser.add_argument("--window-seconds", type=int, default=12, choices=range(6, 31))
     parser.add_argument("--model", choices=("tiny", "base", "small", "medium"), default="base")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--port", type=int, default=8000, choices=range(1, 65536))
     parser.add_argument("--expect-in-play", action="store_true",
                         help="Require live-play phase in both browsers during this known game excerpt")
+    parser.add_argument("--expect-spatial-mention", action="store_true",
+                        help="Require a visibly partial five-band corridor without a confirmed ball zone")
     args = parser.parse_args()
     if not args.permission_confirmed:
         parser.error("Confirm authorization for the registered source")

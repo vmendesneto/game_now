@@ -1,5 +1,16 @@
 # STATUS — Game Now
 
+## Correção atual — GN-083: corredor citado e bola sempre visível (2026-11-12)
+
+Atualizado: 2026-11-12
+Última tarefa integral concluída: GN-085. GN-083 permanece [ ]; esta entrega corrige a apresentação espacial.
+Evidência: `app/spatial_mentions.py` separa o último corredor explicitamente citado de uma posição completa da bola. A prévia exibe faixa tracejada das cinco regiões longitudinais; `band=null`, sem confirmar posse. Lados exigem equipe/direção inequívocas; corredor central pode ser independente de equipe. Vetos a comercial, replay, análise, histórico, futuro e negação continuam ativos. GN-056 e ContractBundle v1 permanecem preservados.
+Pedido do usuário: o símbolo da bola nunca desaparece. `app/static/ball_marker.js` ancora o desenho no meio do corredor citado; no corredor central fica no círculo central (500,310 no SVG), sem transformar isso em evidência de faixa longitudinal. Informação vencida deixa somente o último marcador visual cinza, com posição atual desconhecida; antes da primeira indicação o símbolo fica na margem. Zona/posse/jogador atuais continuam ocultos sem evidência. Memória visual limitada e separada por partida/fonte, com reset de sessão/demo e retrocesso temporal.
+Testes: suíte completa Windows **756 passed, 4 skipped**, incluindo seis testes Node do marcador e regressões de interpretação/TTL/isolamento. Sintaxe JS, schema v1 e diff verificados. Playwright real em porta isolada 8001, dois contextos Chromium, YouTube autorizado desde 575s, small/quatro threads/janelas12s: **60s PCM, seis textos**, fase em andamento, corredor tracejado nos dois clientes, símbolo central em (500,310) e persistência cinza após vencer informação. Reinício/parada após 1s PCM real; estado salvo intacto; zero erros JS, mídia ou requisições externas no navegador. 77 consultas health, máximo 0,032s observado; não é medição fim a fim. Artefatos privados: `data/spatial-ball-browser/report.json` e `partial-corridor.png`.
+Limitações: marcador esquemático não rastreia coordenada exata; trecho real comprova integração/apresentação, não acurácia de região/jogador/posse nem partida inteira. GN-083/GN-084 continuam abertas. A indicação parcial expira no backend; somente a âncora visual permanece no cliente.
+Próxima tarefa: continuar avaliação GN-083 com evidência independente, sem fabricar métricas ou enfraquecer a guarda de posição completa.
+Como continuar: `docs/GN-083-CAPTURE.md`; `scripts.gn083_browser_check --port 8001 ... --expect-in-play --expect-spatial-mention`. CI do HEAD definitivo deve passar antes do merge.
+
 ## Correção atual — GN-083: reconhecer entrada no meio do jogo (2026-11-12)
 
 Atualizado: 2026-11-12

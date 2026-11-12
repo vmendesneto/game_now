@@ -122,3 +122,29 @@ verifica dois clientes e ausência de escrita em `/state`; não substitui avalia
 humana de lances, comparação GN-044/045 ou ensaio de partida completa GN-084.
 Acrescente `--expect-in-play` para exigir que o estado Jogo em andamento apareça
 efetivamente nos dois navegadores durante um trecho previamente conferido.
+
+## Corredor citado e símbolo persistente (2026-11-12)
+
+A narração pode indicar apenas um corredor, sem determinar sua faixa ao longo
+do campo. Essa indicação aparece como faixa tracejada nas cinco regiões, com
+`band:null` e sem confirmar posse. Lados exigem equipe/direção inequívocas;
+o corredor central independe da direção. A guarda de posição completa não usa
+essa indicação para autorizar um lance.
+
+Por pedido do usuário, o símbolo da bola permanece visível: no centro do desenho
+do corredor citado (círculo central em corredor central), em cinza no último
+marcador visual quando faltam dados atuais, ou na margem antes da primeira
+evidência. A âncora do símbolo não comprova uma faixa longitudinal ou coordenada
+exata. Ao vencer a informação, zona/posse/jogador continuam desconhecidos e o
+rótulo explica isso. Contextos e resets não reaproveitam posições alheias.
+
+Validado com **756 passed/4 skipped** neste Windows, incluindo seis testes Node
+do marcador. Playwright real em dois contextos: 60s PCM desde575s, small/12s de
+janela/quatro threads, seis textos; corredor central com símbolo em (500,310),
+fase em andamento e símbolo cinza após vencer a evidência. Reinício/parada com
+PCM real, sem mídia/requisições externas/erro JS/escrita de estado. Relatório
+privado `data/spatial-ball-browser/report.json`. Nenhuma acurácia foi medida.
+
+O script aceita `--port 8001` para testar um servidor com banco isolado sem
+interferir no painel principal. Acrescente `--expect-spatial-mention` para exigir
+faixa tracejada das cinco regiões e marcador parcial nos dois clientes.

@@ -262,3 +262,13 @@ class MatchStartDetector:
             "recent_evidence": [asdict(e) for e in self._recent],
             "confidence_calibrated": False,
         }
+
+
+def current_play_cue(text: str) -> str | None:
+    """Read-only eligibility for other text evidence; never advances phase."""
+    if not isinstance(text, str) or not text.strip() or len(text) > 2048:
+        return None
+    folded = _fold(text)
+    if MatchStartDetector._is_blocked(text, folded):
+        return None
+    return MatchStartDetector._current_play_cue(text, folded)
