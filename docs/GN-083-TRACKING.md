@@ -79,3 +79,42 @@ do alinhamento; o watermark bloqueia regressões. Esse modo é descrito em
 
 Essas quantidades medem saídas e verificações de integração; não contam todos os
 passes reais e não medem acurácia, WER ou qualidade de posse. **GN-083 segue [ ].**
+
+## Inspeção de ações e marcador parado
+
+O painel **Por que a bola mudou — ou não mudou?** reanalisa os textos retidos
+com o elenco atual, sem alterar a partida. Cada registro mostra fonte, janela,
+frase original, ação, atleta/equipe, informação espacial e motivo do desenho:
+área nova, mesma área representada, ausência de pista espacial ou ausência de
+ação nomeada. Os filtros aceitam nomes sem acentos. A coordenada exibida é a
+âncora SVG da área inteira; não é a posição física da bola.
+
+`GET /api/matches/{id}/actions/diagnostics` processa até200 janelas em thread
+separada. Retorna fingerprint da configuração usada e informa que não reconstrói
+a seleção histórica de fontes. Depois de editar elenco/direções, reanalisar
+pode produzir resultado diferente. O contexto original do áudio não é verificado.
+
+Na sequência relatada pelo usuário, os textos130–142s citam Zé Lucas no corredor
+direito do Cruzeiro;140–152s citam domínio de David Duarte sem região extraída;
+200–212s citam Fagner no corredor direito. Esses corredores ocupam as cinco
+faixas longitudinais; o centro do desenho fica igual. O esquerdo do Bahia e o
+direito do Cruzeiro coincidem pela direção de ataque. Falta de identificação
+entre janelas significa desconhecimento, não bola parada ou sem dono.
+
+Para guardar uma reanálise por solicitação explícita:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.export_action_diagnostics --match-id cruzeiro-bahia-gn083
+```
+
+O CLI também aceita `--input caminho/do/relatorio.json`, previamente exportado.
+Salva somente texto/metadados em `data/action-audits`, sem prazo automático de
+expiração; não é executado automaticamente durante capturas. **Abrir análise
+salva** usa `?saved=true`, filtra fontes removidas e avisa se o contexto atual
+mudou. Nunca importa o relatório como observação ao vivo ou escreve estado do
+jogo. Arquivos privados não entram no Git.
+
+Validação desta entrega:811 passed/4 skipped neste Windows, incluindo quatro
+casos Node de área/motivo. Playwright real reanalisou texto já capturado, verificou
+Zé Lucas/Fagner na mesma área, Duarte sem localização, filtros, estado intacto e
+390px sem overflow. Isso não é nova validação de áudio nem medição de acurácia.

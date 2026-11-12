@@ -74,11 +74,18 @@ function paintLivePreview(live){
   $("action").textContent=livePhaseNames[phase]||phase;
   $("last-confirmed-event").textContent=
     "Narração analisada; nenhum evento/placar confirmado automaticamente.";
+  const lastNamedAction=(live.narration_actions||[]).at(-1);
+  if(lastNamedAction){
+    const lastPlayer=game.players.find(p=>p.id===lastNamedAction.player_id);
+    const lastTeam=[game.home,game.away].find(t=>t.id===lastNamedAction.team_id);
+    $("last-confirmed-event").textContent="Última identificação no texto: "+
+      (lastPlayer?.name||lastTeam?.name||"equipe")+". Isso não confirma a posse atual.";
+  }
   $("last-text").textContent=live.ball?
     "Região estimada exclusivamente por posse e zona explícitas na narração.":
     "Aguardando evidências suficientes de início e de posse + região. A transcrição está no painel abaixo.";
-  $("possession").textContent="Desconhecida";
-  $("player").textContent="Desconhecido";
+  $("possession").textContent="Não confirmada neste trecho";
+  $("player").textContent="Não identificado neste trecho";
   $("confidence").textContent="Sem região";
   drawPitch();
   const ball=live.active&&live.ball_updates_allowed?live.ball:null;
@@ -177,6 +184,11 @@ function paintLivePreview(live){
   field.setAttribute("aria-label",field.getAttribute("aria-label")+". "+marker.status);
   $("progress").textContent="Áudio desde captura: "+Math.floor(live.last_audio_seconds)+" s";
   $("feed").replaceChildren();
+  const historyDetails=new Map();let previousHistoryArea=null;
+  for(const event of live.narration_actions||[]){
+    const detail=window.GameNowActionAudit.describe(event,previousHistoryArea);
+    previousHistoryArea=detail.areaKey;historyDetails.set(event.id,detail);
+  }
   for(const event of (live.narration_actions||[]).slice(-12).reverse()){
     const player=game.players.find(p=>p.id===event.player_id);
     const team=[game.home,game.away].find(t=>t.id===event.team_id);
@@ -188,6 +200,9 @@ function paintLivePreview(live){
       (event.kind==="pass_target"?" (destino citado; recepção não confirmada)":"")+
       (event.region?" · "+event.region.label:"");
     $("feed").append(li);
+    const detail=document.createElement("small");
+    detail.textContent=historyDetails.get(event.id).explanation;
+    li.append(detail);
   }
   if(!$("feed").children.length){
     const li=document.createElement("li");li.className="empty";
@@ -354,6 +369,55 @@ demoSync.start();
 
 /* CRUD UI: match configuration and player positions are separate from the demo feed. */
 let configuredMatches = [];
+let actionAuditRows=[];
+let actionAuditSaved=false;
+function renderActionAudit(){
+  const normalize=value=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
+  const search=normalize($("action-audit-filter").value.trim());
+  const list=$("action-audit-list");list.replaceChildren();
+  const stamp=seconds=>Math.floor(seconds/60)+":"+String(Math.floor(seconds%60)).padStart(2,"0");
+  let shown=0;
+  for(const row of actionAuditRows){
+    const text=[row.player,row.team,row.source_name,row.text,row.action?.cue,row.explanation].join(" ");
+    if(search&&!normalize(text).includes(search))continue;
+    const item=document.createElement("li");item.dataset.reason=row.code;
+    const title=document.createElement("strong");
+    title.textContent=row.source_name+" · trecho "+stamp(row.audio_start_seconds)+"–"+stamp(row.audio_end_seconds)+
+      " da captura"+(row.action?" · "+row.player+" / "+row.team+" · "+row.action.cue:"");
+    const phrase=document.createElement("p");phrase.textContent="Transcrição: "+row.text;
+    const reason=document.createElement("p");reason.textContent=row.explanation;
+    item.append(title,phrase,reason);
+    if(row.requested_video_start_seconds!==null&&row.requested_video_start_seconds!==undefined){
+      const videoTime=document.createElement("small");videoTime.textContent="Vídeo: "+stamp(row.requested_video_start_seconds)+
+        "–"+stamp(row.requested_video_end_seconds)+" (início solicitado, não verificado).";item.append(videoTime);
+    }
+    if(row.action?.kind==="pass_target"){
+      const note=document.createElement("small");note.textContent="Destinatário citado; recepção não confirmada.";item.append(note);
+    }
+    if(row.anchor){
+      const coordinate=document.createElement("small");
+      coordinate.textContent="Âncora do desenho: ("+Math.round(row.anchor.x)+", "+Math.round(row.anchor.y)+"). É representação da área, não coordenada física.";
+      item.append(coordinate);
+    }
+    if(shown<200)list.append(item);shown++;
+  }
+  $("action-audit-status").textContent=(actionAuditSaved?"Análise salva · ":"")+Math.min(shown,200)+" de "+shown+" registros filtrados · reanálise, sem alterar o jogo.";
+}
+$("action-audit-filter").addEventListener("input",renderActionAudit);
+async function loadActionAudit(saved=false){
+  if(!chosenMatch)return;
+  const matchId=chosenMatch.id;$("action-audit-load").disabled=true;$("action-audit-saved").disabled=true;
+  try{
+    const report=await configApi("/api/matches/"+encodeURIComponent(matchId)+"/actions/diagnostics"+(saved?"?saved=true":""));
+    if(chosenMatch?.id!==matchId)return;
+    actionAuditSaved=!!report.saved_report;
+    actionAuditRows=window.GameNowActionAudit.analyze(report);renderActionAudit();
+    if(report.current_context_matches===false)$("action-audit-status").textContent+=" O elenco/configuração atual difere do usado nesta análise.";
+  }catch(error){if(chosenMatch?.id===matchId)$("action-audit-status").textContent="Não foi possível analisar: "+error.message;}
+  finally{$("action-audit-load").disabled=false;$("action-audit-saved").disabled=false;}
+}
+$("action-audit-load").addEventListener("click",()=>loadActionAudit(false));
+$("action-audit-saved").addEventListener("click",()=>loadActionAudit(true));
 let chosenMatch = null;
 let currentRoster = [];
 let registeredSources = [];
@@ -389,6 +453,7 @@ async function configApi(path, method="GET", body) {
   return response.status===204?null:response.json();
 }
 function blankMatch() {
+  actionAuditRows=[];actionAuditSaved=false;$("action-audit-filter").value="";$("action-audit-list").replaceChildren();$("action-audit-panel").hidden=true;
   stopLivePolling();
   if(lastDemoSnapshot)render(lastDemoSnapshot);
   stopTranscriptDiagnostics();
@@ -416,6 +481,8 @@ function blankMatch() {
   updateSetupProgress();
 }
 function showMatch(match) {
+  actionAuditRows=[];actionAuditSaved=false;$("action-audit-filter").value="";$("action-audit-list").replaceChildren();$("action-audit-panel").hidden=false;
+  $("action-audit-status").textContent="Nenhuma análise solicitada para esta partida.";
   chosenMatch=match;
   $("match-picker").value=match.id;
   $("home-input").value=match.home.name;
