@@ -60,10 +60,11 @@ function paintLivePreview(live){
   if(!chosenMatch)return;
   $("connection").textContent="Servidor conectado · Acompanhamento";
   const game=chosenMatch;
-  const phase=live.active?live.phase:(live.phase==="capture_stopped"?"Acompanhamento encerrado":"sem atualizações recentes");
+  const phase=live.active?(live.group_phase||live.phase):(live.phase==="capture_stopped"?"Acompanhamento encerrado":"sem atualizações recentes");
   $("live-monitor-state").hidden=false;
   $("live-monitor-state").textContent="Acompanhamento · "+(livePhaseNames[phase]||phase)+
-    " · confiança heurística "+(liveConfidenceNames[live.confidence]||"não medida");
+    " · confiança heurística "+(liveConfidenceNames[live.group_phase_confidence||live.confidence]||"não medida")+
+    (live.fusion?" · "+(registeredSources.find(s=>s.id===live.fusion.active_source_id)?.name||"Sem fonte narrando lance atual"):"");
   $("home-name").textContent=game.home.name;
   $("away-name").textContent=game.away.name;
   $("home-score").textContent=game.home_score;
@@ -81,7 +82,12 @@ function paintLivePreview(live){
   $("confidence").textContent="Sem região";
   drawPitch();
   const ball=live.active&&live.ball_updates_allowed?live.ball:null;
-  const mention=live.active&&!ball&&live.spatial_mention?.status==="partial"?live.spatial_mention:null;
+  const tracking=live.active?live.latest_narration_action:null;
+  const spatialTracking=live.active?(live.latest_narration_region_action||tracking):null;
+  const partialRegion=!ball&&spatialTracking?spatialTracking.region:null;
+  $("possession-label").textContent=tracking&&!ball?"Equipe do lance":"Posse provável";
+  $("player-label").textContent=tracking&&!ball?"Atleta do lance":"Jogador provável";
+  const mention=live.active&&!ball&&!tracking&&live.spatial_mention?.status==="partial"?live.spatial_mention:null;
   let markerZone=null,markerDirection=null;
   if(ball&&ball.zone){
     const team=[game.home,game.away].find(t=>t.id===ball.team_id);
@@ -102,7 +108,15 @@ function paintLivePreview(live){
       $("confidence").textContent="Regra textual (não calibrada)";
     }
   }
-  if(mention){
+  if(partialRegion){
+    const bounds=window.GameNowBallMarker.regionBounds(partialRegion);
+    if(bounds){
+      add("rect",{x:bounds.x+4,y:bounds.y+4,width:bounds.width-8,height:bounds.height-8,
+        fill:"#f2c66d22",stroke:"#f2c66d","stroke-width":3,"stroke-dasharray":"12 8",
+        "class":"narration-region","data-region-label":partialRegion.label});
+      $("confidence").textContent="Região parcial citada";
+    }
+  }else if(mention){
     const laneNames={left:"esquerdo",center:"central",right:"direito"};
     const laneName=laneNames[mention.lane];
     if(laneName){
@@ -127,20 +141,59 @@ function paintLivePreview(live){
     else if(reason==="not_current_live_play")$("last-text").textContent="O último trecho não trouxe um lance com localização suficiente. Veja a transcrição abaixo.";
   }
   const hasBall=!!(ball&&ball.zone);
-  $("ball-status").textContent=hasBall?"Zona textual estimada":mention?"Corredor citado · bola incerta":"Zona desconhecida";
-  const marker=ballMarkerMemory.update({context:"live:"+chosenMatch.id+":"+(live.source_id||"unknown"),
-    timeline:live.last_audio_seconds,zone:markerZone,direction:markerDirection,corridor:mention});
+  $("ball-status").textContent=hasBall?"Zona textual estimada":partialRegion?"Região parcial citada · bola incerta":mention?"Corredor citado · bola incerta":"Zona desconhecida";
+  const marker=ballMarkerMemory.update({context:"live:"+chosenMatch.id+":"+(live.visual_context||live.source_id||"unknown"),
+    timeline:live.visual_timeline??live.last_audio_seconds,epoch:live.visual_context,
+    zone:markerZone,direction:markerDirection,region:partialRegion,corridor:mention});
   paintBallMarker(marker);
+  if(tracking&&!ball){
+    const team=[game.home,game.away].find(t=>t.id===tracking.team_id);
+    const player=game.players.find(p=>p.id===tracking.player_id);
+    $("possession").textContent=team?.name||"Desconhecida";
+    $("player").textContent=player?.name||"Não identificado";
+    $("last-text").textContent=(tracking.kind==="pass_target"?"Destino de passe citado: ":"Ação citada: ")+
+      (player?.name||team?.name||"não identificado")+" · "+tracking.cue+
+      (partialRegion?". Região parcial: "+partialRegion.label:". Localização não determinada neste lance")+".";
+    const annotation=partialRegion?spatialTracking:tracking;
+    const annotationPlayer=game.players.find(p=>p.id===annotation.player_id);
+    const annotationTeam=[game.home,game.away].find(t=>t.id===annotation.team_id);
+    if(partialRegion&&spatialTracking.player_id!==tracking.player_id)$("last-text").textContent+=
+      " A última região citada pertence à ação de "+(annotationPlayer?.name||annotationTeam?.name||"equipe")+"; a posição do próximo atleta não foi confirmada.";
+    const symbol=field.querySelector(".ball-marker");
+    symbol.setAttribute("data-player-id",annotation.player_id||"");
+    symbol.setAttribute("data-team-id",annotation.team_id||"");
+    symbol.setAttribute("data-latest-player-id",tracking.player_id||"");
+    symbol.setAttribute("data-latest-team-id",tracking.team_id||"");
+    symbol.setAttribute("data-action-id",tracking.id);
+    add("circle",{r:28,fill:"none",stroke:annotationTeam?.color||"#a9b1ba","stroke-width":4},symbol);
+    add("text",{x:0,y:45,fill:"#fff","font-size":16,"text-anchor":"middle",
+      "paint-order":"stroke",stroke:"#18382b","stroke-width":4},symbol).textContent=annotationPlayer?.name||annotationTeam?.name||"";
+  }
   field.setAttribute("aria-label",hasBall?
     "Região aproximada inferida de narração; não é rastreamento óptico":
+    partialRegion?"Região parcial citada na ação narrada, sem posição exata confirmada":
     mention?"Corredor citado na narração, sem faixa longitudinal ou posição confirmada da bola":
     "Campo sem região confiável durante "+phase);
   field.setAttribute("aria-label",field.getAttribute("aria-label")+". "+marker.status);
   $("progress").textContent="Áudio desde captura: "+Math.floor(live.last_audio_seconds)+" s";
   $("feed").replaceChildren();
-  const li=document.createElement("li");li.className="empty";
-  li.textContent="A transcrição do acompanhamento está no painel abaixo.";
-  $("feed").append(li);
+  for(const event of (live.narration_actions||[]).slice(-12).reverse()){
+    const player=game.players.find(p=>p.id===event.player_id);
+    const team=[game.home,game.away].find(t=>t.id===event.team_id);
+    const li=document.createElement("li");li.className="narration-action";
+    li.dataset.actionId=event.id;li.dataset.playerId=event.player_id||"";li.dataset.teamId=event.team_id||"";
+    const stamp=seconds=>Math.floor(seconds/60)+":"+String(Math.floor(seconds%60)).padStart(2,"0");
+    li.textContent="Trecho "+stamp(event.audio_start_seconds)+"–"+stamp(event.audio_end_seconds)+
+      " da captura · "+(team?.name||"")+" · "+(player?.name||"equipe")+" · "+event.cue+
+      (event.kind==="pass_target"?" (destino citado; recepção não confirmada)":"")+
+      (event.region?" · "+event.region.label:"");
+    $("feed").append(li);
+  }
+  if(!$("feed").children.length){
+    const li=document.createElement("li");li.className="empty";
+    li.textContent="Nenhuma ação com atleta/equipe identificados neste trecho. Veja a transcrição abaixo.";
+    $("feed").append(li);
+  }
 }
 async function refreshLivePreview(matchId,epoch){
   try{
@@ -155,7 +208,10 @@ async function refreshLivePreview(matchId,epoch){
       if(!next&&capture.source_id){
         const running=["starting","running","stopping"].includes(capture.state);
         next={active:running,source_id:capture.source_id,phase:running?"Aguardando narração":"capture_stopped",confidence:"none",
-          ball:null,ball_updates_allowed:false,last_audio_seconds:capture.captured_seconds};
+          ball:null,ball_updates_allowed:false,last_audio_seconds:capture.captured_seconds,
+          visual_context:capture.visual_context,
+          visual_timeline:capture.visual_context?(activeLivePreview?.visual_context===capture.visual_context?
+            activeLivePreview.visual_timeline:0):undefined};
       }
     }
     if(!livePreviewVisible)return;
@@ -188,6 +244,8 @@ function startLivePolling(matchId){
   livePollTimer=setInterval(()=>refreshLivePreview(matchId,epoch),1500);
 }
 function render(snapshot) {
+  $("possession-label").textContent="Posse provável";
+  $("player-label").textContent="Jogador provável";
   lastDemoSnapshot=snapshot;
   if(activeLivePreview&&chosenMatch){paintLivePreview(activeLivePreview);return;}
   const data=snapshot.data,match=data.match,ball=data.ball;
@@ -740,6 +798,13 @@ function showSavedSources(){
     const option=document.createElement("option");option.value=source.id;option.textContent=source.name;picker.append(option);
   }
   if([...picker.options].some(option=>option.value===previous))picker.value=previous;
+  const second=$("capture-second-source"),oldSecond=second.value;
+  second.replaceChildren();
+  for(const source of registeredSources.filter(source=>source.enabled&&source.url&&source.kind==="youtube")){
+    const option=document.createElement("option");option.value=source.id;option.textContent=source.name;second.append(option);
+  }
+  second.value=[...second.options].some(o=>o.value===oldSecond)?oldSecond:
+    [...second.options].find(o=>o.value!==picker.value)?.value||"";
   const list=$("source-list");
   list.replaceChildren();
   if(!registeredSources.length){
@@ -752,7 +817,7 @@ function showSavedSources(){
     title.textContent=source.name+" · "+(source.kind==="radio"?"Rádio":"YouTube");
     const detail=document.createElement("small");
     detail.textContent=(source.enabled?"Habilitada":"Desabilitada")+
-      " · Não capturando · "+(source.url||"URL não informada");
+      " · Fonte cadastrada · "+(source.url||"URL não informada");
     description.append(title,detail);
     const buttons=document.createElement("div");buttons.className="roster-actions";
     const edit=document.createElement("button");
@@ -836,12 +901,21 @@ function showCaptureStatus(status){
   $("capture-status").textContent=(names[status.state]||"Estado desconhecido")+" · "+
     Math.floor(status.captured_seconds||0)+" s de áudio · "+(status.observations||0)+" trechos textuais"+
     (status.error_code?" · "+(errors[status.error_code]||"Falha na origem da mídia."):"");
+  if(status.streams)$("capture-status").textContent+=" · "+status.streams.map(stream=>
+    (registeredSources.find(s=>s.id===stream.source_id)?.name||stream.source_id)+": "+
+    (names[stream.state]||stream.state)+" ("+Math.floor(stream.captured_seconds)+" s)"+
+    (stream.error_code?" · "+(errors[stream.error_code]||"Falha na origem da mídia."):"")).join(" · ");
   $("capture-start-button").disabled=running;
   $("capture-stop").disabled=!running||status.state==="stopping";
 }
 $("capture-continuous").addEventListener("change",()=>{
   const continuous=$("capture-continuous").checked;
   $("capture-seconds").disabled=continuous;$("capture-seconds").required=!continuous;
+});
+$("capture-parallel").addEventListener("change",()=>{
+  const enabled=$("capture-parallel").checked;
+  $("capture-parallel-fields").hidden=!enabled;
+  for(const id of ["capture-kickoff","capture-second-kickoff","capture-second-source"])$(id).required=enabled;
 });
 $("capture-form").addEventListener("submit",async event=>{
   event.preventDefault();if(!chosenMatch)return;
@@ -852,7 +926,10 @@ $("capture-form").addEventListener("submit",async event=>{
       source_id:$("capture-source").value,model:$("capture-model").value,
       start_seconds:Number($("capture-start").value),
       seconds:$("capture-continuous").checked?null:Number($("capture-seconds").value),
-      window_seconds:Number($("capture-window").value),permission_confirmed:$("capture-permission").checked});
+      window_seconds:Number($("capture-window").value),permission_confirmed:$("capture-permission").checked,
+      ...($("capture-parallel").checked?{kickoff_seconds:Number($("capture-kickoff").value),parallel_sources:[{
+        source_id:$("capture-second-source").value,kickoff_seconds:Number($("capture-second-kickoff").value),
+        start_seconds:Number($("capture-second-kickoff").value)+Number($("capture-start").value)-Number($("capture-kickoff").value)}]}:{})});
     showCaptureStatus(status);formNotice("capture-message","Acompanhamento iniciado. O painel de transcrição receberá somente texto.");
     await loadTranscriptDiagnostics();
   }catch(error){$("capture-start-button").disabled=false;formNotice("capture-message",error.message,true);}

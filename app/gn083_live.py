@@ -9,7 +9,8 @@ from __future__ import annotations
 import asyncio
 from contextlib import aclosing
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from uuid import uuid4
 import time
 from typing import Awaitable, Callable
 
@@ -20,10 +21,12 @@ from app.asr_vocabulary import build_vocabulary_prompt
 from app.asr_windows import RollingASRProcessor, WindowSettings
 from app.ball_guard import BallGuardRequest, guard_ball_movement
 from app.contracts import AudioSource, EstimatedBallState, Match, StrictModel
-from app.match_start_detection import MatchStartDetector
+from app.match_start_detection import MatchStartDetector, current_play_cue
 from app.source_validation import validate_source_urls
 from app.storage import StoreConflict
 from app.spatial_mentions import spatial_mention
+from app.narration_tracking import track_narration
+from app.source_selection import SourceSelectionRequest, SourceSelectionObservation, preview_active_source
 from app.youtube_capture import youtube_pcm_chunks
 
 PREVIEW_STALE_SECONDS = 30.0
@@ -57,6 +60,19 @@ class LivePreviewRegistry:
     def __init__(self, *, clock: Callable[[], float] = time.monotonic):
         self.clock = clock
         self._sessions: dict[tuple[str, str], dict] = {}
+        self._groups: dict[str, dict] = {}
+
+    def set_alignment(self, match_id: str, offsets: dict[str, float]) -> str:
+        self._groups[match_id] = {"offsets": offsets.copy(), "selected": None,
+                                 "watermark": float("-inf"), "id": uuid4().hex,
+                                 "phase": "pre_game", "phase_confidence": "none"}
+        return self._groups[match_id]["id"]
+
+    def _remember_phase(self, match_id: str, detected: dict) -> None:
+        group = self._groups.get(match_id)
+        phases = ("pre_game", "probable_start", "in_play", "half_time", "second_half")
+        if group and phases.index(detected["phase"]) > phases.index(group["phase"]):
+            group["phase"], group["phase_confidence"] = detected["phase"], detected["confidence"]
 
     def receive(self, match: Match, observation: LiveObservation) -> dict:
         if observation.end_seconds < observation.start_seconds:
@@ -68,10 +84,14 @@ class LivePreviewRegistry:
                 "ball_time": None, "last_seen": None, "audio_end": 0.,
                 "spatial_mention": None, "spatial_time": None, "spatial_initial_age": 0.,
                 "ball_diagnostic": "phase_not_confirmed",
+                "action_history": [], "actions_time": None, "actions_initial_age": 0.,
+                "latest_action": None,
+                "latest_region_action": None,
             }
         session = self._sessions[key]
         before = session["detector"].phase
         detected = session["detector"].consume(observation.model_dump())
+        self._remember_phase(match.id, detected)
         now = self.clock()
         session["last_seen"] = now
         session["audio_end"] = observation.end_seconds
@@ -86,6 +106,28 @@ class LivePreviewRegistry:
                 )
         mention = spatial_mention(current, observation.text)
         age = observation.local_capture_age_seconds
+        session["current_play"] = current_play_cue(observation.text)
+        actions = track_narration(current, observation.text) if phase != "half_time" else []
+        history = session["action_history"]
+        for index, action in enumerate(actions):
+            # Only identical text in overlapping windows is a duplicate. This
+            # does not claim event alignment across different sources.
+            if any(old["text"] == action["text"] and old["kind"] == action["kind"]
+                   and old["player_id"] == action["player_id"] and old["team_id"] == action["team_id"]
+                   and observation.start_seconds < old["audio_end_seconds"]
+                   for old in history[-32:]):
+                continue
+            history.append({**action, "id": f"{observation.source_id}:{observation.sequence}:{index}",
+                            "audio_start_seconds": observation.start_seconds,
+                            "audio_end_seconds": observation.end_seconds})
+        session["action_history"] = history[-96:]
+        session["latest_action"] = ({**actions[-1], "id": f"{observation.source_id}:{observation.sequence}:latest"}
+                                    if actions else None)
+        region_action = next((item for item in reversed(actions) if item["region"]), None)
+        session["latest_region_action"] = ({**region_action, "id": f"{observation.source_id}:{observation.sequence}:region"}
+                                           if region_action else None)
+        session["actions_time"] = now
+        session["actions_initial_age"] = age or 0.
         session["spatial_mention"] = mention if (
             # A quoted corridor is partial information with its own 15s TTL,
             # not a current ball candidate governed by the stricter 5s guard.
@@ -105,7 +147,8 @@ class LivePreviewRegistry:
             # Guard GN-056 requires one explicit, current, consistent team+zone.
             # Timestamp is ingestion-relative and NOT verified capture freshness.
             current_ball = EstimatedBallState(updated_at=datetime.now(timezone.utc))
-            if session["ball"] is not None:
+            if (session["ball"] is not None and session["ball_time"] is not None
+                    and now-session["ball_time"] <= BALL_TTL_SECONDS):
                 current_ball = EstimatedBallState(
                     team_id=session["ball"]["team_id"],
                     player_id=session["ball"]["player_id"],
@@ -133,6 +176,7 @@ class LivePreviewRegistry:
         detected = session["detector"].snapshot()
         ball = session["ball"] if (
             detected["ball_updates_allowed"]
+            and session["current_play"]
             and session["ball_time"] is not None
             and now - session["ball_time"] <= BALL_TTL_SECONDS
             and age <= PREVIEW_STALE_SECONDS
@@ -142,6 +186,8 @@ class LivePreviewRegistry:
         mention = session["spatial_mention"] if (
             ball is None and age <= PREVIEW_STALE_SECONDS and mention_age <= SPATIAL_MENTION_TTL_SECONDS
         ) else None
+        actions_fresh = (age <= PREVIEW_STALE_SECONDS and session["actions_time"] is not None
+                        and session["actions_initial_age"] + now-session["actions_time"] <= SPATIAL_MENTION_TTL_SECONDS)
         return {
             **detected, "match_id": key[0], "source_id": key[1],
             "active": age <= PREVIEW_STALE_SECONDS,
@@ -150,6 +196,9 @@ class LivePreviewRegistry:
             "spatial_mention": ({**mention, "age_seconds": round(mention_age, 2),
                                  "audio_end_seconds": session["audio_end"]} if mention else None),
             "ball_diagnostic": session["ball_diagnostic"],
+            "narration_actions": session["action_history"].copy(),
+            "latest_narration_action": session["latest_action"] if actions_fresh else None,
+            "latest_narration_region_action": session["latest_region_action"] if actions_fresh else None,
             "persisted": False,
         }
 
@@ -157,15 +206,59 @@ class LivePreviewRegistry:
         views = [self._view(key) for key in self._sessions if key[0] == match_id]
         if not views:
             return None
+        group = self._groups.get(match_id)
+        if group:
+            now = datetime.now(timezone.utc)
+            observations = []
+            for view in views:
+                session = self._sessions[(match_id, view["source_id"])]
+                age = session["actions_initial_age"] + self.clock()-session["last_seen"]
+                aligned = group["offsets"].get(view["source_id"], float("-inf")) + view["last_audio_seconds"]
+                view["aligned_audio_seconds"] = aligned
+                usable = bool(view["ball"] or view["latest_narration_action"] or view["spatial_mention"])
+                usable = usable and aligned >= group["watermark"]
+                observations.append(SourceSelectionObservation(source_id=view["source_id"],
+                    connection_status="online" if view["active"] else "offline",
+                    narration_kind="live_play" if usable else "unknown",
+                    captured_at=now-timedelta(seconds=max(0,age)), received_at=now,
+                    signal_strength=.85 if view["ball"] else .75 if view["spatial_mention"] else .7))
+            selection = preview_active_source(SourceSelectionRequest(evaluated_at=now,
+                observations=observations, previous_source_id=group["selected"], max_age_seconds=15))
+            selected = next((view for view in views if view["source_id"] == selection.active_source_id), None)
+            if selected is None:
+                selected = max(views, key=lambda view: self._sessions[(match_id,view["source_id"])]["last_seen"])
+                selected = {**selected, "ball": None, "spatial_mention": None, "latest_narration_action": None,
+                            "latest_narration_region_action": None}
+            else:
+                group["watermark"] = max(group["watermark"], selected["aligned_audio_seconds"])
+            group["selected"] = selection.active_source_id
+            conflicting = [view for view in views if selected["ball"] and view["ball"]
+                           and view["source_id"] != selected["source_id"]
+                           and abs(view["aligned_audio_seconds"]-selected["aligned_audio_seconds"]) <= 1
+                           and (view["ball"]["team_id"],view["ball"]["zone"]) !=
+                               (selected["ball"]["team_id"],selected["ball"]["zone"])]
+            if conflicting:
+                selected = {**selected, "ball": None, "spatial_mention": None, "latest_narration_region_action": None}
+            return {**selected, "visual_context": group["id"],
+                    "group_phase": group["phase"], "group_phase_confidence": group["phase_confidence"],
+                    "visual_timeline": group["watermark"] if group["watermark"] != float("-inf") else 0,
+                    "fusion": {"active_source_id": selection.active_source_id, "reason": selection.reason,
+                               "alignment_basis": "user_kickoff_anchors", "alignment_verified": False,
+                               "source_count": len(group["offsets"]), "conflicting_ball_sources": [v["source_id"] for v in conflicting],
+                               "diagnostics": [d.model_dump(mode="json") for d in selection.diagnostics]}}
         # One active source only, never merge out-of-sync sources.
         return max(views, key=lambda v: (
             v["active"], self._sessions[(v["match_id"], v["source_id"])]["last_seen"]
         ))
 
     def clear_match(self, match_id: str) -> None:
+        self._groups.pop(match_id, None)
         for key in tuple(self._sessions):
             if key[0] == match_id:
                 del self._sessions[key]
+
+    def clear_source(self, match_id: str, source_id: str) -> None:
+        self._sessions.pop((match_id, source_id), None)
 
 
 @dataclass(frozen=True)

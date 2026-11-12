@@ -17,7 +17,7 @@ def test_mobile_svg_uses_fixed_viewbox_and_loaded_geometry_before_render():
     assert 'viewBox="0 0 1000 620"' in html
     assert 'preserveAspectRatio="xMidYMid meet"' in html
     assert html.index('src="/static/field_geometry.js"') < html.index(
-        'src="/static/app.js"')
+        'src="/static/app.js')  # Cache version query must not change load order.
     assert "aspect-ratio:1000/620" in css
     assert "max-width:100%" in css
     assert "@media(max-width:600px)" in css

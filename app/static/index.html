@@ -30,7 +30,7 @@
       </div>
       <aside class="side">
         <div class="panel"><div class="panel-title">AGORA NO JOGO</div><h2 id="action">Aguardando o primeiro lance</h2><p id="last-confirmed-event" class="confirmed-event">Nenhum evento confirmado na demo</p><p id="last-text">Avance a demonstração para acompanhar a sequência simulada.</p>
-          <div class="facts"><div><span>Posse provável</span><strong id="possession">Desconhecida</strong></div><div><span>Jogador provável</span><strong id="player">Desconhecido</strong></div><div><span>Confiança da zona</span><strong id="confidence">Sem evidência</strong></div></div></div>
+          <div class="facts"><div><span id="possession-label">Posse provável</span><strong id="possession">Desconhecida</strong></div><div><span id="player-label">Jogador provável</span><strong id="player">Desconhecido</strong></div><div><span>Confiança da zona</span><strong id="confidence">Sem evidência</strong></div></div></div>
         <div class="panel"><div class="panel-title">CONTROLES DA DEMONSTRAÇÃO</div><p class="muted">Dois narradores simulados, comercial, replay e expiração. Iniciar/pausar controla somente o avanço automático neste navegador; reiniciar é compartilhado entre navegadores. Nenhum áudio real é capturado.</p>
           <div class="controls">
             <button id="demo-start" type="button" disabled>Iniciar demo</button>
@@ -243,6 +243,15 @@
         <form id="capture-form">
           <h3>Acompanhar narração</h3>
           <label>Fonte<select id="capture-source" required></select></label>
+          <label><input id="capture-parallel" type="checkbox"> Acompanhar duas gravações em paralelo</label>
+          <div id="capture-parallel-fields" hidden>
+            <div class="form-pair">
+              <label>Apito inicial na primeira gravação (segundos)<input id="capture-kickoff" type="number" min="0" max="86400" step="0.1" value="0"></label>
+              <label>Segunda fonte<select id="capture-second-source"></select></label>
+              <label>Apito inicial na segunda gravação (segundos)<input id="capture-second-kickoff" type="number" min="0" max="86400" step="0.1" value="0"></label>
+            </div>
+            <p class="muted">A segunda gravação começa no mesmo tempo após o apito da primeira. Esses pontos fornecidos por você são o alinhamento inicial; diferenças entre as transmissões ainda podem ocorrer.</p>
+          </div>
           <div class="form-pair">
             <label>Reconhecimento local<select id="capture-model"><option value="base">Base</option><option value="tiny">Tiny (mais rápido)</option><option value="small">Small</option><option value="medium">Medium (mais pesado)</option></select></label>
             <label>Início na gravação (segundos)<input id="capture-start" type="number" min="0" max="86400" step="0.1" value="0" required></label>
@@ -250,8 +259,8 @@
             <label>Contexto de áudio (segundos)<input id="capture-window" type="number" min="6" max="30" value="12" required></label>
           </div>
           <label><input id="capture-continuous" type="checkbox"> Continuar até eu parar ou a fonte terminar</label>
-          <label><input id="capture-permission" type="checkbox" required> Tenho autorização para captar e analisar esta fonte.</label>
-          <p class="muted">Uma fonte selecionada por partida. Instale os modelos locais opcionais no servidor; o primeiro uso pode baixar o modelo. Bola, posse e região permanecem desconhecidas quando a narração não fornece evidências suficientes.</p>
+          <label><input id="capture-permission" type="checkbox" required> Tenho autorização para captar e analisar as fontes selecionadas.</label>
+          <p class="muted">Até duas fontes simultâneas. Instale os modelos locais opcionais no servidor; o primeiro uso pode baixar o modelo. Bola, posse e região permanecem desconhecidas quando a narração não fornece evidências suficientes.</p>
           <div class="controls"><button id="capture-start-button" type="submit">Iniciar acompanhamento</button><button id="capture-stop" type="button" class="secondary" disabled>Parar acompanhamento</button><button id="capture-demo" type="button" class="secondary">Ver demonstração</button></div>
           <p id="capture-status" role="status" aria-live="polite">Nenhuma captura iniciada.</p>
           <p id="capture-message" class="form-message" role="status"></p>
@@ -261,7 +270,7 @@
     <footer>Game Now · Um campo de <b>15 zonas estimadas pela narração</b> · Sem reprodução de áudio ou vídeo</footer>
   </main>
   <script src="/static/field_geometry.js" defer></script>
-  <script src="/static/ball_marker.js?v=2" defer></script>
+  <script src="/static/ball_marker.js?v=4" defer></script>
   <script src="/static/pitch_presentation.js" defer></script>
   <script src="/static/demo_scoreboard.js" defer></script>
   <script src="/static/demo_sync.js" defer></script>
@@ -269,6 +278,6 @@
   <script src="/static/setup_progress.js" defer></script>
   <script src="/static/transcript_diagnostics.js" defer></script>
   <script src="/static/fusion_diagnostics.js" defer></script>
-  <script src="/static/app.js" defer></script>
+  <script src="/static/app.js?v=4" defer></script>
 </body>
 </html>

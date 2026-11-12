@@ -8,6 +8,8 @@
 
 ## Objetivo e escopo do MVP
 
+Subentrega atual GN-083 (2026-11-12): ações e atletas são apresentados independentemente de posição completa; histórico textual limitado e região parcial separada do próximo recebedor. Duas gravações autorizadas podem ser captadas simultaneamente com âncoras manuais por apito, seleção/failover GN-063 e veto a retrocesso/conflito, sem estado persistido ou mídia no browser. Windows 806 passed/4 skipped; ensaio de uma fonte 600s e primeiro paralelo 180s por fonte executados. **GN-083 permanece [ ]**, pois isso não mede acurácia/alinhamento independente ou valida partida inteira. Evidência atual em STATUS e `docs/GN-083-TRACKING.md`.
+
 Correção parcial GN-083 em2026-11-12: TTL de corredor considera os15s já definidos incluindo processamento de ASR; não herda o corte de5s da posição completa. Distribuições explícitas para lados sem a palavra bola também reconhecidas para a anotação parcial. Windows769 passed/4 skipped; Playwright real com60s PCM/dois clientes exigiu duas posições diferentes do símbolo e passou. Sem acurácia demonstrada; **GN-083 continua[ ]**. Detalhes atuais em STATUS.
 
 Um único jogo de futebol é acompanhado por **duas ou mais fontes de narração**, incluindo rádios online e transmissões públicas do YouTube. O servidor local Windows capta somente o áudio, realiza transcrição e interpretação; o site exibe **um campinho com a região estimada da bola**, provável posse, nomes dos jogadores, placar e eventos com nível de confiança. **Não retransmitir áudio ou vídeo no site**. Nunca apresentar localização aproximada como coordenada física real.
