@@ -14,6 +14,7 @@ from app.configuration import MatchConfig, RosterPlayer
 from app.contracts import AudioSource
 from app.storage import SQLiteStore
 from scripts.gn092_backup import BackupError, create_backup, restore_backup, main
+import scripts.gn092_backup as backup_module
 
 
 def config(id_="match-092"):
@@ -41,6 +42,35 @@ def sample_db(path: Path) -> SQLiteStore:
                          url="https://example.org/radio.mp3")
     assert len(store.replace_sources("match-092", [source])) == 1
     return store
+
+
+@pytest.mark.parametrize("compatible", [True, False])
+def test_snapshot_closes_every_connection_even_when_validation_fails(tmp_path, monkeypatch, compatible):
+    source = tmp_path / "source.sqlite3"
+    if compatible:
+        sample_db(source)
+    else:
+        conn = sqlite3.connect(source)
+        conn.execute("CREATE TABLE unrelated (value TEXT)")
+        conn.close()
+    connections = []
+    connect = sqlite3.connect
+
+    def tracked_connect(*args, **kwargs):
+        conn = connect(*args, **kwargs)
+        connections.append(conn)
+        return conn
+
+    monkeypatch.setattr(backup_module.sqlite3, "connect", tracked_connect)
+    if compatible:
+        backup_module._snapshot(source, tmp_path / "snapshot.sqlite3")
+    else:
+        with pytest.raises(BackupError, match="compatible"):
+            backup_module._snapshot(source, tmp_path / "snapshot.sqlite3")
+    assert len(connections) == 3  # origin, destination, verification
+    for connection in connections:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+            connection.execute("SELECT 1")
 
 
 def test_roundtrip_preserves_match_roster_sources_and_sqlite_state(tmp_path: Path):

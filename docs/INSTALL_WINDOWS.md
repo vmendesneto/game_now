@@ -2,6 +2,8 @@
 
 Este roteiro cobre **Windows 10/11**, PowerShell, Git e Python **3.11/3.12**. Primeiro instala a **demonstração offline**; FFmpeg, YouTube e ASR são opcionais. Os testes automatizados não equivalem à comprovação física GN-012/GN-085.
 
+**Prova física em 2026-11-12:** GN-012/GN-031/GN-085 concluídas no Windows 11 com instalação limpa, Chromium/Playwright, parada/reinício preservando SQLite e gravação real autorizada processada por FFmpeg/Whisper. Veja o checklist executado em [GN-085-WINDOWS.md](GN-085-WINDOWS.md). GN-083/084 ainda exigem métricas humanas/partida completa. O checklist em branco abaixo serve para uma nova instalação.
+
 ## 1. Instalação limpa
 
 1. Instale Git e Python 3.12 (ou 3.11) com o launcher `py`. Abra novo PowerShell e confira:
@@ -21,7 +23,7 @@ Este roteiro cobre **Windows 10/11**, PowerShell, Git e Python **3.11/3.12**. Pr
    .\iniciar_windows.bat
    ~~~
 
-   O `.bat` escolhe Python 3.12 ou 3.11 (launcher `py` ou fallback `python`), e `scripts.gn012_launch` valida a versão da `.venv`, cria o ambiente quando ausente, instala `requirements.txt` e executa Uvicorn somente em `127.0.0.1:8000`. Se uma `.venv` existente estiver incompleta ou em versão incompatível, o programa **não a remove**; informe a falha e renomeie-a manualmente só após verificar seus dados. Não precisa habilitar scripts PowerShell. A instalação inicial exige acesso ao PyPI. A GN-012 segue pendente da prova de inicialização/parada no Windows físico.
+   O `.bat` escolhe Python 3.12 ou 3.11 (launcher `py` ou fallback `python`), e `scripts.gn012_launch` valida a versão da `.venv`, cria o ambiente quando ausente, instala `requirements.txt` (incluindo transporte WebSocket) e executa Uvicorn somente em `127.0.0.1:8000`. Se uma `.venv` existente estiver incompleta ou em versão incompatível, o programa **não a remove**; informe a falha e renomeie-a manualmente só após verificar seus dados. Não precisa habilitar scripts PowerShell. A instalação inicial exige acesso ao PyPI.
 
 3. Com o terminal do servidor aberto, visite **http://127.0.0.1:8000**. Use **Próximo relato** e **Reiniciar** para observar a partida fictícia. Em **outro** PowerShell, na pasta do projeto:
 

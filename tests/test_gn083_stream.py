@@ -83,6 +83,21 @@ def test_short_recording_reports_incomplete_instead_of_false_300_second_success(
     assert not result.complete and result.requested_seconds == 300
 
 
+def test_requested_media_start_does_not_change_clip_relative_annotation_times():
+    async def capture(source, **options):
+        assert options["start_seconds"] == 575
+        yield b"\x00\x00" * 16000 * 6
+
+    result = asyncio.run(transcribe_youtube_source(
+        "https://www.youtube.com/watch?v=Ls4qkPrh4Tk", game(), seconds=6,
+        start_seconds=575, capture_first=True, capture_factory=capture, transcriber=FakeASR(),
+    ))
+    assert result.requested_media_start_seconds == 575
+    assert result.processed_seconds == 6 and result.complete
+    assert result.observations[0]["start_seconds"] == 0
+    assert result.observations[0]["end_seconds"] == 6
+
+
 @pytest.mark.parametrize("seconds", [0, 4.99, 601, True])
 def test_invalid_duration_rejected_before_capture(seconds):
     async def fail(_source, **_options):
@@ -144,12 +159,17 @@ def test_cli_direct_url_requires_permission_and_emits_safe_metadata(tmp_path: Pa
                 "start_seconds": 0, "end_seconds": 6,
                 "text": "Caio Silva do Azul com a bola no meio-campo pela direita",
             },),
+            requested_media_start_seconds=kwargs.get("start_seconds", 0),
         )
     monkeypatch.setattr("scripts.gn083_audit.transcribe_youtube_source", fake_source)
-    assert main(arguments + ["--permission-confirmed"]) == 0
+    assert main(arguments + ["--permission-confirmed", "--start-seconds", "575"]) == 0
     result = json.loads(report_file.read_text(encoding="utf-8"))
     assert len(calls) == 1 and calls[0][0] == url
     assert calls[0][1].id == "match-stream-083"
+    assert calls[0][2]["start_seconds"] == 575
+    assert result["requested_media_start_seconds"] == 575
+    assert result["media_start_verified"] is False
+    assert result["observation_time_origin"] == "clip_start"
     assert result["input_type"] == "youtube_stream_asr"
     assert result["audio_seconds_processed"] == 300
     assert result["audio_duration_complete"] is True
@@ -158,3 +178,10 @@ def test_cli_direct_url_requires_permission_and_emits_safe_metadata(tmp_path: Pa
     assert url not in str(result)
     assert "text" not in result["predictions"][0]
     assert result["persisted"] is False and result["audio_retransmitted"] is False
+
+
+def test_cli_seek_rejected_for_offline_input_before_reading_files(tmp_path):
+    with pytest.raises(SystemExit) as error:
+        main(["--wav", str(tmp_path / "missing.wav"), "--match-json",
+              str(tmp_path / "missing.json"), "--start-seconds", "575"])
+    assert error.value.code == 2

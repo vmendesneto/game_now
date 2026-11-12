@@ -79,6 +79,13 @@ async def _shutdown(process: asyncio.subprocess.Process) -> None:
             await process.wait()
 
 
+def validate_start_seconds(value: float) -> float:
+    """Bound a recording seek before opening a relay or subprocess."""
+    if (type(value) not in (int, float) or not 0 <= value <= 86400):
+        raise CaptureError("start_seconds must be finite and between 0 and 86400")
+    return float(value)
+
+
 async def pcm_chunks(
     source: AudioSource,
     *,
@@ -86,12 +93,14 @@ async def pcm_chunks(
     chunk_ms: int = DEFAULT_CHUNK_MS,
     fixture_file: Path | None = None,
     http_headers: dict[str, str] | None = None,
+    start_seconds: float = 0,
 ) -> AsyncIterator[bytes]:
     """Decode a radio stream into chunks of PCM s16le/mono/16k.
 
     fixture_file bypasses remote URL lookup **only** for internal offline tests
     and local CLI diagnostics. It is never passed through HTTP endpoints.
     """
+    start_seconds = validate_start_seconds(start_seconds)
     if source.kind != "radio" or not source.enabled:
         raise CaptureError("Only enabled radio sources can use GN-030")
     if not (100 <= chunk_ms <= 5000):
@@ -140,6 +149,8 @@ async def pcm_chunks(
         "-protocol_whitelist",
         "file,http,https,tcp,tls,crypto,data" if fixture_file is not None else "http,tcp,crypto",
     ]
+    if start_seconds:
+        args += ["-ss", str(start_seconds)]
     args += [
         "-i", input_uri, "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE),
         "-f", "s16le", "-acodec", "pcm_s16le", "pipe:1",

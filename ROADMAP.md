@@ -1,6 +1,6 @@
 # ROADMAP — Game Now
 
-> **Fonte oficial do planejamento.** Atualizado em **2026-11-11**. Antes de trabalhar, ler [STATUS.md](STATUS.md), este arquivo e [AGENTS.md](AGENTS.md).
+> **Fonte oficial do planejamento.** Atualizado em **2026-11-12**. Antes de trabalhar, ler [STATUS.md](STATUS.md), este arquivo e [AGENTS.md](AGENTS.md).
 >
 > Regra: `[x]` significa **implementado + evidência verificável**; `[ ]` significa pendente. Não marcar como concluído só por ter escrito código. Atualizar `STATUS.md` e `ROADMAP.md` no mesmo commit em que a tarefa é concluída.
 
@@ -31,7 +31,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 
 - [x] **GN-010 [P0]** Criar backend Python e site estático funcional, separados por camadas; evidência: servidor HTTP inicializa.
 - [x] **GN-011 [P0]** Fixar versões e dependências Python, com instruções Python 3.11/3.12, venv, FFmpeg e configurações; evidência: instalação limpa documentada.
-- [ ] **GN-012 [P0]** Script `iniciar_windows.bat` ou PowerShell, sem necessidade de IDE; evidência: inicializa em Windows. Bootstrap Python stdlib com fallback 3.12/3.11, .venv protegida e testes determinísticos; **[ ] até iniciar e parar em Windows real** (GN-085 cobre integração física completa).
+- [x] **GN-012 [P0]** `iniciar_windows.bat` validado em Windows 11/Python 3.12.0: cópia limpa cria .venv, instala dependências e inicia em 127.0.0.1:8000; Ctrl+C encerra Uvicorn/libera porta, reinício preserva partida/elenco/fonte no SQLite. Playwright Chromium 158 com dois clientes, oito passos e viewport móvel; relatório `docs/GN-085-WINDOWS.md`. Corrigidas dependência WebSocket ausente e conexões abertas do backup. Suíte local: 708 passed/4 skipped.
 - [x] **GN-013 [P0]** Criar `/health` e diagnóstico de FFmpeg, modelo ASR, armazenamento e sources; evidência: respostas verificáveis.
 - [x] **GN-014 [P0]** Modo demonstração totalmente offline para testar campo, interpretação e WebSocket sem downloads; evidência: roteiro reproduzível.
 - [x] **GN-015 [P1]** Logs estruturados, rotação e mensagens de erro compreensíveis; evidência: testes de falhas.
@@ -49,7 +49,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 ## F03 — Entradas de áudio: rádios e YouTube
 
 - [x] **GN-030 [P0]** Capturar URL de rádio MP3/AAC/HLS via FFmpeg, converter para PCM mono 16 kHz; evidência: arquivo/stream de teste.
-- [ ] **GN-031 [P0]** Capturar PCM de áudio de transmissões públicas YouTube ao vivo **ou gravações de partidas** via yt-dlp + FFmpeg; evidência: link permitido e tratamento de indisponibilidade. Prova técnica de PCM de live real no Windows: 2026-11-11, 5 s / 160.000 bytes; autorização de uso dessa fonte ainda não verificada. Aceitação de vídeos gravados implementada com testes sintéticos (ver STATUS), mas **não significa GN-031 concluída**.
+- [x] **GN-031 [P0]** Capturar PCM de YouTube ao vivo **ou gravações de partidas** via yt-dlp + FFmpeg, com tratamento de indisponibilidade. Usuário confirmou autorização para Cruzeiro x Bahia (`Ls4qkPrh4Tk`) em 2026-11-12. Nesta entrega o fluxo autorizado YouTube→FFmpeg→Whisper processou **300s/9.600.000 bytes/75 janelas textuais**, `audio_duration_complete=true`, sem retransmissão. Mais dois testes de 30s a partir de 9:35 com tiny/base. Falhas/formatos cobertos pela suíte Windows. Não comprova 90min, qualidade ASR ou autorização de outras fontes.
 - [x] **GN-032 [P0]** Cadastrar, editar, ativar e desativar múltiplas fontes independentes; evidência: API/UI.
 - [x] **GN-033 [P0]** Detectar desconexão e reconectar com backoff, incluindo URLs de YouTube que expiram; evidência: simular perda e retomada.
 - [x] **GN-034 [P0]** Buffer de áudio por fonte com timestamps e limites de memória; evidência: teste de longas sessões.
@@ -104,9 +104,9 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-080 [P0]** Testes unitários de parsing, entidades, períodos e validação de estado; evidência: `tests/test_gn080_unit_matrix.py`, PR #33, CI 43057714416 (481 passed/2 skipped em Python 3.11/3.12; fixtures sintéticas).
 - [x] **GN-081 [P0]** Testes de integração API + WebSocket + SQLite; evidência: `tests/test_gn081_integration.py`, PR #34, CI 43058719362 (483 passed/2 skipped Python 3.11/3.12; `TestClient` e entradas sintéticas).
 - [x] **GN-082 [P0]** Simulador de duas rádios com comerciais, atrasos, contradições e silêncios; evidência: `python -m scripts.simulate_two_radios`, `tests/test_gn082_simulator.py`, PR #35 e CI 43059870772 (486 passed/2 skipped em Python 3.11/3.12; somente dados sintéticos).
-- [ ] **GN-083 [P0]** Testar cinco a dez minutos de narração brasileira **autorizada, ao vivo ou gravada** e medir identificação da equipe, jogador e zona; evidência: métricas reais e gabarito, sem exigir transmissão ativa. Subetapa offline de transcrição/análise e avaliador com gabarito disponível em `app/gn083_offline.py`, `scripts/gn083_audit.py` e `docs/GN-083.md`. Modo direto YouTube→ASR com GN-031/GN-090 em `app/gn083_stream.py` (`--youtube-url`) para mídia permitida, sem escrever PCM; ainda não executado sobre a gravação do usuário. Captura Windows de 300 s / 9.600.000 bytes / 600 blocos confirmada pelo usuário em 2026-11-11; ainda faltam áudio local autorizado, ASR executado e métricas contra gabarito para concluir.
+- [ ] **GN-083 [P0]** Testar cinco a dez minutos de narração brasileira autorizada e medir equipe/jogador/zona com **gabarito humano independente**. Em 2026-11-12, fluxo real Windows YouTube→FFmpeg→Whisper tiny concluiu 300s/9.600.000 bytes/75 janelas com texto, mas todas desconhecidas (texto sugere pré-jogo). Usuário indicou início por volta de 9:35; novo `--start-seconds 575` testado com PCM exato/FFmpeg real, apenas para gravações. Trecho de 30s concluído com tiny (cinco janelas) e base (sete); ambos sem hipóteses de lance, com erros de ASR. `metrics=null`, sem atualizar estado. Faltam cinco minutos relevantes com bola rolando e gabarito de qualidade; não tratar execução como acurácia. Guia `docs/GN-083.md` e evidências `docs/GN-085-WINDOWS.md`.
 - [ ] **GN-084 [P0]** Ensaiar uma partida inteira, medir latência fim a fim, cobertura e falhas de fonte; evidência: relatório com erros.
-- [ ] **GN-085 [P0]** Validar no Windows físico do usuário: FFmpeg, yt-dlp, modelos, áudio real e navegador; evidência: checklist executado pelo usuário.
+- [x] **GN-085 [P0]** Validação executada pelo agente no Windows físico do usuário com sua autorização: FFmpeg 9.0.2, yt-dlp 2026.10.26, faster-whisper tiny/PyAV 17.1.0 processando gravação real autorizada, Chromium/Playwright, dois clientes WS, launcher limpo, persistência, backup/restore e encerramento antecipado de FFmpeg nativo sem processo pendente. Checklist `docs/GN-085-WINDOWS.md`. Não comprova precisão GN-083, partida inteira GN-084, GPU, celular físico ou ligação da captura ao painel.
 - [x] **GN-086 [P1]** Benchmark concorrente 2–4 fontes com CPU/RSS/throughput/buffer. CI PR #53: 654 passed/3 skipped em Python 3.11 e 3.12; smoke CPU real tiny Linux: 2 modelos, 6 chamadas, 717,16 MB de RSS pico e 0,97× throughput agregado. Não sustenta duas rádios em tempo real neste ambiente; Windows GN-085 ainda pendente.
 
 ## F09 — Segurança e operacionalização

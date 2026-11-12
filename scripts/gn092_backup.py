@@ -6,6 +6,7 @@ API provides a consistent snapshot even with transactions in progress.
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
@@ -47,7 +48,7 @@ def _verify_sqlite(path: Path) -> list[str]:
     try:
         if not path.is_file() or not 0 < path.stat().st_size <= MAX_DB:
             raise BackupError("SQLite file missing, empty or too large")
-        with sqlite3.connect(f"file:{path.resolve().as_posix()}?mode=ro", uri=True) as conn:
+        with closing(sqlite3.connect(f"file:{path.resolve().as_posix()}?mode=ro", uri=True)) as conn:
             conn.execute("PRAGMA foreign_keys=ON")
             if conn.execute("PRAGMA quick_check").fetchone() != ("ok",):
                 raise BackupError("SQLite integrity check failed")
@@ -86,9 +87,9 @@ def _snapshot(source: Path, destination: Path) -> list[str]:
     if not source.is_file():
         raise BackupError("Source SQLite file not found")
     try:
-        with sqlite3.connect(
+        with closing(sqlite3.connect(
             f"file:{source.resolve().as_posix()}?mode=ro", uri=True
-        ) as origin, sqlite3.connect(destination) as target:
+        )) as origin, closing(sqlite3.connect(destination)) as target:
             origin.backup(target)
     except (OSError, sqlite3.Error) as exc:
         raise BackupError("Could not create SQLite snapshot") from exc

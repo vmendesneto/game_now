@@ -103,3 +103,10 @@ def test_windows_bat_uses_repo_path_and_supported_launchers():
     assert 'python -m scripts.gn012_launch' in bat
     assert '".venv\\Scripts\\python.exe" -m scripts.gn012_launch' in bat
     assert "--host 0.0.0.0" not in bat
+
+
+def test_clean_demo_installs_websocket_transport():
+    """TestClient alone doesn't exercise Uvicorn's optional wire transport."""
+    root = Path(__file__).resolve().parents[1]
+    requirements = (root / "requirements.txt").read_text(encoding="utf-8").splitlines()
+    assert "websockets==17.4" in requirements

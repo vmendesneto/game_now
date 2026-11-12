@@ -10,6 +10,8 @@ from app.source_validation import validate_source_urls
 from app.storage import StoreConflict
 from app.youtube_capture import resolve_live_audio
 
+pytestmark = pytest.mark.usefixtures("python_script_launchers")
+
 
 def youtube(url):
     return AudioSource(id="youtube-check", name="Test", kind="youtube",

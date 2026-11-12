@@ -10,6 +10,7 @@ from contextlib import aclosing
 import os
 from pathlib import Path
 import time
+import wave
 
 import pytest
 
@@ -142,4 +143,35 @@ def test_stop_timeout_and_bad_reopen_arguments():
         await controller.close()
         assert stop.is_set()
         assert supervisor.status("radio-a").state == "stopped"
+    asyncio.run(scenario())
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Native Windows FFmpeg process cleanup")
+def test_windows_early_close_waits_for_real_ffmpeg(tmp_path, monkeypatch):
+    """No external audio: stop native FFmpeg early and await its process handle."""
+    fixture = tmp_path / "silence.wav"
+    with wave.open(str(fixture), "wb") as writer:
+        writer.setnchannels(1)
+        writer.setsampwidth(2)
+        writer.setframerate(16000)
+        writer.writeframes(b"\x00\x00" * 16000 * 60)
+    processes = []
+    original = asyncio.create_subprocess_exec
+
+    async def tracked_launch(*args, **kwargs):
+        process = await original(*args, **kwargs)
+        processes.append(process)
+        return process
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", tracked_launch)
+
+    async def scenario():
+        async with aclosing(pcm_chunks(radio("windows"), fixture_file=fixture)) as stream:
+            chunk = await asyncio.wait_for(anext(stream), timeout=5)
+            assert len(chunk) > 0 and len(chunk) % 2 == 0
+            assert len(processes) == 1 and processes[0].returncode is None
+        # returncode is set only after asyncio observes the native process exit.
+        assert processes[0].returncode is not None
+        assert await asyncio.wait_for(processes[0].wait(), timeout=1) is not None
+
     asyncio.run(scenario())

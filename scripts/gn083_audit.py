@@ -36,6 +36,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="Confirm permission to process supplied local audio")
     parser.add_argument("--model", choices=("tiny", "base", "small", "medium"), default="tiny")
     parser.add_argument("--seconds", type=float, default=300, help="Maximum YouTube stream duration (5-600)")
+    parser.add_argument("--start-seconds", type=float, default=0,
+                        help="Requested recorded-video seek (0-86400); observation times stay clip-relative")
     parser.add_argument("--yt-dlp", default="yt-dlp", help="yt-dlp executable")
     parser.add_argument("--ffmpeg", default="ffmpeg", help="FFmpeg executable")
     parser.add_argument("--reference", type=Path, help="Independent human annotations JSON")
@@ -47,6 +49,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, help="Optional local JSON report")
     args = parser.parse_args(argv)
     try:
+        if args.start_seconds != 0 and args.youtube_url is None:
+            raise ValueError("--start-seconds requires --youtube-url")
         if args.match_json is not None:
             from app.contracts import Match
             match = Match.model_validate_json(args.match_json.read_text(encoding="utf-8"))
@@ -66,6 +70,7 @@ def main(argv: list[str] | None = None) -> int:
                 source_id="youtube-083" if args.source_id == "audio-local" else args.source_id,
                 yt_dlp_binary=args.yt_dlp, ffmpeg_binary=args.ffmpeg,
                 model=args.model, capture_first=args.capture_first,
+                **({"start_seconds": args.start_seconds} if args.start_seconds else {}),
             ))
             observations = list(run.observations)
         else:
@@ -98,6 +103,9 @@ def main(argv: list[str] | None = None) -> int:
             report["audio_bytes_processed"] = run.processed_bytes
             report["requested_seconds"] = run.requested_seconds
             report["audio_duration_complete"] = run.complete
+            report["requested_media_start_seconds"] = run.requested_media_start_seconds
+            report["media_start_verified"] = False
+            report["observation_time_origin"] = "clip_start"
         content = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
         if args.output:
             args.output.write_text(content, encoding="utf-8")

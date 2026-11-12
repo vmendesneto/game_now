@@ -16,6 +16,34 @@ from app.audio_capture import (CaptureError, SAMPLE_RATE, check_public_destinati
 from app.contracts import AudioSource
 
 
+def test_real_ffmpeg_recording_seek_returns_the_requested_samples(tmp_path):
+    fixture = tmp_path / "seek.wav"
+    with wave.open(str(fixture), "wb") as writer:
+        writer.setnchannels(1)
+        writer.setsampwidth(2)
+        writer.setframerate(16000)
+        writer.writeframes(b"".join(struct.pack("<h", level) * 16000 for level in (1000, 2000, 3000)))
+
+    async def scenario():
+        async with aclosing(pcm_chunks(radio(), fixture_file=fixture, start_seconds=1.25)) as stream:
+            blocks = [block async for block in stream]
+        pcm = b"".join(blocks)
+        assert len(pcm) == int(1.75 * 32000)
+        assert pcm[:24000] == struct.pack("<h", 2000) * 12000
+        assert pcm[24000:] == struct.pack("<h", 3000) * 16000
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("start", [-1, 86401, float("nan"), float("inf"), True, "575"])
+def test_bad_seek_fails_before_opening_media(start):
+    async def scenario():
+        with pytest.raises(CaptureError, match="start_seconds"):
+            async with aclosing(pcm_chunks(radio(), start_seconds=start)) as stream:
+                await anext(stream)
+    asyncio.run(scenario())
+
+
 def radio(url=None):
     return AudioSource(id="radio-test", name="Radio", kind="radio",
                        url=url, enabled=True, status="offline")
