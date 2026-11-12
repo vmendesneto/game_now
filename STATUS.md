@@ -1,5 +1,16 @@
 # STATUS — Game Now
 
+## Correção atual — GN-083: ponta no campo adversário (2026-11-12)
+
+Atualizado: 2026-11-12
+Última tarefa integral concluída: GN-085; GN-083 continua [ ].
+Entrega: a ponta esquerda/direita em ação atual nomeada passa a estimar as faixas ofensivas 4–5, relativas ao sentido de ataque do clube. Campo próprio/defesa explícitos têm prioridade; defesa adversária é território de ataque. O corredor lateral sem profundidade continua abrangendo cinco faixas. Profundidade recente só acompanha ações consecutivas do mesmo atleta, na mesma janela e até120 caracteres; troca de atleta/centro interrompe esse contexto. `depth_basis` distingue texto explícito, hipótese de ponta e contexto recente, sempre `exact_position=false`. Guardas completos e schema v1 preservados.
+Interface: setas mostram para onde cada equipe ataca; segunda etapa inverte apenas quando a configuração ainda não estiver no segundo tempo. Estimativa contextual é rotulada na confiança. Atualiza a interpretação antiga abaixo que mantinha “ponta esquerda” sem profundidade: agora há uma hipótese ofensiva, não localização confirmada.
+Evidência: Windows **828 passed, 4 skipped**; regressões para ambos os lados/sentidos, defesa explícita, defesa adversária, isolamento/contexto e segundo tempo já configurado. Playwright/Chromium real reproduziu as sete etapas do texto real salvo: Erick vai à ponta no campo adversário, mantém a área na ação seguinte e Everton retorna ao centro. Caso adicional com direção invertida artificialmente confirmou espelhamento. Zero erro JS e estado persistido idêntico. Artefatos privados `data/attacking-wing-browser/report.json` e screenshots; análise textual de119 janelas reprocessada. Não houve nova captação de áudio neste teste.
+Limitações: faixas4–5 são região ampla estimada; nem coordenadas físicas, posição precisa no primeiro quadrante defensivo adversário ou tempos de toque foram medidos. Sentido de ataque segue a configuração da partida, não identificação visual do vídeo. GN-083 permanece sem benchmark independente.
+Próxima tarefa: GN-083, avaliar qualidade espacial com referência independente.
+Como continuar: abrir a análise salva e reproduzir o primeiro trecho, ou iniciar as duas fontes autorizadas com575/2116s e âncoras563/2104s. Conferir CI do HEAD final antes de merge.
+
 ## Correção atual — GN-083: sequência dentro da janela e retorno ao centro (2026-11-12)
 
 Atualizado: 2026-11-12

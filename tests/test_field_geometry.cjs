@@ -4,6 +4,21 @@ const assert = require("node:assert/strict");
 const {WIDTH, HEIGHT, zoneToGrid, zoneCellBounds, fieldCells} =
   require("../app/static/field_geometry.js");
 
+test("attacking wings stay in opponent half for both directions and halves", () => {
+  const {currentAttackDirection} = require("../app/static/field_geometry.js");
+  const {present} = require("../app/static/ball_marker.js");
+  for (const direction of ["left_to_right", "right_to_left"]) {
+    for (const lane of ["left", "right"]) {
+      const marker = present(null, {context:"wing", region:{bands:[4,5], lane, attack_direction:direction}});
+      assert.equal(marker.x, direction === "left_to_right" ? 800 : 200);
+      assert.ok(marker.y > 0 && marker.y < HEIGHT);
+    }
+    assert.equal(currentAttackDirection(direction,"second_half","second_half"), direction);
+    assert.notEqual(currentAttackDirection(direction,"first_half","second_half"), direction);
+    assert.equal(currentAttackDirection(direction,"first_half","in_play"), direction);
+  }
+});
+
 test("the pitch contains exactly 15 non-overlapping full-size grid cells", () => {
   const cells = fieldCells();
   assert.equal(cells.length, 15);

@@ -36,6 +36,9 @@ _GAP = re.compile(r"^(?:[\s,:-]|\b(?:ja|ainda|agora|de novo|tambem|o|a|equipe|do
 _NOT_BALL = re.compile(r"^\s*(?:o |um |uma )?(?:cartao|atendimento|premio|aplausos|homenagem|oferta)\b", re.I)
 _LANES = re.compile(r"\b(?:(?:lado|setor|sector|corredor|ponta|faixa) (?:(?:do|de) )?(esquerd[ao]|direit[ao]|central)|pela (esquerda|direita)|pelo (meio|centro))\b", re.I)
 _AREAS = (
+    (re.compile(r"\b(?:campo|metade|defesa) (?:adversari[ao]|do adversario|da adversaria|do rival)\b", re.I), [4, 5], "campo adversário"),
+    (re.compile(r"\bintermediaria defensiva (?:adversaria|do adversario)\b", re.I), [4], "intermediária adversária"),
+    (re.compile(r"\b(?:proprio|nosso) campo\b|\b(?:na|pela) defesa\b|\bsaindo de tras\b", re.I), [1, 2], "campo defensivo"),
     (re.compile(r"\b(?:setor|sector|campo|zona)(?: (?:de )?(?:direito|esquerdo|central))? de (?:defesa|defensa)\b|\barea defensiva\b", re.I), [1, 2], "defesa"),
     (re.compile(r"\bmeio(?:-| )campo\b|\bmeio do campo\b|\bcirculo central\b", re.I), [3], "meio-campo"),
     (re.compile(r"\b(?:setor|campo|zona) de ataque\b", re.I), [4, 5], "ataque"),
@@ -52,12 +55,17 @@ def _geography(text: str, direction: str) -> dict | None:
     if lanes:
         word = next(g for g in lanes[-1].groups() if g is not None).lower()
         lane = "left" if word.startswith("esquerd") else "right" if word.startswith("direit") else "center"
-    areas = [(found.start(), bands, label) for rule, bands, label in _AREAS for found in rule.finditer(text)]
+    areas = [(found.start(), found.end(), bands, label) for rule, bands, label in _AREAS for found in rule.finditer(text)]
     if not lanes and not areas:
         return None
-    _, bands, label = max(areas, key=lambda item: item[0]) if areas else (0, [1, 2, 3, 4, 5], "corredor")
+    # A longer opponent-relative phrase overrides its generic defensive prefix.
+    areas = [a for a in areas if not any(b[0] <= a[0] and b[1] > a[1] for b in areas)]
+    _, _, bands, label = max(areas, key=lambda item: (item[0], item[1])) if areas else (0, 0, [1, 2, 3, 4, 5], "corredor")
+    depth_basis = "explicit_text" if areas else "not_determined"
+    if not areas and re.search(r"\bponta (?:esquerd[ao]|direit[ao])\b", text, re.I):
+        bands, label, depth_basis = [4, 5], "ponta de ataque (estimativa)", "attacking_wing_estimate"
     return {"bands": bands, "lane": lane, "attack_direction": direction, "label": label,
-            "basis": "partial_geography_in_action_text", "exact_position": False}
+            "basis": "partial_geography_in_action_text", "depth_basis": depth_basis, "exact_position": False}
 
 
 def track_narration(match: Match, text: str) -> list[dict]:
@@ -156,4 +164,18 @@ def track_narration(match: Match, text: str) -> list[dict]:
             if not events or (event["player_id"],event["kind"],event["text_offset"]) != (
                     events[-1]["player_id"],events[-1]["kind"],events[-1]["text_offset"]):
                 events.append(event)
+    depth = None
+    for event in events:
+        region = event["region"]
+        same = depth is not None and depth["player_id"] == event["player_id"] and event["text_offset"]-depth["text_offset"] <= 120
+        if region and region["lane"] in ("left", "right") and same and (
+                region["depth_basis"] == "not_determined" or
+                region["depth_basis"] == "attacking_wing_estimate" and depth["region"]["depth_basis"] == "explicit_text"):
+            event["region"] = {**region, "bands": depth["region"]["bands"].copy(),
+                "label": depth["region"]["label"], "depth_basis": "recent_same_player_context"}
+        if event["region"] and event["region"]["bands"] != [1, 2, 3, 4, 5]:
+            if not same or region["depth_basis"] == "explicit_text":
+                depth = event
+        elif not same or region and region["lane"] == "center":
+            depth = None
     return events[-32:]

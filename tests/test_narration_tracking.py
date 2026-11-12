@@ -14,6 +14,55 @@ def game():
                           Player(id="beto", name="Beto", number=10, team_id="red")])
 
 
+@pytest.mark.parametrize("name,direction", [("Caio", "left_to_right"), ("Beto", "right_to_left")])
+@pytest.mark.parametrize("side,lane", [("esquerda", "left"), ("direita", "right")])
+def test_current_named_wing_is_an_estimated_attacking_area(name, direction, side, lane):
+    region = track_narration(game(), f"{name} carrega levando para a ponta {side}.")[0]["region"]
+    assert region["bands"] == [4, 5] and region["lane"] == lane
+    assert region["attack_direction"] == direction
+    assert region["depth_basis"] == "attacking_wing_estimate" and not region["exact_position"]
+
+
+@pytest.mark.parametrize("area,bands", [
+    ("no próprio campo", [1, 2]), ("no setor de defesa", [1, 2]),
+    ("na defesa adversária", [4, 5]), ("no campo adversário", [4, 5]),
+    ("na intermediária defensiva adversária", [4]),
+])
+def test_explicit_depth_overrides_wing_and_opponent_defense_is_attack(area, bands):
+    region = track_narration(game(), f"Caio carrega na ponta esquerda {area}.")[0]["region"]
+    assert region["bands"] == bands and region["depth_basis"] == "explicit_text"
+
+
+def test_depth_context_is_short_same_player_and_resets_at_center_or_new_window():
+    events = track_narration(game(), "Caio carrega na ponta esquerda, Caio carrega pelo lado esquerdo, Davi recebe pelo lado esquerdo, Caio recebe na faixa central, Caio carrega pelo lado esquerdo.")
+    assert [event["region"]["bands"] for event in events] == [[4, 5], [4, 5], [1, 2, 3, 4, 5], [1, 2, 3, 4, 5], [1, 2, 3, 4, 5]]
+    assert events[1]["region"]["depth_basis"] == "recent_same_player_context"
+    assert track_narration(game(), "Caio carrega pelo lado esquerdo")[0]["region"]["bands"] == [1, 2, 3, 4, 5]
+
+
+def test_recent_defensive_depth_wins_over_following_same_player_wing_estimate():
+    events = track_narration(game(), "Caio recebe no próprio campo, Caio carrega pela ponta esquerda.")
+    assert events[-1]["region"]["bands"] == [1, 2]
+
+
+@pytest.mark.parametrize("already_second", [False, True])
+def test_registry_second_half_changes_direction_only_when_not_already_configured(already_second):
+    match = game()
+    if already_second:
+        match.period = "second_half"
+        match.home.attack_direction = "right_to_left"
+        match.away.attack_direction = "left_to_right"
+    registry = LivePreviewRegistry()
+    phrases = ["Começou o jogo", "Caio recebe a bola", "Termina o primeiro tempo, vamos ao intervalo",
+               "Começa o segundo tempo", "Caio carrega levando para a ponta esquerda"]
+    for seq, text in enumerate(phrases):
+        view = registry.receive(match, LiveObservation(source_id="radio-one", sequence=seq,
+            start_seconds=seq*10, end_seconds=seq*10+6, text=text, local_capture_age_seconds=0))
+    assert view["phase"] == "second_half"
+    assert view["latest_narration_action"]["region"]["attack_direction"] == "right_to_left"
+    assert view["latest_narration_action"]["region"]["bands"] == [4, 5]
+
+
 def test_ordered_receivers_and_turnover_do_not_require_a_complete_zone():
     events = track_narration(game(), "Caio recebeu. Serve Davi. Davi domina. Beto recuperou.")
     assert [e["player_id"] for e in events] == ["caio", "davi", "davi", "beto"]

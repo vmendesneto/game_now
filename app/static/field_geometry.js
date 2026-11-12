@@ -45,7 +45,13 @@
     return cells;
   }
 
-  const api = Object.freeze({WIDTH, HEIGHT, zoneToGrid, zoneCellBounds, fieldCells});
+  function currentAttackDirection(direction, matchPeriod, observedPhase) {
+    if (!DIRECTIONS.includes(direction)) throw new RangeError("Invalid attack direction");
+    return observedPhase === "second_half" && matchPeriod !== "second_half" ?
+      (direction === "left_to_right" ? "right_to_left" : "left_to_right") : direction;
+  }
+
+  const api = Object.freeze({WIDTH, HEIGHT, zoneToGrid, zoneCellBounds, fieldCells, currentAttackDirection});
   if (typeof module === "object" && module.exports) {
     module.exports = api;
   } else {
