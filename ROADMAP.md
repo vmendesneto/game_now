@@ -77,7 +77,7 @@ A primeira entrega deve rodar em **Windows 10/11**, localmente, sem chaves de AP
 - [x] **GN-055 [P0]** Pontuar força heurística por jogador, equipe, região, evento e atualidade, explicitamente não calibrada; evidência: casos positivos/negativos, envelhecimento, conflitos e API read-only (PR #17; CI 43029006109, 234 passed/2 skipped em 3.11/3.12).
 - [x] **GN-056 [P0]** Impedir movimentação sem posse, equipe, região e atualidade explícitas; bloquear texto vago/comercial/replay/negações e preservar bola no SQLite. Candidatura read-only, não atualização automática; testes conservadores (PR #18, CI 43031120226, 263 passed/2 skipped em Python 3.11/3.12).
 - [x] **GN-057 [P1]** Comparar interpretação de frases complexas via LLM local opcional com baseline das regras; JSON estrito, bloqueio de alucinações e saída diagnóstica sem escrita. Testes comparativos simulados e API read-only: PR #19, CI 43032445652 (297 passed/2 skipped em Python 3.11/3.12). Ollama real não testado.
-- [ ] **GN-058 [P1]** Corpus real de português esportivo rotulado e versão de avaliação, respeitando direitos das fontes; evidência: conjunto documentado.
+- [ ] **GN-058 [P1]** Corpus real de português esportivo rotulado e versão de avaliação, respeitando direitos das fontes; evidência: conjunto documentado. Ferramenta de validação de manifesto/segmentos humanos e separação sem vazamento em `scripts/gn058_corpus.py`, guia `docs/GN-058.md` e testes somente sintéticos; **continua [ ] porque corpus REAL licenciado não foi disponibilizado/anotado**.
 
 ## F06 — Fusão das rádios e relógio
 
