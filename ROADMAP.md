@@ -1,5 +1,10 @@
 # ROADMAP — Game Now
 
+### GN-083 — diagnóstico da resolução do YouTube (2026-11-13)
+
+- Falha antes da decodificação recebe código tipado e mensagem própria, sem detalhes privados. Progresso da outra fonte preservado; sem recuperação automática ou mudança da captura principal.
+- Windows **838 passed/4 skipped**, 70 testes específicos e Chromium/Playwright isolado com fontes artificiais aprovados. Segunda fonte autorizada entregou5s/160.000 bytes/10 blocos em diagnóstico real desde o início do vídeo. Disponibilidade pontual não explica a falha anterior nem verifica seek2116s/ASR/paralelismo/acurácia. **GN-083 permanece [ ]**; detalhes em STATUS.
+
 ### GN-083 — modelo ativo e falha parcial de captura (2026-11-12)
 
 - Painel passa a selecionar Small para o próximo início e informar o modelo ativo; acompanhamento parcial é explícito. Fonte com erro não zera progresso da fonte saudável. Sem reinício ou início automático.

@@ -25,7 +25,7 @@ from app.audio_capture import CaptureError, pcm_chunks
 from app.contracts import Id, StrictModel
 from app.gn083_live import LiveObservation, follow_youtube_narration, wait_for_cpu
 from app.source_validation import validate_source_urls
-from app.youtube_capture import youtube_pcm_chunks
+from app.youtube_capture import YouTubeResolutionError, youtube_pcm_chunks
 
 
 class ParallelCaptureSource(StrictModel):
@@ -238,6 +238,8 @@ class CaptureRuntime:
             except Exception as exc:
                 # Never expose exception messages: upstream errors may carry signed URLs.
                 code = "asr_failed" if isinstance(exc, ASRError) else "capture_failed"
+                if isinstance(exc, YouTubeResolutionError):
+                    code = "youtube_resolution_failed"
                 denied = re.search(r"\bupstream_http_(403|404|429|5\d\d)\b", str(exc))
                 if isinstance(exc, CaptureError) and denied:
                     code = denied.group(0)

@@ -9,6 +9,7 @@ from app.asr import BYTES_PER_SECOND
 from app.capture_runtime import CaptureRequest
 from app.gn083_live import LiveObservation, LivePreviewRegistry
 from app.main import create_app
+from app.youtube_capture import YouTubeResolutionError
 from tests.test_capture_runtime import MATCH, SOURCE, BASE, setup, until
 from tests.test_narration_tracking import game
 
@@ -20,10 +21,12 @@ def options(**changes):
 
 
 @pytest.mark.parametrize("failed_source", [SOURCE["id"], "second-source"])
-def test_failed_source_does_not_zero_healthy_audio_progress_or_erase_actions(tmp_path, failed_source):
+@pytest.mark.parametrize("failure", [RuntimeError("private upstream failure"),
+                                    YouTubeResolutionError("private upstream failure")])
+def test_failed_source_does_not_zero_healthy_audio_progress_or_erase_actions(tmp_path, failed_source, failure):
     async def runner(url, match, **kwargs):
         if kwargs["source_id"] == failed_source:
-            raise RuntimeError("private upstream failure")
+            raise failure
         kwargs["on_pcm"](12*BYTES_PER_SECOND)
         await kwargs["on_observation"]({"source_id":kwargs["source_id"], "sequence":0,
             "start_seconds":0, "end_seconds":12, "text":"Azul com a bola no meio-campo pela direita"})
@@ -40,6 +43,9 @@ def test_failed_source_does_not_zero_healthy_audio_progress_or_erase_actions(tmp
             time.sleep(.01)
         assert status["state"]=="running" and status["captured_seconds"]==12
         assert status["observations"]==1
+        failed = next(stream for stream in status["streams"] if stream["source_id"] == failed_source)
+        assert failed["error_code"] == ("youtube_resolution_failed" if isinstance(failure, YouTubeResolutionError)
+                                        else "capture_failed")
         assert client.get(BASE+"/live/preview").json()["fusion"]["active_source_id"]!=failed_source
         assert "private upstream failure" not in str(status)
 

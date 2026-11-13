@@ -21,6 +21,10 @@ from app.source_validation import validate_source_urls
 from app.storage import StoreConflict
 
 
+class YouTubeResolutionError(CaptureError):
+    """YouTube metadata/format resolution failed before PCM decoding started."""
+
+
 @dataclass(frozen=True, slots=True)
 class ResolvedLiveAudio:
     """Kept for backwards compatibility; now also represents recorded media."""
@@ -210,7 +214,11 @@ async def youtube_pcm_chunks(
     start_seconds = validate_start_seconds(start_seconds)
     if type(realtime) is not bool:
         raise CaptureError("realtime must be a boolean")
-    live = await resolve_live_audio(source, yt_dlp_binary=yt_dlp_binary)
+    try:
+        live = await resolve_live_audio(source, yt_dlp_binary=yt_dlp_binary)
+    except CaptureError as exc:
+        # Keep the stage typed; never publish metadata errors or signed URLs.
+        raise YouTubeResolutionError("YouTube media resolution failed") from exc
     if start_seconds and not live.is_recording:
         raise CaptureError("start_seconds requires a confirmed recorded video")
     if _needs_playback_wait(live.url):

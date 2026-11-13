@@ -1023,6 +1023,7 @@ function showCaptureStatus(status){
   const names={idle:"Nenhuma captura iniciada",starting:"Preparando captura/modelo",running:"Processando narração",
     stopping:"Encerrando captura e inferência",stopped:"Acompanhamento parado",finished:"Trecho concluído",error:"Acompanhamento interrompido por erro"};
   const errors={asr_failed:"Falha no reconhecimento local. Confira modelo, dependências e memória.",
+    youtube_resolution_failed:"Não foi possível obter a mídia do YouTube para iniciar a decodificação. Confira disponibilidade da fonte e yt-dlp no servidor.",
     capture_failed:"A fonte não pôde ser processada. Confira disponibilidade e ferramentas do servidor.",
     upstream_http_403:"A origem recusou acesso (403). Escolha outra fonte autorizada.",
     upstream_http_404:"A mídia não está disponível (404).",upstream_http_429:"A origem limitou as requisições (429)."};

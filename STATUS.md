@@ -1,5 +1,16 @@
 # STATUS — Game Now
 
+## Diagnóstico atual — GN-083: disponibilidade e etapa de falha do YouTube (2026-11-13)
+
+Atualizado: 2026-11-13
+Última tarefa integral concluída: GN-085; GN-083 permanece [ ].
+Entrega: falha ao resolver metadados/formato do YouTube recebe exceção tipada e código público `youtube_resolution_failed`, com mensagem própria no painel. Falhas de decodificação e ASR continuam distintas; detalhes privados não são enviados ao navegador. Sem recuperação automática nem mudança de modelo/captura em execução.
+Evidência: diagnóstico CLI isolado da segunda fonte autorizada `KHLaE8n0aTY` em 2026-11-13T12:14:17Z entregou 5s/160.000 bytes/10 blocos PCM mono s16le16kHz, desde o início do vídeo, sem mídia salva/retransmitida. Isso comprova disponibilidade pontual, não resolução da falha histórica ou funcionamento desde2116s. Porta8000 não respondeu à consulta; servidor principal não foi iniciado.
+Testes: Windows **838 passed, 4 skipped**; 70 testes específicos de captura. Regressões distinguem resolução/decoder/HTTP, ocultam segredos e preservam progresso/ação da fonte saudável quando qualquer fonte falha. Playwright/Chromium real com fontes artificiais, servidor8001 e SQLite temporário confirmou mensagem específica, acompanhamento parcial e12s preservados; zero erro JS e estado persistido idêntico. Servidor isolado encerrado. Schema v1 sem alteração, sintaxe JS e diff válidos. Artefatos privados `data/resolution-tests.log` e `data/resolution-diagnostics-report.json`.
+Limitações: causa da falha anterior desconhecida; teste atual de5s não verifica ASR, sequência de lances, seek2116s, alinhamento ou estabilidade das duas fontes em paralelo. GN-083 segue sem gabarito humano independente/métricas de qualidade. Os três relatórios não versionados preexistentes foram preservados.
+Próxima tarefa: GN-083, validar interpretação espacial e atraso com referência independente; se a fonte falhar novamente, inspecionar o código da etapa exibido.
+Como continuar: iniciar servidor/captura manualmente quando desejar. Teste isolado reproduzível: `.\.venv\Scripts\python.exe -m app.youtube_capture --url https://www.youtube.com/watch?v=KHLaE8n0aTY --seconds 5 --yt-dlp .\.venv\Scripts\yt-dlp.exe`. Conferir CI do HEAD final do PR antes de integrar; não iniciar captura principal automaticamente.
+
 ## Correção atual — GN-083: configuração da captura e fonte parcial (2026-11-12)
 
 Atualizado: 2026-11-12

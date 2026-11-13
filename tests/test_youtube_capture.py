@@ -48,6 +48,47 @@ def source(name="normal"):
                        enabled=True, status="offline")
 
 
+def test_pcm_resolution_failure_is_typed_and_does_not_start_decoder(monkeypatch):
+    async def resolve(*args, **kwargs):
+        raise CaptureError("private https://cdn.example.org?token=secret")
+
+    async def decode(*args, **kwargs):
+        pytest.fail("Decoder must not start when resolution fails")
+        yield b""
+
+    monkeypatch.setattr(youtube_capture, "resolve_live_audio", resolve)
+    monkeypatch.setattr(youtube_capture, "pcm_chunks", decode)
+
+    async def collect():
+        async with aclosing(youtube_capture.youtube_pcm_chunks(source())) as stream:
+            return [block async for block in stream]
+
+    with pytest.raises(youtube_capture.YouTubeResolutionError) as caught:
+        asyncio.run(collect())
+    assert str(caught.value) == "YouTube media resolution failed"
+
+
+def test_decoder_failure_is_not_reported_as_youtube_resolution_failure(monkeypatch):
+    async def resolve(*args, **kwargs):
+        return youtube_capture.ResolvedLiveAudio(
+            url="https://cdn.example.org/audio", format_id="test", headers={})
+
+    async def decode(*args, **kwargs):
+        raise CaptureError("upstream_http_403")
+        yield b""
+
+    monkeypatch.setattr(youtube_capture, "resolve_live_audio", resolve)
+    monkeypatch.setattr(youtube_capture, "pcm_chunks", decode)
+
+    async def collect():
+        async with aclosing(youtube_capture.youtube_pcm_chunks(source())) as stream:
+            return [block async for block in stream]
+
+    with pytest.raises(CaptureError, match="upstream_http_403") as caught:
+        asyncio.run(collect())
+    assert not isinstance(caught.value, youtube_capture.YouTubeResolutionError)
+
+
 def fake_ytdlp(tmp_path: Path):
     executable = tmp_path / "fake-yt-dlp"
     executable.write_text('''#!/usr/bin/env python3
