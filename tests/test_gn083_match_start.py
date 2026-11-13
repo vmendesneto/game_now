@@ -195,3 +195,102 @@ def test_added_spatial_phase_cues_cannot_override_negative_or_noncurrent_context
     detector = MatchStartDetector()
     for seq in range(4):
         assert detector.consume(row(seq, f'{prefix}: {text}'))['phase'] == 'pre_game'
+
+
+def test_complete_match_cycle_with_delayed_start_break_extra_time_and_full_time():
+    detector = MatchStartDetector()
+    seq, audio = 0, 0.
+
+    def advance(text, duration=10):
+        nonlocal seq, audio
+        result = detector.consume({'source_id': 'complete-source', 'sequence': seq,
+            'start_seconds': audio, 'end_seconds': audio+duration, 'text': text})
+        seq += 1
+        audio += duration
+        return result
+
+    for _ in range(30):
+        assert advance('A partida vai começar daqui a pouco')['phase'] == 'pre_game'
+    advance('Começou o jogo')
+    assert advance('Caio com a bola pela direita')['phase'] == 'in_play'
+    for _ in range(300):
+        assert advance('Beto carrega pela esquerda')['phase'] == 'in_play'
+    assert advance('Termina o primeiro tempo')['phase'] == 'half_time'
+    for _ in range(90):
+        assert advance('Equipes no vestiário')['phase'] == 'half_time'
+    advance('Começa o segundo tempo')
+    assert advance('Davi com a bola pelo meio')['phase'] == 'second_half'
+    for _ in range(300):
+        assert advance('Caio carrega pela direita')['phase'] == 'second_half'
+    result = advance('O árbitro apitou o final do jogo, partida encerrada')
+    assert result['phase'] == 'finished' and not result['ball_updates_allowed']
+    assert audio > 7200  # virtual audio timeline, no physical two-hour claim
+    assert advance('Caio com a bola')['phase'] == 'finished'
+
+
+@pytest.mark.parametrize('prefix', ['No replay', 'Ontem', 'Oferecimento', 'Não', 'Talvez'])
+def test_noncurrent_full_time_cannot_end_match(prefix):
+    detector = MatchStartDetector()
+    detector.consume(row(0, 'Começou o jogo'))
+    detector.consume(row(1, 'Caio com a bola'))
+    assert detector.consume(row(2, prefix+': terminou o jogo'))['phase'] == 'in_play'
+
+
+def test_full_time_is_not_inferred_from_elapsed_time_or_before_start():
+    detector = MatchStartDetector()
+    assert detector.consume(row(0, 'Fim de jogo'))['phase'] == 'pre_game'
+    detector.consume(row(1, 'Começou o jogo'))
+    detector.consume(row(2, 'Caio com a bola'))
+    assert detector.consume(row(3, 'Narradores analisam o confronto', start=15000))['phase'] == 'in_play'
+
+
+def test_question_about_referee_full_time_cannot_end_the_match():
+    detector = MatchStartDetector()
+    detector.consume(row(0, 'Começou o jogo'))
+    detector.consume(row(1, 'Caio com a bola'))
+    result = detector.consume(row(2, 'O árbitro apitou o final do jogo?'))
+    assert result['phase'] == 'in_play' and result['ball_updates_allowed']
+
+
+@pytest.mark.parametrize('whistle', ['agora apita', 'agora a pita'])
+def test_immediate_kickoff_announcement_needs_subsequent_ball_circulation(whistle):
+    detector = MatchStartDetector()
+    assert detector.consume(row(0, 'E '+whistle+'! Início de jogo no estádio.'))['phase'] == 'probable_start'
+    result = detector.consume(row(1, 'A equipe vem pelo meio tocando bola.'))
+    assert result['phase'] == 'in_play' and result['start_basis'] == 'kickoff_and_play'
+    assert result['kickoff_time_verified'] is False
+
+
+@pytest.mark.parametrize('prefix', ['No replay', 'Ontem', 'Oferecimento', 'Não', 'Talvez', 'Daqui a pouco'])
+def test_ball_circulation_and_kickoff_cannot_override_noncurrent_context(prefix):
+    detector = MatchStartDetector()
+    for seq, text in enumerate(['agora apita início de jogo', 'o time está tocando bola',
+                              'segue rodando a bola', 'vem circulando a bola']):
+        assert detector.consume(row(seq, prefix+': '+text))['phase'] == 'pre_game'
+
+
+def test_present_tense_half_end_and_second_half_restart_with_asr_gender_variation():
+    detector = MatchStartDetector()
+    detector.consume(row(0, 'Começou o jogo'))
+    detector.consume(row(1, 'Caio com a bola'))
+    result = detector.consume(row(2, 'E acaba agora o primeiro tempo, o treinador vai conversar com o pessoal.'))
+    assert result['phase'] == 'half_time'
+    result = detector.consume(row(3, 'Estamos nas emoções do segundo tempo. O Azul dá a saída de bola e vai tocando o bola ali atrás.'))
+    assert result['phase'] == 'second_half'
+    result = detector.consume(row(4, 'Fim de jogo no estádio.'))
+    assert result['phase'] == 'finished'
+
+
+@pytest.mark.parametrize('prefix', ['No replay', 'Ontem', 'Oferecimento', 'Não', 'Talvez'])
+def test_present_tense_half_end_does_not_override_vetoes(prefix):
+    detector = MatchStartDetector()
+    detector.consume(row(0, 'Começou o jogo'))
+    detector.consume(row(1, 'Caio com a bola'))
+    assert detector.consume(row(2, prefix+': acaba agora o primeiro tempo'))['phase'] == 'in_play'
+
+
+def test_question_about_half_end_cannot_confirm_interval():
+    detector = MatchStartDetector()
+    detector.consume(row(0, 'Começou o jogo'))
+    detector.consume(row(1, 'Caio com a bola'))
+    assert detector.consume(row(2, 'Acaba agora o primeiro tempo?'))['phase'] == 'in_play'

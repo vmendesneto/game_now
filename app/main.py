@@ -39,7 +39,7 @@ from app.transcription_feed import TranscriptFeed
 from app.retention_policy import TranscriptRetention
 from app.network_security import NetworkSecurityMiddleware, NetworkSecuritySettings
 from app.gn083_live import LiveObservation, LivePreviewRegistry
-from app.capture_runtime import CaptureRuntime, CaptureRequest, CaptureConflict
+from app.capture_runtime import CaptureRuntime, CaptureRequest, CaptureConflict, RenderAcknowledgement
 from app.action_diagnostics import diagnose_actions, load_saved_diagnostics
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -383,6 +383,16 @@ def create_app(database_path: str | Path | None = None, *, capture_runner=None) 
         require_match(match_id)
         return capture.status(match_id)
 
+    @application.get("/api/matches/{match_id}/capture/report")
+    async def capture_report(match_id: str):
+        require_match(match_id)
+        return capture.report(match_id)
+
+    @application.post("/api/matches/{match_id}/capture/render-ack")
+    async def acknowledge_render(match_id: str, acknowledgement: RenderAcknowledgement):
+        require_match(match_id)
+        return {"accepted": capture.acknowledge_render(match_id, acknowledgement)}
+
     @application.post("/api/matches/{match_id}/capture/start", status_code=202)
     async def start_capture(match_id: str, options: CaptureRequest, request: Request):
         require_match(match_id)
@@ -452,7 +462,7 @@ def create_app(database_path: str | Path | None = None, *, capture_runner=None) 
     @application.get("/api/matches/{match_id}/live/preview")
     async def get_live_preview(match_id: str):
         require_match(match_id)
-        return live_previews.get(match_id)
+        return capture.decorate_preview(match_id, live_previews.get(match_id))
 
     @application.get("/api/matches/{match_id}/actions/diagnostics")
     async def action_diagnostics(match_id: str, saved: bool = False):
@@ -473,13 +483,14 @@ def create_app(database_path: str | Path | None = None, *, capture_runner=None) 
             return
         await socket.accept()
         token, queue = transcript_feed.subscribe(match_id)
-        allowed = {source.id for source in store.get_sources(match_id) or []}
-        await socket.send_json({
-            "kind": "snapshot",
-            "data": transcript_feed.snapshot(match_id, allowed_sources=allowed),
-        })
-        receive_task = asyncio.create_task(socket.receive_text())
+        receive_task = update_task = None
         try:
+            allowed = {source.id for source in store.get_sources(match_id) or []}
+            await socket.send_json({
+                "kind": "snapshot",
+                "data": transcript_feed.snapshot(match_id, allowed_sources=allowed),
+            })
+            receive_task = asyncio.create_task(socket.receive_text())
             while True:
                 update_task = asyncio.create_task(queue.get())
                 done, _ = await asyncio.wait(
@@ -505,11 +516,10 @@ def create_app(database_path: str | Path | None = None, *, capture_runner=None) 
         except (WebSocketDisconnect, RuntimeError, OSError, asyncio.CancelledError):
             pass
         finally:
-            if 'update_task' in locals() and not update_task.done():
-                update_task.cancel()
-                await asyncio.gather(update_task, return_exceptions=True)
-            receive_task.cancel()
-            await asyncio.gather(receive_task, return_exceptions=True)
+            pending = [task for task in (update_task, receive_task) if task is not None]
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
             transcript_feed.unsubscribe(match_id, token)
 
     @application.get("/api/matches/{match_id}/state", response_model=ContractBundle)

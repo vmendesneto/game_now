@@ -21,6 +21,7 @@ _BAD = re.compile(
 _SUBJECT = re.compile(
     r"\b(?:recebeu|recebe|recebendo|dominou|domina|recuperou|recupera|"
     r"carrega|carregando|conduz|avanca|avancando|leva|levando|"
+    r"toca|tocou|passa|passou|entrega|entregou|"
     r"chuta|chutou|cruza|cruzou|devolve|devolveu|retorna|retornou|serve|serviu)\b", re.I)
 _TARGET = re.compile(
     r"\b(?:serve|serviu|servindo|aciona|acionando|"
@@ -34,6 +35,10 @@ _GAP = re.compile(r"^(?:[\s,:-]|\b(?:ja|ainda|agora|de novo|tambem|o|a|equipe|do
                   r"no|na|de|pelo|pela|setor|campo|zona|lado|corredor|direito|esquerdo|central|"
                   r"defesa|defensa|ataque|aqui|que|meio-campo|intermediaria|ofensiva|defensiva)\b)*$", re.I)
 _NOT_BALL = re.compile(r"^\s*(?:o |um |uma )?(?:cartao|atendimento|premio|aplausos|homenagem|oferta)\b", re.I)
+_PASS_VERBS = frozenset(('toca', 'tocou', 'passa', 'passou', 'entrega', 'entregou'))
+_PASS_FOOTBALL = re.compile(
+    r"^\s*(?:(?:ali|aqui|la|agora|ja)\s+)*(?:a bola|bola|de primeira|de lado|mais atras|mais (?:a )?frente|"
+    r"pela (?:direita|esquerda)|pelo (?:meio|centro))\b", re.I)
 _LANES = re.compile(r"\b(?:(?:lado|setor|sector|corredor|ponta|faixa) (?:(?:do|de) )?(esquerd[ao]|direit[ao]|central)|pela (esquerda|direita)|pelo (meio|centro))\b", re.I)
 _AREAS = (
     (re.compile(r"\b(?:campo|metade|defesa) (?:adversari[ao]|do adversario|da adversaria|do rival)\b", re.I), [4, 5], "campo adversário"),
@@ -96,6 +101,16 @@ def track_narration(match: Match, text: str) -> list[dict]:
                 mention = min(nearby, key=lambda m: m.start) if target else max(nearby, key=lambda m: m.end)
                 if mention.status != "resolved" or mention.team_id is None:
                     continue
+                if not target and cue.group().lower() in _PASS_VERBS:
+                    # These verbs also describe interviews, illness and gifts.
+                    # Require a ball/spatial cue or a named passing destination.
+                    tail = clause[cue.end():cue.end()+90]
+                    recipient = any(m.kind == 'player' and m.status == 'resolved'
+                        and 0 <= m.start-cue.end() <= 65
+                        and re.fullmatch(r"\s+(?:para|pra|pro)\s+(?:o\s+)?", clause[cue.end():m.start], re.I)
+                        for m in mentions)
+                    if not _PASS_FOOTBALL.match(tail) and not recipient:
+                        continue
                 if mention.kind == "team":
                     associated = [m for m in mentions if m.kind == "player" and m.status == "resolved"
                         and m.team_id == mention.team_id and (

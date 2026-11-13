@@ -4,6 +4,18 @@ Atualização de 2026-11-13: o site inicia e para fontes cadastradas em quantida
 variável, executa ASR local e publica texto para os clientes conectados.
 GN-083 permanece aberta: integração funcionando não é precisão demonstrada.
 
+Relatórios de processamento, confirmação do navegador e perfil de reconhecimento
+estão descritos em [GN-084-OBSERVATION.md](GN-084-OBSERVATION.md). Eventos afirmados
+na narração aparecem como hipóteses textuais, sem alterar automaticamente o placar.
+Fim de partida reconhecido pela fala bloqueia novas posições; o último símbolo
+visual continua cinza. Nenhuma fase é calculada apenas pelo tempo decorrido.
+
+Ações de distribuição com atleta resolvido, como “entregou mais à frente”,
+podem ser mostradas mesmo sem região completa. Verbos genéricos de passe exigem
+contexto explícito de bola, direção ou destinatário nomeado; a informação de outro
+atleta não justifica o verbo anterior. Destinatário continua sem recepção confirmada
+e “mais à frente” não determina uma faixa longitudinal. As hipóteses são textuais.
+
 ## Horário previsto e início automático
 
 Cadastre data/hora no horário do dispositivo. O cadastro salva UTC em metadados
@@ -91,6 +103,7 @@ Não exige escutar o apito nem três expressões diferentes: confirma por três
 narrações distintas da mesma fonte, em tempos distintos, abrangendo pelo menos
 12s. A assinatura normalizada impede tratar repetição de ASR como nova evidência.
 Condução com localização textual e saída jogando também contam para a fase,
+assim como circulação explícita da bola e ações atuais resolvidas pelo elenco,
 preservando os vetos a replay/comercial/análise/histórico/negação. Essas pistas
 **não** acrescentam evidência de posse/região à guarda da bola.
 

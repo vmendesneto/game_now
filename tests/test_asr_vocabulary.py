@@ -69,3 +69,21 @@ def test_cpu_model_receives_context_only_when_configured():
     without = CPUTranscriber(replace(settings, initial_prompt=None), model_factory=lambda *a, **k: Fake())
     without.transcribe_pcm(pcm)
     assert "initial_prompt" not in received[-1]
+
+
+def test_live_profile_uses_local_vad_and_one_decoding_temperature_without_changing_model():
+    received = []
+    class Fake:
+        def transcribe(self, audio, **kwargs):
+            received.append(kwargs)
+            return iter([]), SimpleNamespace(language='pt')
+    settings = ASRSettings(model='small', live_mode=True)
+    transcriber = CPUTranscriber(settings, model_factory=lambda *a, **k: Fake())
+    result = transcriber.transcribe_pcm(struct.pack('<h', 10)*16000)
+    assert result.model == 'small' and result.seconds == 1
+    assert received[-1]['vad_filter'] is True and received[-1]['temperature'] == 0.0
+    standard = CPUTranscriber(replace(settings, live_mode=False), model_factory=lambda *a, **k: Fake())
+    standard.transcribe_pcm(struct.pack('<h', 10)*16000)
+    assert received[-1]['vad_filter'] is False and 'temperature' not in received[-1]
+    with pytest.raises(ValueError, match='live_mode'):
+        ASRSettings(live_mode='true')

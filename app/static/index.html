@@ -31,7 +31,7 @@
         <div class="field-foot"><span><i class="legend-square"></i> Região provável (não posição exata)</span><span id="ball-status" role="status" aria-live="polite">Posição incerta</span></div>
       </div>
       <aside class="side">
-        <div class="panel"><div class="panel-title">AGORA NO JOGO</div><h2 id="action">Aguardando o primeiro lance</h2><p id="last-confirmed-event" class="confirmed-event">Nenhum evento confirmado na demo</p><p id="last-text">Avance a demonstração para acompanhar a sequência simulada.</p>
+        <div class="panel"><div class="panel-title">AGORA NO JOGO</div><h2 id="action">Aguardando o primeiro lance</h2><p id="last-confirmed-event" class="confirmed-event">Nenhum evento confirmado na demo</p><p id="narrated-event" hidden></p><ul id="narrated-event-history" class="roster-list" hidden></ul><p id="last-text">Avance a demonstração para acompanhar a sequência simulada.</p>
           <div class="facts"><div><span id="possession-label">Posse provável</span><strong id="possession">Desconhecida</strong></div><div><span id="player-label">Jogador provável</span><strong id="player">Desconhecido</strong></div><div><span>Confiança da zona</span><strong id="confidence">Sem evidência</strong></div></div></div>
         <div class="panel"><div class="panel-title">CONTROLES DA DEMONSTRAÇÃO</div><p class="muted">Dois narradores simulados, comercial, replay e expiração. Iniciar/pausar controla somente o avanço automático neste navegador; reiniciar é compartilhado entre navegadores. Nenhum áudio real é capturado.</p>
           <div class="controls">
@@ -269,6 +269,7 @@
           </details>
           <div class="form-pair">
             <label>Reconhecimento local<select id="capture-model"><option value="base">Base</option><option value="tiny">Tiny (mais rápido)</option><option value="small" selected>Small</option><option value="medium">Medium (mais pesado)</option></select></label>
+            <label>Perfil de reconhecimento<select id="capture-recognition-profile"><option value="live" selected>Contínuo: filtro de fala e decodificação única</option><option value="standard">Padrão: tentativas adicionais de decodificação</option></select></label>
             <label>Início na gravação (segundos)<input id="capture-start" type="number" min="0" max="86400" step="0.1" value="0" required></label>
             <label>Duração do teste (segundos)<input id="capture-seconds" type="number" min="5" max="600" value="60" disabled></label>
             <label>Contexto de áudio (segundos)<input id="capture-window" type="number" min="6" max="30" value="12" required></label>
@@ -281,6 +282,8 @@
           <p id="capture-status" role="status" aria-live="polite">Nenhuma captura iniciada.</p>
           <p id="capture-model-status" class="muted" role="status"></p>
           <p id="capture-message" class="form-message" role="status"></p>
+          <div class="controls"><button id="capture-report-load" type="button" class="secondary">Ver relatório da execução</button><button id="capture-report-download" type="button" class="secondary" disabled>Baixar relatório</button></div>
+          <p id="capture-report-summary" class="muted" role="status">Mede PCM disponível no servidor até texto e primeira confirmação do navegador. Não mede atraso da emissora nem precisão. Relatório sem mídia/transcrições; baixe antes de reiniciar o servidor ou iniciar uma nova execução.</p>
         </form>
       </div>
     </section>
@@ -297,6 +300,6 @@
   <script src="/static/setup_progress.js" defer></script>
   <script src="/static/transcript_diagnostics.js" defer></script>
   <script src="/static/fusion_diagnostics.js" defer></script>
-  <script src="/static/app.js?v=10" defer></script>
+  <script src="/static/app.js?v=11" defer></script>
 </body>
 </html>

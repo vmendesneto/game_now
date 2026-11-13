@@ -30,6 +30,7 @@ class ASRSettings:
     beam_size: int = 3
     max_seconds: int = 30
     initial_prompt: str | None = None
+    live_mode: bool = False
 
     def __post_init__(self) -> None:
         if self.model not in AVAILABLE_MODELS:
@@ -40,6 +41,8 @@ class ASRSettings:
             raise ValueError("beam_size must be between 1 and 10")
         if not 1 <= self.max_seconds <= 120:
             raise ValueError("max_seconds must be between 1 and 120")
+        if type(self.live_mode) is not bool:
+            raise ValueError("live_mode must be a boolean")
         if self.initial_prompt is not None:
             if (not self.initial_prompt.strip() or len(self.initial_prompt) > 600
                     or any(ord(char) < 32 for char in self.initial_prompt)):
@@ -138,9 +141,14 @@ class CPUTranscriber:
         try:
             options = {
                 "language": "pt", "beam_size": self.settings.beam_size,
-                "vad_filter": False,  # GN-036 will evaluate VAD independently.
+                "vad_filter": self.settings.live_mode,
                 "condition_on_previous_text": False,
             }
+            if self.settings.live_mode:
+                # One temperature prevents repeated decoding of difficult audio
+                # from multiplying live latency. VAD is local, not a classifier
+                # of football/ads, and does not establish accuracy.
+                options["temperature"] = 0.0
             if self.settings.initial_prompt:
                 options["initial_prompt"] = self.settings.initial_prompt
             segments, info = self._load_model().transcribe(audio, **options)
