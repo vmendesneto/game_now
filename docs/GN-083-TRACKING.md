@@ -54,11 +54,13 @@ na mesma janela chegam juntos, com intervalo de janela, sem tempo exato por
 palavra. Não afirmar atualização por passe em tempo real, posse validada,
 trajetória completa ou precisão GN-083 sem avaliação independente.
 
-Com duas fontes, a captura permanece independente por fonte e a seleção escolhe
-um relato atual alinhado, com histerese e failover. Não combina região e atleta
-de narradores diferentes. Os apitos informados pelo usuário são o ponto inicial
-do alinhamento; o watermark bloqueia regressões. Esse modo é descrito em
-`docs/GN-083-CAPTURE.md` e não comprova que as duas rádios narram o mesmo instante.
+Com quantidade variável de fontes, a seleção escolhe um relato atual por vez,
+com histerese e failover. Não combina região e atleta de narradores diferentes.
+No modo automático não se pede apito: início é reconhecido pela narração, e
+fontes sem alinhamento confirmado têm contextos visuais separados. Uma troca
+pode mostrar trecho anterior; não há garantia de cronologia entre emissoras.
+Referências manuais e watermark ficam no modo opcional de teste com gravações.
+Veja `docs/GN-083-CAPTURE.md`; nenhum modo comprova sincronização de rádios reais.
 
 ## Evidência Windows em 2026-11-12
 

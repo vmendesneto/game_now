@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from app.asr import BYTES_PER_SECOND
 from app.audio_capture import CaptureError
 from app.capture_runtime import CaptureRequest
-from app.gn083_live import LiveObservation, LivePreviewRegistry
+from app.gn083_live import ASRCapacityError, LiveObservation, LivePreviewRegistry
 from app.main import create_app
 from app.youtube_capture import YouTubeResolutionError
 
@@ -125,6 +125,7 @@ def test_confirmation_disabled_source_bad_inputs_and_error_sanitization(tmp_path
 
 
 @pytest.mark.parametrize("failure, expected", [
+    (ASRCapacityError("private https://cdn.example.org?token=secret"), "asr_capacity_exceeded"),
     (YouTubeResolutionError("private https://cdn.example.org?token=secret"), "youtube_resolution_failed"),
     (CaptureError("decoder failed https://cdn.example.org?token=secret"), "capture_failed"),
     (CaptureError("upstream_http_403 https://cdn.example.org?token=secret"), "upstream_http_403"),

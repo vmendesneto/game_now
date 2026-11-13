@@ -171,3 +171,27 @@ def test_phase_detector_cannot_mix_sources_or_accept_infinite_times():
         detector.consume(row(1, "Beto com a bola", source="other-source"))
     with pytest.raises(ValueError, match="Invalid"):
         MatchStartDetector().consume(row(0, "Começou o jogo", start=float("inf")))
+
+
+def test_receiving_and_returning_with_spatial_narration_can_confirm_play_without_whistle():
+    detector = MatchStartDetector()
+    for seq, text in enumerate([
+        'Caio carrega pela ponta esquerda',
+        'Beto já saiu jogando pela defesa',
+        'Davi recebeu, tenta o lançamento para o campo de ataque',
+    ]):
+        result = detector.consume(row(seq, text, start=seq*10))
+    assert result['phase'] == 'in_play'
+    assert result['start_basis'] == 'observed_play'
+    assert result['kickoff_time_verified'] is False
+
+
+@pytest.mark.parametrize('text', [
+    'Caio recebeu, tenta o lançamento para o campo de ataque',
+    'Beto retorna o jogo para o lado esquerdo',
+])
+@pytest.mark.parametrize('prefix', ['Não', 'Talvez', 'Ontem', 'No replay', 'Oferecimento', 'Daqui a pouco'])
+def test_added_spatial_phase_cues_cannot_override_negative_or_noncurrent_context(text, prefix):
+    detector = MatchStartDetector()
+    for seq in range(4):
+        assert detector.consume(row(seq, f'{prefix}: {text}'))['phase'] == 'pre_game'

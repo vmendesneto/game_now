@@ -156,6 +156,11 @@ def create_app(database_path: str | Path | None = None, *, capture_runner=None) 
     async def get_match(match_id: str):
         return require_match(match_id)
 
+    @application.get("/api/matches/{match_id}/schedule")
+    async def get_schedule(match_id: str):
+        require_match(match_id)
+        return store.get_schedule(match_id)
+
     @application.put("/api/matches/{match_id}", response_model=Match)
     async def edit_match(match_id: str, config: MatchConfig):
         require_capture_idle(match_id)
@@ -364,10 +369,10 @@ def create_app(database_path: str | Path | None = None, *, capture_runner=None) 
 
     @application.put("/api/matches/{match_id}/sources", response_model=list[AudioSource])
     async def save_sources(match_id: str, sources: list[AudioSource]):
-        require_capture_idle(match_id)
         try:
+            capture.require_unchanged_active_sources(match_id, sources)
             result = store.replace_sources(match_id, sources)
-        except StoreConflict as exc:
+        except (CaptureConflict, StoreConflict) as exc:
             conflict(exc)
         if result is None:
             raise HTTPException(status_code=404, detail="Partida não encontrada")
@@ -394,6 +399,23 @@ def create_app(database_path: str | Path | None = None, *, capture_runner=None) 
         if not request.client or request.client.host not in ("127.0.0.1", "::1", "testclient"):
             raise HTTPException(status_code=403, detail="Pare captura no servidor local")
         return await capture.stop(match_id)
+
+    @application.post("/api/matches/{match_id}/capture/add", status_code=202)
+    async def add_capture_sources(match_id: str, options: CaptureRequest, request: Request):
+        require_match(match_id)
+        if not request.client or request.client.host not in ("127.0.0.1", "::1", "testclient"):
+            raise HTTPException(status_code=403, detail="Adicione fontes no servidor local")
+        try:
+            return await capture.start(match_id, options, adding=True)
+        except (CaptureConflict, StoreConflict) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @application.post("/api/matches/{match_id}/capture/sources/{source_id}/stop", status_code=202)
+    async def stop_capture_source(match_id: str, source_id: str, request: Request):
+        require_match(match_id)
+        if not request.client or request.client.host not in ("127.0.0.1", "::1", "testclient"):
+            raise HTTPException(status_code=403, detail="Pare a fonte no servidor local")
+        return await capture.stop(match_id, source_id=source_id)
 
     @application.get("/api/matches/{match_id}/transcripts")
     async def get_transcripts(

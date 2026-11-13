@@ -193,11 +193,10 @@ def test_strict_validation_of_source_ids_and_timestamps():
         FusionConflictRequest(evaluated_at=T0, observations=[], previous_play=prev(seconds=1))
     with pytest.raises(ValidationError):
         FusionConflictRequest(evaluated_at=T0, observations=[], conflict_window_seconds=30)
-    with pytest.raises(ValidationError):
-        FusionConflictRequest(
-            evaluated_at=T0,
-            observations=[obs(f"radio-{i}") for i in range(9)],
-        )
+    many = FusionConflictRequest(
+        evaluated_at=T0, observations=[obs(f"radio-{i}") for i in range(25)],
+    )
+    assert len(many.observations) == 25
 
 
 def test_preview_api_does_not_modify_match_or_insert_balls(tmp_path):

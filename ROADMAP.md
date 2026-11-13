@@ -1,5 +1,11 @@
 # ROADMAP — Game Now
 
+### GN-083 — início pela narração, previsão e fontes variáveis (2026-11-13)
+
+- Data/hora previstas com fuso são metadados persistidos; não iniciam o jogo pelo relógio. Início automático pela narração, sem apito manual, distingue jogo observado de apito narrado. Escuta contínua é o padrão da UI; operação do servidor/escuta permanece manual.
+- Fontes em lista variável, rádio/YouTube, adição/parada/reinício individual, modelo compartilhado e fila limitada por fonte. Sem teto funcional de duas/oito fontes; capacidade real depende do servidor. Sem alinhamento confirmado, relatos/contextos separados e aviso de possível retrocesso ao trocar. Referências manuais ficam no teste opcional de gravações.
+- Windows **864 passed/4 skipped**; browser desktop/mobile emulado com13 fontes artificiais e manutenção de12 após parar uma. Small/90s reais desde530s confirmou pré-jogo e depois início automático por ações narradas, sem referência de apito enviada; primeiro ensaio falhou e motivou regressões de pistas espaciais. Não comprova início exato, sincronização automática,13 fontes reais, acurácia ou partida completa. **GN-083/GN-084 continuam [ ]**; detalhes em STATUS.
+
 ### GN-083 — diagnóstico da resolução do YouTube (2026-11-13)
 
 - Falha antes da decodificação recebe código tipado e mensagem própria, sem detalhes privados. Progresso da outra fonte preservado; sem recuperação automática ou mudança da captura principal.

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import AwareDatetime, Field, field_validator, model_validator
 
 from app.contracts import Id, Match, NonNegativeSeconds, Player, StrictModel, Team
 
@@ -16,10 +16,11 @@ class MatchConfig(StrictModel):
     match_seconds: NonNegativeSeconds = 0
     home_score: int = Field(default=0, ge=0)
     away_score: int = Field(default=0, ge=0)
+    scheduled_kickoff_at: AwareDatetime | None = None
 
     @model_validator(mode="after")
     def check_match(self) -> "MatchConfig":
-        Match.model_validate(self.model_dump())
+        Match.model_validate(self.model_dump(exclude={"scheduled_kickoff_at"}))
         return self
 
 

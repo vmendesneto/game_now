@@ -54,6 +54,10 @@ class SQLiteStore:
                     payload TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS corrections_by_match ON match_corrections(match_id);
+                CREATE TABLE IF NOT EXISTS match_schedule (
+                    match_id TEXT PRIMARY KEY REFERENCES matches(id) ON DELETE CASCADE,
+                    scheduled_kickoff_at TEXT
+                );
             """)
 
     @contextmanager
@@ -99,7 +103,7 @@ class SQLiteStore:
             return self._get_match(conn, match_id)
 
     def create_match(self, config: MatchConfig) -> Match:
-        match = Match.model_validate(config.model_dump())
+        match = Match.model_validate(config.model_dump(exclude={"scheduled_kickoff_at"}))
         initial = ContractBundle(match=match, ball=EstimatedBallState(updated_at=datetime.now(timezone.utc)))
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
@@ -108,9 +112,24 @@ class SQLiteStore:
                              (match.id, match.model_dump_json(), now, now))
                 conn.execute("INSERT INTO snapshots VALUES (?, ?)",
                              (match.id, initial.model_dump_json()))
+                self._save_schedule(conn, match.id, config)
             except sqlite3.IntegrityError as exc:
                 raise StoreConflict("Match ID already exists") from exc
         return match
+
+    @staticmethod
+    def _save_schedule(conn: sqlite3.Connection, match_id: str, config: MatchConfig) -> None:
+        if "scheduled_kickoff_at" in config.model_fields_set:
+            value = config.scheduled_kickoff_at
+            conn.execute("INSERT OR REPLACE INTO match_schedule VALUES (?, ?)",
+                         (match_id, value.astimezone(timezone.utc).isoformat() if value else None))
+
+    def get_schedule(self, match_id: str) -> dict:
+        with self._connect() as conn:
+            row = conn.execute("SELECT scheduled_kickoff_at FROM match_schedule WHERE match_id=?",
+                               (match_id,)).fetchone()
+            return {"scheduled_kickoff_at": row[0] if row else None,
+                    "start_detection": "narration", "schedule_confirms_start": False}
 
     def update_match(self, match_id: str, config: MatchConfig) -> Match | None:
         if match_id != config.id:
@@ -122,7 +141,7 @@ class SQLiteStore:
                 return None
             if old.players and (old.home.id != config.home.id or old.away.id != config.away.id):
                 raise StoreConflict("Cannot replace team IDs while rosters exist")
-            new_match = Match.model_validate({**config.model_dump(),
+            new_match = Match.model_validate({**config.model_dump(exclude={"scheduled_kickoff_at"}),
                                               "players": [p.model_dump() for p in old.players]})
             flow_row = conn.execute(
                 "SELECT payload FROM match_flow WHERE match_id=?", (match_id,)
@@ -140,6 +159,7 @@ class SQLiteStore:
                          (new_match.model_dump_json(), datetime.now(timezone.utc).isoformat(), match_id))
             conn.execute("UPDATE snapshots SET payload=? WHERE match_id=?",
                          (new_state.model_dump_json(), match_id))
+            self._save_schedule(conn, match_id, config)
             if (new_match.home_score, new_match.away_score) != (old.home_score, old.away_score):
                 from app.corrections import write_audit
                 write_audit(conn, match_id, kind="score", reason="legacy match editor",

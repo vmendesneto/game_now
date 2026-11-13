@@ -84,6 +84,8 @@
             <label>Cor visitante<input id="away-color" type="color" value="#f26c69"></label>
           </div>
           <label>Ataque do mandante<select id="home-direction"><option value="left_to_right">Esquerda → direita</option><option value="right_to_left">Direita → esquerda</option></select></label>
+          <label>Data e hora previstas (horário deste dispositivo)<input id="match-scheduled" type="datetime-local" step="60"></label>
+          <p class="muted" id="match-schedule-status">O horário é uma previsão. O início é reconhecido pela narração, inclusive se o jogo atrasar; não é necessário marcar o apito.</p>
           <div class="form-pair">
             <label>Período<select id="match-period"><option value="first_half">1º tempo</option><option value="half_time">Intervalo</option><option value="second_half">2º tempo</option><option value="finished">Encerrado</option></select></label>
             <label>Relógio (segundos)<input id="match-seconds" type="number" min="0" step="1" value="0" required></label>
@@ -254,25 +256,28 @@
         <form id="capture-form">
           <h3>Acompanhar narração</h3>
           <label>Fonte<select id="capture-source" required></select></label>
-          <label><input id="capture-parallel" type="checkbox"> Acompanhar duas gravações em paralelo</label>
+          <p class="muted">Inicie a escuta antes da partida. O sistema aguarda sinais de jogo na narração; passar do horário previsto não confirma o início.</p>
+          <label><input id="capture-parallel" type="checkbox"> Selecionar fontes adicionais</label>
           <div id="capture-parallel-fields" hidden>
-            <div class="form-pair">
-              <label>Apito inicial na primeira gravação (segundos)<input id="capture-kickoff" type="number" min="0" max="86400" step="0.1" value="0"></label>
-              <label>Segunda fonte<select id="capture-second-source"></select></label>
-              <label>Apito inicial na segunda gravação (segundos)<input id="capture-second-kickoff" type="number" min="0" max="86400" step="0.1" value="0"></label>
-            </div>
-            <p class="muted">A segunda gravação começa no mesmo tempo após o apito da primeira. Esses pontos fornecidos por você são o alinhamento inicial; diferenças entre as transmissões ainda podem ocorrer.</p>
+            <div id="capture-extra-sources" class="roster-list"></div>
+            <p class="muted">Escolha quantas fontes precisar. O reconhecimento é compartilhado; capacidade e atraso dependem do servidor. Fontes sem alinhamento são acompanhadas separadamente, com uma delas exibida por vez.</p>
           </div>
+          <details><summary>Teste opcional com gravações alinhadas</summary>
+            <label><input id="capture-manual-alignment" type="checkbox"> Usar referências já conhecidas nas gravações</label>
+            <label>Referência na gravação principal (segundos)<input id="capture-kickoff" type="number" min="0" max="86400" step="0.1" value="0"></label>
+            <p class="muted">Somente para reproduzir testes. Não é necessário informar o início de uma partida em acompanhamento normal. Preencha a referência das fontes adicionais selecionadas para este modo.</p>
+          </details>
           <div class="form-pair">
             <label>Reconhecimento local<select id="capture-model"><option value="base">Base</option><option value="tiny">Tiny (mais rápido)</option><option value="small" selected>Small</option><option value="medium">Medium (mais pesado)</option></select></label>
             <label>Início na gravação (segundos)<input id="capture-start" type="number" min="0" max="86400" step="0.1" value="0" required></label>
-            <label>Duração do teste (segundos)<input id="capture-seconds" type="number" min="5" max="600" value="60" required></label>
+            <label>Duração do teste (segundos)<input id="capture-seconds" type="number" min="5" max="600" value="60" disabled></label>
             <label>Contexto de áudio (segundos)<input id="capture-window" type="number" min="6" max="30" value="12" required></label>
           </div>
-          <label><input id="capture-continuous" type="checkbox"> Continuar até eu parar ou a fonte terminar</label>
+          <label><input id="capture-continuous" type="checkbox" checked> Continuar até eu parar ou a fonte terminar</label>
           <label><input id="capture-permission" type="checkbox" required> Tenho autorização para captar e analisar as fontes selecionadas.</label>
-          <p class="muted">Até duas fontes simultâneas. Instale os modelos locais opcionais no servidor; o primeiro uso pode baixar o modelo. Bola, posse e região permanecem desconhecidas quando a narração não fornece evidências suficientes.</p>
-          <div class="controls"><button id="capture-start-button" type="submit">Iniciar acompanhamento</button><button id="capture-stop" type="button" class="secondary" disabled>Parar acompanhamento</button><button id="capture-demo" type="button" class="secondary">Ver demonstração</button></div>
+          <p class="muted">Sem limite fixo de fontes por partida. Instale os modelos locais opcionais no servidor; o primeiro uso pode baixar o modelo. Se o processamento não acompanhar, a fonte informa falha em vez de acumular áudio indefinidamente. Bola, posse e região permanecem desconhecidas sem evidência suficiente.</p>
+          <div class="controls"><button id="capture-start-button" type="submit">Iniciar acompanhamento</button><button id="capture-add-button" type="submit" class="secondary" disabled>Adicionar fontes à escuta</button><button id="capture-stop" type="button" class="secondary" disabled>Parar acompanhamento</button><button id="capture-demo" type="button" class="secondary">Ver demonstração</button></div>
+          <div id="capture-stream-controls" class="controls"></div>
           <p id="capture-status" role="status" aria-live="polite">Nenhuma captura iniciada.</p>
           <p id="capture-model-status" class="muted" role="status"></p>
           <p id="capture-message" class="form-message" role="status"></p>
@@ -292,6 +297,6 @@
   <script src="/static/setup_progress.js" defer></script>
   <script src="/static/transcript_diagnostics.js" defer></script>
   <script src="/static/fusion_diagnostics.js" defer></script>
-  <script src="/static/app.js?v=9" defer></script>
+  <script src="/static/app.js?v=10" defer></script>
 </body>
 </html>

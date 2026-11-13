@@ -1,6 +1,6 @@
 # Game Now — acompanhamento de futebol a partir de narrações
 
-**Estado:** demo offline e acompanhamento de uma fonte cadastrada pelo navegador, com rádio/YouTube → FFmpeg → Whisper local → transcrição HTTP/WebSocket e prévia conservadora de região. Controles de início/parada testados em Windows com áudio YouTube autorizado e dois clientes reais. **A precisão da interpretação e uma partida inteira ainda não foram validadas.** Acompanhe [STATUS.md](STATUS.md) e [ROADMAP.md](ROADMAP.md).
+**Estado:** demo offline e acompanhamento de fontes cadastradas pelo navegador, sem quantidade fixa por partida, com rádio/YouTube → FFmpeg → Whisper local → transcrição HTTP/WebSocket e prévia conservadora de região. Data e hora são a previsão; o início é reconhecido pela narração. **A precisão da interpretação, o alinhamento automático entre emissoras e uma partida inteira ainda não foram validados.** Acompanhe [STATUS.md](STATUS.md) e [ROADMAP.md](ROADMAP.md).
 
 ## Executar a demonstração offline
 
@@ -24,6 +24,15 @@ Abra http://127.0.0.1:8000 no navegador. Clique em **Próximo relato** para simu
 
 Para fonte real autorizada, selecione a partida e use **Fontes de narração → Acompanhar narração**. O botão inicia ASR local e o painel recebe apenas texto; o campo fica sem região quando não houver evidência suficiente. **Parar acompanhamento** encerra a captura. Requisitos, limites e provas reais: [docs/GN-083-CAPTURE.md](docs/GN-083-CAPTURE.md). A demo continua funcionando sem modelos opcionais.
 
+Cadastre a data/hora previstas no horário do dispositivo e inicie a escuta antes do jogo.
+O horário não dispara a fase de jogo: se atrasar, o sistema aguarda evidência na narração.
+Não é necessário informar o apito. A escuta contínua é a opção inicial do painel.
+Selecione quantas fontes adicionais precisar; durante a escuta, cadastre novas fontes e
+use **Adicionar fontes à escuta**, ou pare uma delas individualmente. O servidor compartilha
+um modelo por partida e limita o áudio pendente por fonte; isso não promete capacidade
+infinita de processamento. Sem alinhamento confirmado, exibe um relato por vez e avisa
+que uma troca de emissora pode trazer um trecho anterior.
+
 ## Endpoints
 
 | Endpoint | Método | Uso |
@@ -37,6 +46,7 @@ Para fonte real autorizada, selecione a partida e use **Fontes de narração →
 | `/ws` | WebSocket | Snapshots de estado do demo (sem mídia) |
 | `/api/matches` | GET, POST | Listar e cadastrar partidas |
 | `/api/matches/{id}` | GET, PUT, DELETE | Detalhar, editar e excluir partida |
+| `/api/matches/{id}/schedule` | GET | Horário previsto salvo em UTC; não confirma início |
 | `/api/matches/{id}/players` | GET, PUT | Elenco completo dos dois clubes, com posição, camisa, apelidos e titularidade |
 | `/api/matches/{id}/resolve-player` | POST | Resolver menção isolada (nome, apelido, camisa), retornando `resolved`, `ambiguous` ou `unknown` |
 | `/api/matches/{id}/resolve-narration` | POST | Resolver nomes de equipes/atletas, camisas e pronomes em texto livre sem alterar a partida (GN-051) |
@@ -50,6 +60,8 @@ Para fonte real autorizada, selecione a partida e use **Fontes de narração →
 | `/api/matches/{id}/sources` | GET, PUT | Criar, editar, habilitar e desabilitar fontes persistidas (GN-032; sem ingestão) |
 | `/api/matches/{id}/capture` | GET | Status e contagens do acompanhamento volátil |
 | `/api/matches/{id}/capture/start` | POST | Iniciar fonte cadastrada/autorizada, reconhecimento local e feed textual |
+| `/api/matches/{id}/capture/add` | POST | Adicionar fontes sem reiniciar as demais, no modo automático |
+| `/api/matches/{id}/capture/sources/{source_id}/stop` | POST | Parar somente a fonte indicada |
 | `/api/matches/{id}/capture/stop` | POST | Encerrar entrada e aguardar inferência em curso |
 | `/api/matches/{id}/state` | GET, PUT | Snapshot do contrato v1, incluindo eventos, transcrições e bola |
 
