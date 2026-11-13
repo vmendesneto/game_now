@@ -91,9 +91,11 @@ _LIVE_CUES = (
 # Football narration often omits the noun "bola", and ASR can alter grammatical
 # gender ("ponta esquerdo"). Require a completed action + spatial football cue.
 _SPATIAL_PLAY = re.compile(
-    r"\b(?:carrega|carregando|leva|levando|avanca|avancando|toca|passa|joga|conduz)\b.{0,64}?"
+    r"\b(?:carrega|carregando|leva|levando|avanca|avancando|toca|passa|joga|conduz|"
+    r"recebe|recebeu|recebendo|retorna|retornando)\b.{0,64}?"
     r"\b(?:ponta (?:esquerd[ao]|direit[ao])|lado (?:esquerdo|direito)|"
-    r"corredor (?:esquerdo|direito|central)|faixa (?:central|esquerda|direita)|grande area)\b"
+    r"corredor (?:esquerdo|direito|central)|faixa (?:central|esquerda|direita)|grande area|"
+    r"campo de (?:ataque|defesa))\b"
 )
 _PLAY_OUT = re.compile(r"\b(?:ja )?saiu jogando\b")
 _UNCONFIRMED_ACTION = re.compile(r"\b(?:nao|nunca|jamais|poderia|teria|talvez|se tivesse)\b")
@@ -121,6 +123,7 @@ class MatchStartDetector:
         self.confidence = "none"
         self.reason = "awaiting_current_play"
         self.first_play_audio_seconds: float | None = None
+        self._start_had_kickoff = False
         self._recent: deque[PhaseEvidence] = deque(maxlen=16)
         self._last_sequence: int | None = None
         self._last_start: float | None = None
@@ -188,6 +191,7 @@ class MatchStartDetector:
         if not second and self.first_play_audio_seconds is None:
             anchor = min(e.start_seconds for e in starts) if starts else plays[0].start_seconds
             self.first_play_audio_seconds = anchor
+            self._start_had_kickoff = bool(starts)
         self._recent.clear()
         self._last_signature = None
 
@@ -258,6 +262,11 @@ class MatchStartDetector:
             "confidence": self.confidence,
             "reason": self.reason,
             "first_play_audio_seconds": self.first_play_audio_seconds,
+            "start_detection": "automatic_narration",
+            "start_basis": ("kickoff_and_play" if self.first_play_audio_seconds is not None
+                            and self._start_had_kickoff else "observed_play"
+                            if self.first_play_audio_seconds is not None else None),
+            "kickoff_time_verified": False,
             "ball_updates_allowed": self.phase in ("in_play", "second_half"),
             "recent_evidence": [asdict(e) for e in self._recent],
             "confidence_calibrated": False,

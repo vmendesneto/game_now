@@ -1,14 +1,53 @@
 # GN-083 — acompanhamento pelo navegador
 
-Entrega de 2026-11-12: o site agora inicia e para a captura de até duas fontes
-cadastrada, executa ASR local e publica texto para os clientes conectados.
+Atualização de 2026-11-13: o site inicia e para fontes cadastradas em quantidade
+variável, executa ASR local e publica texto para os clientes conectados.
 GN-083 permanece aberta: integração funcionando não é precisão demonstrada.
 
-## Duas gravações em paralelo
+## Horário previsto e início automático
 
-Cadastre ambas antes de iniciar e marque **Acompanhar duas gravações em paralelo**.
-Informe os segundos do apito em cada vídeo. A segunda gravação começa no mesmo
-tempo após o apito que a primeira. Para as fontes autorizadas pelo usuário:
+Cadastre data/hora no horário do dispositivo. O cadastro salva UTC em metadados
+separados do contrato v1; aceita partidas antigas sem data. `scheduled_kickoff_at`
+exige fuso quando fornecido pela API; omitir na edição preserva a data, `null` limpa.
+`GET /api/matches/{id}/schedule` informa a previsão e `schedule_confirms_start=false`.
+Passar do horário, inclusive vários minutos, não inicia o jogo. Inicie a escuta
+manualmente antes da partida: o sistema confirma por apito narrado corroborado por
+jogada, ou por três trechos distintos de jogo corrente se não reconhecer o apito.
+`start_basis=observed_play` distingue esse segundo caso; não é o instante exato
+do início. `kickoff_time_verified=false` permanece explícito.
+
+O padrão da interface é escuta contínua até parada/fim da fonte, para não encerrar
+durante um atraso por causa do teste curto. O horário não inicia o servidor ou a
+captura sozinho. Datas não forçam nem impedem detecção em gravações.
+
+## Fontes variáveis e mudanças durante a escuta
+
+Não há teto funcional de duas ou oito fontes. Escolha uma fonte principal e marque
+**Selecionar fontes adicionais** para incluir quantas precisar, rádio ou YouTube.
+Não informe apito no acompanhamento normal. As fontes têm contexto, fila PCM,
+transcrições e erros próprios. O modelo é compartilhado por partida e a inferência
+é serializada no servidor; buffers por fonte permanecem limitados a cerca de40s.
+Sobrecarga gera `asr_capacity_exceeded`, sem crescimento indefinido de áudio.
+Isso não é promessa de processamento ilimitado em tempo real no Windows.
+
+Durante a escuta, salve novas fontes e use **Adicionar fontes à escuta**. Modelo,
+threads e janela são os da execução existente; não há recarga por fonte. Botões
+**Parar [fonte]** encerram individualmente; **Parar acompanhamento** encerra todas.
+Para alterar/desativar/excluir uma fonte ativa, pare apenas ela antes. As demais
+continuam; reiniciar uma fonte limpa somente seu contexto/feed. A API oferece
+`POST .../capture/add` e `POST .../capture/sources/{source_id}/stop`.
+
+No modo automático, GN-063 seleciona um relato atual por vez com histerese e
+failover, sem misturar dados de narradores. Não há alinhamento automático comprovado
+das emissoras: `alignment_basis=independent_sources`, sem watermark compartilhado.
+A troca reinicia a memória visual e pode mostrar um lance anterior, avisado no
+painel. Fase compartilhada não autoriza posse/posição de outra fonte.
+
+## Teste opcional com gravações alinhadas
+
+As referências abaixo são apenas para reproduzir testes já conhecidos. Abra
+**Teste opcional com gravações alinhadas**, habilite referências e informe início
+e referência de cada gravação selecionada. O detector de fase continua automático.
 
 | Vídeo | Apito informado | Início deste teste |
 | --- | --- | --- |
@@ -16,10 +55,10 @@ tempo após o apito que a primeira. Para as fontes autorizadas pelo usuário:
 | `KHLaE8n0aTY` | 2104s (35:04) | 2116s (35:16) |
 
 O `t=4269s` da URL fornecida não define o apito. Esses pontos são âncoras humanas,
-não sincronização medida ou prova de seek exato. O servidor valida que as duas
-entradas representam o mesmo tempo após o apito. Há limite global de duas
-capturas/modelos; cada fonte mantém contexto, feed, erro e encerramento próprios.
-O botão de parada encerra ambas; uma fonte terminar/falhar não apaga a outra.
+não sincronização medida ou prova de seek exato. O servidor valida que todas as
+entradas representam o mesmo tempo após a referência. Neste modo opcional,
+configure o conjunto antes do início; adição dinâmica está no modo automático.
+Uma fonte terminar/falhar não apaga as demais.
 
 A seleção GN-063 usa ação atual e frescor; propaganda/comentário sem lance não
 ganha prioridade apenas por ter chegado por último. Timestamp alinhado anterior
@@ -96,9 +135,8 @@ Python da .venv. O modelo é preparado antes de abrir a fonte, evitando acumular
 áudio enquanto pesos são baixados pela primeira vez. O padrão usa até quatro
 threads CPU, sem serviço de reconhecimento pago. Não há backend GPU novo.
 
-Até duas fontes podem ser captadas; uma fonte atual é selecionada por vez para
-a prévia, sem misturar transmissões não alinhadas.
-O servidor limita a duas capturas ativas no total. Buffer de aproximadamente
+As fontes selecionadas podem ser captadas; uma fonte atual é exibida por vez
+na prévia, sem misturar transmissões não alinhadas. Buffer por fonte de aproximadamente
 40s; se a CPU não acompanhar, ocorre erro explícito. O FFmpeg é ritmado em
 tempo real para gravações. URLs sempre passam por GN-037/GN-090; não aceita URL
 arbitrária no corpo do comando, cookies, autenticação de fonte ou argumentos de

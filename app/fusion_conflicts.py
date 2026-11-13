@@ -50,7 +50,7 @@ class FusionPlay(StrictModel):
 class FusionConflictRequest(StrictModel):
     evaluated_at: datetime
     active_source_id: Id | None = None
-    observations: list[FusionObservation] = Field(max_length=8)
+    observations: list[FusionObservation]
     previous_play: FusionPlay | None = None
     conflict_window_seconds: float = Field(
         default=2.0, ge=0.0, le=5.0, allow_inf_nan=False,

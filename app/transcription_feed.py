@@ -54,13 +54,13 @@ class TranscriptFeed:
     """Bounded in-memory feed; publish from async or background worker threads."""
 
     def __init__(
-        self, *, max_matches: int = 16, max_sources_per_match: int = 8,
+        self, *, max_matches: int = 16, max_sources_per_match: int | None = None,
         max_entries_per_source: int = 100, queue_size: int = 32,
         retention_seconds: int = 3600,
         now: Callable[[], datetime] | None = None,
     ) -> None:
-        if min(max_matches, max_sources_per_match, max_entries_per_source,
-               queue_size, retention_seconds) < 1:
+        if min(max_matches, max_entries_per_source, queue_size, retention_seconds) < 1 or (
+                max_sources_per_match is not None and max_sources_per_match < 1):
             raise ValueError("All feed capacities must be positive")
         self._max_matches = max_matches
         self._max_sources = max_sources_per_match
@@ -85,7 +85,7 @@ class TranscriptFeed:
             matches = {m for m, _ in self._states}
             if match_id not in matches and len(matches) >= self._max_matches:
                 raise ValueError("Too many active transcript matches")
-            if sum(m == match_id for m, _ in self._states) >= self._max_sources:
+            if self._max_sources is not None and sum(m == match_id for m, _ in self._states) >= self._max_sources:
                 raise ValueError("Too many transcript sources per match")
             self._states[key] = {
                 "match_id": match_id, "source_id": source_id,
@@ -264,4 +264,12 @@ class TranscriptFeed:
     def reset_match(self, match_id: str) -> None:
         """Start a new capture epoch and reset every subscribed browser."""
         self.clear_match(match_id)
+        self._notify(match_id, {"kind": "snapshot", "data": self.snapshot(match_id)})
+
+    def reset_source(self, match_id: str, source_id: str) -> None:
+        """Restart one source without erasing text or progress of its peers."""
+        with self._lock:
+            self._states.pop((match_id, source_id), None)
+            self._records.pop((match_id, source_id), None)
+            self._telemetry.clear_source(match_id, source_id)
         self._notify(match_id, {"kind": "snapshot", "data": self.snapshot(match_id)})

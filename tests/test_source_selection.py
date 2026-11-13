@@ -174,10 +174,10 @@ def test_pydantic_rejects_duplicates_naive_timestamps_and_invalid_ranges():
         SourceSelectionRequest(evaluated_at=T0, observations=[], switch_margin=-0.1)
     with pytest.raises(ValidationError):
         SourceSelectionRequest(evaluated_at=T0, observations=[], max_age_seconds=0)
-    with pytest.raises(ValidationError):
-        SourceSelectionRequest(
-            evaluated_at=T0, observations=[source(f"radio-{i}") for i in range(9)],
-        )
+    many = SourceSelectionRequest(
+        evaluated_at=T0, observations=[source(f"radio-{i}") for i in range(25)],
+    )
+    assert len(preview_active_source(many).diagnostics) == 25
     with pytest.raises(ValidationError):
         SourceSelectionRequest(
             evaluated_at=T0, observations=[source("radio-a", signal=2.0)],

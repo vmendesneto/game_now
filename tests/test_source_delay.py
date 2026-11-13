@@ -173,8 +173,8 @@ def test_bounded_validation():
         request(base)
     with pytest.raises(ValidationError):
         request(*(sample("radio-a", f"e{i}", i) for i in range(81)))
-    with pytest.raises(ValidationError):
-        request(*(sample(f"radio-{i}", "e", i) for i in range(9)))
+    many = request(*(sample("radio-a" if i == 0 else f"radio-{i}", "e", i) for i in range(25)))
+    assert len(many.observations) == 25
     with pytest.raises(ValidationError):
         request(base, sample("youtube-b", "start", 1), window_seconds=0)
 

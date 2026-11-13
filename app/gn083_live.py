@@ -16,7 +16,7 @@ from typing import Awaitable, Callable
 
 from pydantic import Field
 
-from app.asr import ASRSettings, BYTES_PER_SECOND, CPUTranscriber
+from app.asr import ASRError, ASRSettings, BYTES_PER_SECOND, CPUTranscriber
 from app.asr_vocabulary import build_vocabulary_prompt
 from app.asr_windows import RollingASRProcessor, WindowSettings
 from app.ball_guard import BallGuardRequest, guard_ball_movement
@@ -33,6 +33,10 @@ PREVIEW_STALE_SECONDS = 30.0
 BALL_TTL_SECONDS = 8.0
 SPATIAL_MENTION_TTL_SECONDS = 15.0
 QUEUE_CHUNKS = 80  # Approximately 40 seconds PCM with 500 ms producer chunks.
+
+
+class ASRCapacityError(ASRError):
+    """The bounded per-source queue filled while waiting for recognition."""
 
 
 async def wait_for_cpu(function, *args):
@@ -67,6 +71,17 @@ class LivePreviewRegistry:
                                  "watermark": float("-inf"), "id": uuid4().hex,
                                  "phase": "pre_game", "phase_confidence": "none"}
         return self._groups[match_id]["id"]
+
+    def add_independent_sources(self, match_id: str, source_ids: list[str]) -> str:
+        """Select one source at a time without pretending their clocks align."""
+        if match_id not in self._groups:
+            self._groups[match_id] = {"offsets": {}, "selected": None,
+                "watermark": float("-inf"), "id": uuid4().hex,
+                "phase": "pre_game", "phase_confidence": "none", "independent": True}
+        group = self._groups[match_id]
+        for source_id in source_ids:
+            group["offsets"][source_id] = None
+        return group["id"]
 
     def _remember_phase(self, match_id: str, detected: dict) -> None:
         group = self._groups.get(match_id)
@@ -217,6 +232,8 @@ class LivePreviewRegistry:
             return None
         group = self._groups.get(match_id)
         if group:
+            if group.get("independent"):
+                return self._independent_view(match_id, views, group)
             now = datetime.now(timezone.utc)
             observations = []
             for view in views:
@@ -263,6 +280,38 @@ class LivePreviewRegistry:
             v["active"], self._sessions[(v["match_id"], v["source_id"])]["last_seen"]
         ))
 
+    def _independent_view(self, match_id: str, views: list[dict], group: dict) -> dict:
+        now = datetime.now(timezone.utc)
+        observations = []
+        for view in views:
+            session = self._sessions[(match_id, view["source_id"])]
+            age = session["actions_initial_age"] + self.clock() - session["last_seen"]
+            usable = view["active"] and bool(
+                view["ball"] or view["latest_narration_action"] or view["spatial_mention"])
+            observations.append(SourceSelectionObservation(source_id=view["source_id"],
+                connection_status="online" if view["active"] else "offline",
+                narration_kind="live_play" if usable else "unknown",
+                captured_at=now-timedelta(seconds=max(0, age)), received_at=now,
+                signal_strength=.85 if view["ball"] else .75 if view["spatial_mention"] else .7))
+        selection = preview_active_source(SourceSelectionRequest(evaluated_at=now,
+            observations=observations, previous_source_id=group["selected"], max_age_seconds=15))
+        selected = next((view for view in views if view["source_id"] == selection.active_source_id), None)
+        if selected is None:
+            selected = max(views, key=lambda view: self._sessions[(match_id, view["source_id"])]["last_seen"])
+            selected = {**selected, "ball": None, "spatial_mention": None,
+                "latest_narration_action": None, "latest_narration_region_action": None,
+                "current_narration_actions": []}
+        group["selected"] = selection.active_source_id
+        # A source switch starts a new visual context. No region, actor or
+        # watermark from another unaligned source is transferred to it.
+        return {**selected, "visual_context": group["id"] + ":" + selected["source_id"],
+            "visual_timeline": selected["last_audio_seconds"],
+            "group_phase": group["phase"], "group_phase_confidence": group["phase_confidence"],
+            "fusion": {"active_source_id": selection.active_source_id, "reason": selection.reason,
+                "alignment_basis": "independent_sources", "alignment_verified": False,
+                "source_count": len(group["offsets"]), "cross_source_chronology_verified": False,
+                "diagnostics": [item.model_dump(mode="json") for item in selection.diagnostics]}}
+
     def clear_match(self, match_id: str) -> None:
         self._groups.pop(match_id, None)
         for key in tuple(self._sessions):
@@ -271,6 +320,9 @@ class LivePreviewRegistry:
 
     def clear_source(self, match_id: str, source_id: str) -> None:
         self._sessions.pop((match_id, source_id), None)
+        group = self._groups.get(match_id)
+        if group and group.get("independent"):
+            group["offsets"].pop(source_id, None)
 
 
 @dataclass(frozen=True)
@@ -294,6 +346,7 @@ async def follow_youtube_narration(
     source_kind: str = "youtube",
     window_settings: WindowSettings | None = None,
     on_pcm: Callable[[int], None] | None = None,
+    cpu_gate: asyncio.Semaphore | None = None,
 ) -> LiveMonitorResult:
     """Consume a stream until its end / Ctrl+C, no fixed pre-game offset.
 
@@ -346,7 +399,7 @@ async def follow_youtube_narration(
                     for off in range(0, len(block), BYTES_PER_SECOND // 2):
                         piece = block[off:off + BYTES_PER_SECOND // 2]
                         if queue.full():
-                            raise RuntimeError("Live ASR is too slow for bounded PCM buffer")
+                            raise ASRCapacityError("Live ASR is too slow for bounded PCM buffer")
                         queue.put_nowait(piece)
                         await asyncio.sleep(0)
                     byte_count += len(block)
@@ -368,12 +421,17 @@ async def follow_youtube_narration(
                 row_count += 1
 
     async def consume() -> None:
+        async def process(function, *args):
+            if cpu_gate is None:
+                return await wait_for_cpu(function, *args)
+            async with cpu_gate:
+                return await wait_for_cpu(function, *args)
         while True:
             block = await queue.get()
             if block is None:
                 break
-            await emit(await wait_for_cpu(processor.push, source_id, block))
-        await emit(await wait_for_cpu(processor.finish, source_id))
+            await emit(await process(processor.push, source_id, block))
+        await emit(await process(processor.finish, source_id))
 
     producer = asyncio.create_task(produce())
     consumer = asyncio.create_task(consume())

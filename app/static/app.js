@@ -85,6 +85,8 @@ function paintLivePreview(snapshot){
   $("live-monitor-state").textContent="Acompanhamento · "+(livePhaseNames[phase]||phase)+
     " · confiança heurística "+(liveConfidenceNames[live.group_phase_confidence||live.confidence]||"não medida")+
     (live.fusion?" · "+(registeredSources.find(s=>s.id===live.fusion.active_source_id)?.name||"Sem fonte narrando lance atual"):"");
+  if(live.fusion?.alignment_basis==="independent_sources"&&live.fusion.source_count>1)
+    $("live-monitor-state").textContent+=" · Fontes sem alinhamento confirmado: uma troca pode mostrar um trecho anterior.";
   $("home-name").textContent=game.home.name;
   $("away-name").textContent=game.away.name;
   $("home-score").textContent=game.home_score;
@@ -578,6 +580,10 @@ async function chooseMatch(id) {
   if(!match){blankMatch();return;}
   stopTranscriptDiagnostics();
   showMatch(match);
+  const schedule=await configApi("/api/matches/"+encodeURIComponent(id)+"/schedule");
+  const scheduled=schedule.scheduled_kickoff_at?new Date(schedule.scheduled_kickoff_at):null;
+  $("match-scheduled").value=scheduled?
+    new Date(scheduled.getTime()-scheduled.getTimezoneOffset()*60000).toISOString().slice(0,16):"";
   startLivePolling(id);
   currentRoster=await configApi("/api/matches/"+encodeURIComponent(id)+"/players");
   editingPlayerId=null;
@@ -617,7 +623,8 @@ function matchFromForm() {
     period:configValue("match-period"),
     match_seconds:Number(configValue("match-seconds")),
     home_score:Number(configValue("home-goals")),
-    away_score:Number(configValue("away-goals"))
+    away_score:Number(configValue("away-goals")),
+    scheduled_kickoff_at:configValue("match-scheduled")?new Date(configValue("match-scheduled")).toISOString():null
   };
 }
 $("match-form").addEventListener("submit",async event=>{
@@ -913,6 +920,27 @@ $("correction-form").addEventListener("submit",async event=>{
 
 /* GN-032: metadata only; no playback, captured streams or embedded media. */
 let editingSourceId = null;
+let latestCaptureStatus = null;
+function showExtraCaptureSources(){
+  const container=$("capture-extra-sources");
+  const previous=new Map([...container.querySelectorAll("[data-capture-source]")].map(row=>
+    [row.dataset.captureSource,{checked:row.querySelector(".capture-extra-check").checked,
+      start:row.querySelector(".capture-extra-start").value,kickoff:row.querySelector(".capture-extra-kickoff").value}]));
+  container.replaceChildren();
+  for(const source of registeredSources.filter(s=>s.enabled&&s.url&&s.id!==$("capture-source").value)){
+    const old=previous.get(source.id),row=document.createElement("div");row.dataset.captureSource=source.id;
+    const label=document.createElement("label"),check=document.createElement("input");
+    check.type="checkbox";check.className="capture-extra-check";check.checked=old?.checked||false;
+    label.append(check,document.createTextNode(" "+source.name));row.append(label);
+    for(const [name,title] of [["start","Início na gravação (segundos)"],["kickoff","Referência opcional do teste (segundos)"]]){
+      const detail=document.createElement("label"),input=document.createElement("input");
+      input.type="number";input.min="0";input.max="86400";input.step="0.1";
+      input.value=old?.[name]||"0";input.className="capture-extra-"+name;
+      detail.append(document.createTextNode(title),input);row.append(detail);
+    }
+    container.append(row);
+  }
+}
 function resetSourceForm(){
   editingSourceId=null;
   $("source-form").reset();
@@ -924,13 +952,7 @@ function showSavedSources(){
     const option=document.createElement("option");option.value=source.id;option.textContent=source.name;picker.append(option);
   }
   if([...picker.options].some(option=>option.value===previous))picker.value=previous;
-  const second=$("capture-second-source"),oldSecond=second.value;
-  second.replaceChildren();
-  for(const source of registeredSources.filter(source=>source.enabled&&source.url&&source.kind==="youtube")){
-    const option=document.createElement("option");option.value=source.id;option.textContent=source.name;second.append(option);
-  }
-  second.value=[...second.options].some(o=>o.value===oldSecond)?oldSecond:
-    [...second.options].find(o=>o.value!==picker.value)?.value||"";
+  showExtraCaptureSources();
   const list=$("source-list");
   list.replaceChildren();
   if(!registeredSources.length){
@@ -1017,12 +1039,14 @@ $("source-form").addEventListener("submit",async event=>{
 });
 
 function showCaptureStatus(status){
+  latestCaptureStatus=status;
   const running=["starting","running","stopping"].includes(status.state);
   $("capture-model-status").textContent=status.model?
     "Modelo desta execução: "+status.model+". Alterar a seleção vale apenas no próximo início.":"";
   const names={idle:"Nenhuma captura iniciada",starting:"Preparando captura/modelo",running:"Processando narração",
     stopping:"Encerrando captura e inferência",stopped:"Acompanhamento parado",finished:"Trecho concluído",error:"Acompanhamento interrompido por erro"};
   const errors={asr_failed:"Falha no reconhecimento local. Confira modelo, dependências e memória.",
+    asr_capacity_exceeded:"O servidor não acompanhou esta fonte dentro do limite de áudio em memória. Reduza fontes ativas ou escolha um modelo mais rápido no próximo início.",
     youtube_resolution_failed:"Não foi possível obter a mídia do YouTube para iniciar a decodificação. Confira disponibilidade da fonte e yt-dlp no servidor.",
     capture_failed:"A fonte não pôde ser processada. Confira disponibilidade e ferramentas do servidor.",
     upstream_http_403:"A origem recusou acesso (403). Escolha outra fonte autorizada.",
@@ -1038,9 +1062,21 @@ function showCaptureStatus(status){
     (names[stream.state]||stream.state)+" ("+Math.floor(stream.captured_seconds)+" s)"+
     (stream.error_code?" · "+(errors[stream.error_code]||"Falha na origem da mídia."):"")).join(" · ");
   if(running&&status.streams?.some(stream=>stream.state==="error"))
-    $("capture-status").textContent+=" · Acompanhamento parcial: uma das fontes falhou.";
+    $("capture-status").textContent+=" · Acompanhamento parcial: há fontes com falha.";
   $("capture-start-button").disabled=running;
+  $("capture-add-button").disabled=!running||status.state==="stopping";
   $("capture-stop").disabled=!running||status.state==="stopping";
+  const controls=$("capture-stream-controls");controls.replaceChildren();
+  for(const stream of status.streams||[status]){
+    if(!["starting","running"].includes(stream.state)||!stream.source_id)continue;
+    const button=document.createElement("button");button.type="button";button.className="secondary";
+    button.textContent="Parar "+(registeredSources.find(s=>s.id===stream.source_id)?.name||stream.source_id);
+    button.addEventListener("click",async()=>{
+      try{showCaptureStatus(await configApi("/api/matches/"+encodeURIComponent(chosenMatch.id)+
+        "/capture/sources/"+encodeURIComponent(stream.source_id)+"/stop","POST"));}
+      catch(error){formNotice("capture-message",error.message,true);}
+    });controls.append(button);
+  }
 }
 $("capture-continuous").addEventListener("change",()=>{
   const continuous=$("capture-continuous").checked;
@@ -1049,21 +1085,33 @@ $("capture-continuous").addEventListener("change",()=>{
 $("capture-parallel").addEventListener("change",()=>{
   const enabled=$("capture-parallel").checked;
   $("capture-parallel-fields").hidden=!enabled;
-  for(const id of ["capture-kickoff","capture-second-kickoff","capture-second-source"])$(id).required=enabled;
 });
+$("capture-source").addEventListener("change",showExtraCaptureSources);
 $("capture-form").addEventListener("submit",async event=>{
   event.preventDefault();if(!chosenMatch)return;
   livePreviewVisible=true;
   $("capture-start-button").disabled=true;
   try{
-    const status=await configApi("/api/matches/"+encodeURIComponent(chosenMatch.id)+"/capture/start","POST",{
-      source_id:$("capture-source").value,model:$("capture-model").value,
-      start_seconds:Number($("capture-start").value),
+    const adding=event.submitter?.id==="capture-add-button",manual=$("capture-manual-alignment").checked;
+    const extra=$("capture-parallel").checked?[...$("capture-extra-sources").querySelectorAll("[data-capture-source]")]
+      .filter(row=>row.querySelector(".capture-extra-check").checked).map(row=>({source_id:row.dataset.captureSource,
+        start_seconds:Number(row.querySelector(".capture-extra-start").value),
+        ...(manual?{kickoff_seconds:Number(row.querySelector(".capture-extra-kickoff").value)}:{})})):[];
+    let selected=[{source_id:$("capture-source").value,start_seconds:Number($("capture-start").value),
+      ...(manual?{kickoff_seconds:Number($("capture-kickoff").value)}:{})},...extra];
+    if(adding){
+      const active=new Set((latestCaptureStatus.streams||[latestCaptureStatus])
+        .filter(stream=>["starting","running","stopping"].includes(stream.state)).map(stream=>stream.source_id));
+      selected=selected.filter(source=>!active.has(source.source_id));
+      if(!selected.length)throw new Error("Selecione ao menos uma fonte que ainda não esteja em acompanhamento.");
+    }
+    const status=await configApi("/api/matches/"+encodeURIComponent(chosenMatch.id)+(adding?"/capture/add":"/capture/start"),"POST",{
+      ...selected[0],model:$("capture-model").value,
       seconds:$("capture-continuous").checked?null:Number($("capture-seconds").value),
       window_seconds:Number($("capture-window").value),permission_confirmed:$("capture-permission").checked,
-      ...($("capture-parallel").checked?{kickoff_seconds:Number($("capture-kickoff").value),parallel_sources:[{
-        source_id:$("capture-second-source").value,kickoff_seconds:Number($("capture-second-kickoff").value),
-        start_seconds:Number($("capture-second-kickoff").value)+Number($("capture-start").value)-Number($("capture-kickoff").value)}]}:{})});
+      parallel_sources:selected.slice(1),
+      ...(adding?{model:latestCaptureStatus.model,cpu_threads:latestCaptureStatus.cpu_threads,
+        window_seconds:latestCaptureStatus.window_seconds}:{})});
     showCaptureStatus(status);formNotice("capture-message","Acompanhamento iniciado. O painel de transcrição receberá somente texto.");
     await loadTranscriptDiagnostics();
   }catch(error){$("capture-start-button").disabled=false;formNotice("capture-message",error.message,true);}

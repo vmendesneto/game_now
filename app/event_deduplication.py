@@ -43,7 +43,7 @@ class EventCandidate(StrictModel):
 
 class EventDeduplicationRequest(StrictModel):
     candidates: list[EventCandidate] = Field(min_length=1, max_length=80)
-    source_delays: list[SourceDelayEstimate] = Field(min_length=1, max_length=8)
+    source_delays: list[SourceDelayEstimate] = Field(min_length=1)
     maximum_separation_seconds: float = Field(default=2.0, ge=0.1, le=5.0)
 
     @model_validator(mode="after")
@@ -55,7 +55,7 @@ class EventDeduplicationRequest(StrictModel):
         delays = [estimate.source_id for estimate in self.source_delays]
         if len(set(delays)) != len(delays):
             raise ValueError("Duplicate source delay estimates")
-        if len(sources) > 8 or not sources.issubset(set(delays)):
+        if not sources.issubset(set(delays)):
             raise ValueError("Every source must have exactly one supplied delay status")
         if sum(item.status == "reference" for item in self.source_delays) != 1:
             raise ValueError("Exactly one source must be the reference")

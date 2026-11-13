@@ -30,7 +30,7 @@ class ManualSourceOffset(StrictModel):
 class FusionDiagnosticRequest(StrictModel):
     selection: SourceSelectionRequest
     fusion: FusionConflictRequest
-    manual_offsets: list[ManualSourceOffset] = Field(default_factory=list, max_length=8)
+    manual_offsets: list[ManualSourceOffset] = Field(default_factory=list)
     delay: RelativeDelayRequest | None = None
 
     @model_validator(mode="after")

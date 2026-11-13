@@ -49,8 +49,6 @@ class RelativeDelayRequest(StrictModel):
         if len(set(pairs)) != len(pairs):
             raise ValueError("Duplicate common event for the same source")
         sources = {obs.source_id for obs in self.observations}
-        if len(sources) > 8:
-            raise ValueError("At most eight sources may be compared")
         if self.reference_source_id not in sources:
             raise ValueError("Reference source must have observations")
         return self

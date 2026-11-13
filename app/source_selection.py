@@ -39,7 +39,7 @@ class SourceSelectionObservation(StrictModel):
 
 class SourceSelectionRequest(StrictModel):
     evaluated_at: datetime
-    observations: list[SourceSelectionObservation] = Field(max_length=8)
+    observations: list[SourceSelectionObservation]
     previous_source_id: Id | None = None
     max_age_seconds: float = Field(default=12.0, ge=0.5, le=60, allow_inf_nan=False)
     min_signal_strength: float = Field(

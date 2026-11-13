@@ -1,6 +1,6 @@
 """Explicit browser-controlled capture. Only text/metadata reach clients.
 
-Up to two explicitly aligned sources; no implicit fusion of unknown clocks.
+Variable registered sources; no implicit fusion of unknown clocks.
 Workers and models are volatile and never restart just because a server starts.
 """
 from __future__ import annotations
@@ -22,16 +22,16 @@ from app.asr import ASRError, ASRSettings, CPUTranscriber, BYTES_PER_SECOND, asr
 from app.asr_vocabulary import build_vocabulary_prompt
 from app.asr_windows import WindowSettings, WindowTranscript
 from app.audio_capture import CaptureError, pcm_chunks
-from app.contracts import Id, StrictModel
-from app.gn083_live import LiveObservation, follow_youtube_narration, wait_for_cpu
+from app.contracts import AudioSource, Id, StrictModel
+from app.gn083_live import ASRCapacityError, LiveObservation, follow_youtube_narration, wait_for_cpu
 from app.source_validation import validate_source_urls
 from app.youtube_capture import YouTubeResolutionError, youtube_pcm_chunks
 
 
 class ParallelCaptureSource(StrictModel):
     source_id: Id
-    start_seconds: float = Field(ge=0, le=86400, allow_inf_nan=False, strict=True)
-    kickoff_seconds: float = Field(ge=0, le=86400, allow_inf_nan=False, strict=True)
+    start_seconds: float = Field(default=0, ge=0, le=86400, allow_inf_nan=False, strict=True)
+    kickoff_seconds: float | None = Field(default=None, ge=0, le=86400, allow_inf_nan=False, strict=True)
 
 
 class CaptureRequest(StrictModel):
@@ -43,16 +43,18 @@ class CaptureRequest(StrictModel):
     window_seconds: int = Field(default=12, ge=6, le=30, strict=True)
     cpu_threads: int = Field(default=min(4, os.cpu_count() or 1), ge=1, le=16, strict=True)
     kickoff_seconds: float | None = Field(default=None, ge=0, le=86400, allow_inf_nan=False, strict=True)
-    parallel_sources: list[ParallelCaptureSource] = Field(default_factory=list, max_length=1)
+    parallel_sources: list[ParallelCaptureSource] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def aligned_starts(self):
-        if self.parallel_sources:
-            if self.kickoff_seconds is None:
-                raise ValueError("Informe o apito inicial nas duas gravações")
+        ids = [self.source_id] + [source.source_id for source in self.parallel_sources]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Escolha fontes diferentes")
+        anchors = [self.kickoff_seconds] + [source.kickoff_seconds for source in self.parallel_sources]
+        if any(value is not None for value in anchors) and any(value is None for value in anchors):
+            raise ValueError("No teste com âncoras, informe a referência de todas as gravações")
+        if self.kickoff_seconds is not None:
             for source in self.parallel_sources:
-                if source.source_id == self.source_id:
-                    raise ValueError("Escolha duas fontes diferentes")
                 if abs((self.start_seconds-self.kickoff_seconds)-(source.start_seconds-source.kickoff_seconds)) > .25:
                     raise ValueError("Os inícios precisam representar o mesmo tempo após o apito")
         return self
@@ -83,6 +85,8 @@ class CaptureRuntime:
         self.runner = runner or follow_youtube_narration
         self.check_tools = runner is None
         self.sessions: dict[tuple[str, str], dict] = {}
+        self.resources: dict[str, dict] = {}
+        self.cpu_gate = asyncio.Semaphore(1)
         self.closed = False
 
     def active(self, match_id: str) -> bool:
@@ -91,6 +95,13 @@ class CaptureRuntime:
     def require_idle(self, match_id: str) -> None:
         if self.active(match_id):
             raise CaptureConflict("Pare a captura antes de editar ou excluir esta partida/fontes/elenco")
+
+    def require_unchanged_active_sources(self, match_id: str, sources: list[AudioSource]) -> None:
+        incoming = {source.id: source for source in sources}
+        saved = {source.id: source for source in self.store.get_sources(match_id) or []}
+        for (ident, source_id), session in self.sessions.items():
+            if ident == match_id and not session["task"].done() and incoming.get(source_id) != saved.get(source_id):
+                raise CaptureConflict("Pare esta fonte antes de editar, desativar ou excluir; as demais continuam")
 
     def status(self, match_id: str) -> dict:
         sessions = [item for key, item in self.sessions.items() if key[0] == match_id]
@@ -110,36 +121,62 @@ class CaptureRuntime:
                 "observations": sum(row["observations"] for row in rows),
                 "error_code": None if state in ("running", "starting") else rows[0]["error_code"]}
 
-    async def start(self, match_id: str, request: CaptureRequest) -> dict:
+    async def start(self, match_id: str, request: CaptureRequest, *, adding: bool = False) -> dict:
         if self.closed:
             raise CaptureConflict("O servidor está encerrando")
-        self.require_idle(match_id)
+        active = self.active(match_id)
+        if not adding:
+            self.require_idle(match_id)
         requests = [request.model_copy(update={"parallel_sources": []})] + [
             request.model_copy(update={"source_id": source.source_id, "start_seconds": source.start_seconds,
                 "kickoff_seconds": source.kickoff_seconds, "parallel_sources": []}) for source in request.parallel_sources]
-        if sum(not item["task"].done() for item in self.sessions.values()) + len(requests) > 2:
-            raise CaptureConflict("Limite de duas capturas simultâneas neste servidor")
+        if active and adding:
+            resource = self.resources[match_id]
+            if (request.model, request.cpu_threads, request.window_seconds) != resource["settings"]:
+                raise CaptureConflict("Use o modelo, threads e contexto da execução ativa ao adicionar fontes")
+            if request.kickoff_seconds is not None or resource["manual_alignment"]:
+                raise CaptureConflict("Teste com âncoras deve ser configurado antes do início; adição dinâmica usa modo automático")
+            if any((match_id, item.source_id) in self.sessions and
+                   not self.sessions[(match_id, item.source_id)]["task"].done() for item in requests):
+                raise CaptureConflict("Uma das fontes selecionadas já está em acompanhamento")
         sources = {source.id: source for source in self.store.get_sources(match_id) or []}
         for item in requests:
             source = sources.get(item.source_id)
             if source is None or not source.enabled or not source.url:
                 raise CaptureConflict("Selecione uma fonte cadastrada, habilitada e com URL")
-            if len(requests) > 1 and source.kind != "youtube":
-                raise CaptureConflict("Alinhamento por apito exige duas gravações YouTube")
+            if item.kickoff_seconds is not None and source.kind != "youtube":
+                raise CaptureConflict("Âncoras de gravação exigem fontes YouTube")
             validate_source_urls([source])
-        for old_key in tuple(self.sessions):
-            if old_key[0] == match_id:
-                del self.sessions[old_key]
-        self.feed.reset_match(match_id)
-        self.previews.clear_match(match_id)
-        group_id = None
-        if len(requests) > 1:
+        if not active:
+            for old_key in tuple(self.sessions):
+                if old_key[0] == match_id:
+                    del self.sessions[old_key]
+            self.feed.reset_match(match_id)
+            self.previews.clear_match(match_id)
+            self.resources[match_id] = {"settings": (request.model, request.cpu_threads, request.window_seconds),
+                "manual_alignment": request.kickoff_seconds is not None, "transcriber": None, "prepared": None}
+            if self.check_tools:
+                self.resources[match_id]["transcriber"] = CPUTranscriber(ASRSettings(
+                    model=request.model, max_seconds=60, cpu_threads=request.cpu_threads,
+                    initial_prompt=build_vocabulary_prompt(self.store.get_match(match_id))))
+        if request.kickoff_seconds is not None:
             group_id = self.previews.set_alignment(match_id, {item.source_id: item.start_seconds-item.kickoff_seconds for item in requests})
+        else:
+            group_id = self.previews.add_independent_sources(match_id, [item.source_id for item in requests])
+        started = []
         try:
             for item in requests:
+                if active:
+                    self.feed.reset_source(match_id, item.source_id)
+                    self.previews.clear_source(match_id, item.source_id)
+                    self.previews.add_independent_sources(match_id, [item.source_id])
                 await self._start_one(match_id, item, group_id=group_id)
+                started.append(item.source_id)
         except Exception:
-            await self.stop(match_id)
+            for source_id in started:
+                await self.stop(match_id, source_id=source_id)
+            if not self.active(match_id):
+                self.resources.pop(match_id, None)
             raise
         return self.status(match_id)
 
@@ -220,12 +257,18 @@ class CaptureRuntime:
             try:
                 model_options = {}
                 if self.check_tools:
-                    transcriber = CPUTranscriber(ASRSettings(
-                        model=request.model, max_seconds=60,
-                        cpu_threads=request.cpu_threads,
-                        initial_prompt=build_vocabulary_prompt(match)))
-                    await wait_for_cpu(transcriber.prepare)
-                    model_options["transcriber"] = transcriber
+                    resource = self.resources[match_id]
+                    async def prepare():
+                        async with self.cpu_gate:
+                            await wait_for_cpu(resource["transcriber"].prepare)
+                    if resource["prepared"] is None:
+                        resource["prepared"] = asyncio.create_task(prepare())
+                    try:
+                        await asyncio.shield(resource["prepared"])
+                    except asyncio.CancelledError:
+                        await asyncio.gather(resource["prepared"], return_exceptions=True)
+                        raise
+                    model_options.update(transcriber=resource["transcriber"], cpu_gate=self.cpu_gate)
                 await self.runner(source.url, match, source_id=source.id, source_kind=source.kind,
                                   model=request.model, max_seconds=request.seconds,
                                   yt_dlp_binary=executable("yt-dlp"), ffmpeg_binary=executable("ffmpeg"),
@@ -240,6 +283,8 @@ class CaptureRuntime:
                 code = "asr_failed" if isinstance(exc, ASRError) else "capture_failed"
                 if isinstance(exc, YouTubeResolutionError):
                     code = "youtube_resolution_failed"
+                if isinstance(exc, ASRCapacityError):
+                    code = "asr_capacity_exceeded"
                 denied = re.search(r"\bupstream_http_(403|404|429|5\d\d)\b", str(exc))
                 if isinstance(exc, CaptureError) and denied:
                     code = denied.group(0)
@@ -262,16 +307,20 @@ class CaptureRuntime:
                 self.feed.set_state(match_id, source.id, "stopped")
             if not self.active(match_id):
                 self.previews.clear_match(match_id)
+                self.resources.pop(match_id, None)
         session["task"].add_done_callback(completed)
 
-    async def stop(self, match_id: str) -> dict:
+    async def stop(self, match_id: str, *, source_id: str | None = None) -> dict:
         for key, session in self.sessions.items():
-            if key[0] != match_id or session["task"].done():
+            if key[0] != match_id or (source_id is not None and key[1] != source_id) or session["task"].done():
                 continue
             if session["state"] != "stopping":
                 session["state"] = "stopping"
                 session["task"].cancel()
-            self.previews.clear_match(match_id)
+            if source_id is None:
+                self.previews.clear_match(match_id)
+            else:
+                self.previews.clear_source(match_id, source_id)
         return self.status(match_id)
 
     async def close(self):

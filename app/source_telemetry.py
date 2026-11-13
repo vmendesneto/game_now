@@ -77,6 +77,9 @@ class SourceTelemetry:
             if key[0] == match_id:
                 del self._records[key]
 
+    def clear_source(self, match_id: str, source_id: str) -> None:
+        self._records.pop((match_id, source_id), None)
+
     def _signal(self, metrics: _Metrics, now: float) -> str:
         if metrics.stopped:
             return "stopped"
