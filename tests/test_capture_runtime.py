@@ -6,9 +6,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.asr import BYTES_PER_SECOND
+from app.audio_capture import CaptureError
 from app.capture_runtime import CaptureRequest
 from app.gn083_live import LiveObservation, LivePreviewRegistry
 from app.main import create_app
+from app.youtube_capture import YouTubeResolutionError
 
 
 MATCH = {"id": "capture-match", "home": {"id": "team-azul", "name": "Azul", "short_name": "AZU",
@@ -120,6 +122,26 @@ def test_confirmation_disabled_source_bad_inputs_and_error_sanitization(tmp_path
         assert status["error_code"] == "capture_failed"
         assert "private" not in str(status) and "https://" not in str(status)
         assert client.post(BASE + "/capture/stop").status_code == 202
+
+
+@pytest.mark.parametrize("failure, expected", [
+    (YouTubeResolutionError("private https://cdn.example.org?token=secret"), "youtube_resolution_failed"),
+    (CaptureError("decoder failed https://cdn.example.org?token=secret"), "capture_failed"),
+    (CaptureError("upstream_http_403 https://cdn.example.org?token=secret"), "upstream_http_403"),
+    (RuntimeError("youtube_resolution_failed https://cdn.example.org?token=secret"), "capture_failed"),
+])
+def test_capture_failure_stage_is_typed_and_private_details_are_hidden(tmp_path, failure, expected):
+    async def runner(*args, **kwargs):
+        raise failure
+
+    with TestClient(create_app(tmp_path / "stage.sqlite3", capture_runner=runner)) as client:
+        setup(client)
+        before = client.get(BASE + "/state").json()
+        assert client.post(BASE + "/capture/start", json=options()).status_code == 202
+        status = until(client, "error")
+        assert status["error_code"] == expected
+        assert "secret" not in str(status) and "https://" not in str(status)
+        assert client.get(BASE + "/state").json() == before
 
 
 def test_delayed_local_audio_cannot_move_the_ball():
