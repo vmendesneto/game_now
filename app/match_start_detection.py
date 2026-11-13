@@ -14,7 +14,7 @@ import unicodedata
 
 from app.narration_classifier import NarrationLabel, classify_narration
 
-PHASES = ("pre_game", "probable_start", "in_play", "half_time", "second_half")
+PHASES = ("pre_game", "probable_start", "in_play", "half_time", "second_half", "finished")
 
 
 def _fold(value: str) -> str:
@@ -49,6 +49,7 @@ _FIRST_KICKOFF = re.compile(
     r"(?:esta|ta) valendo (?:o jogo|a partida)|"
     r"bola em jogo (?:agora|nesse momento)|"
     r"bola ja esta rolando|"
+    r"agora (?:apita|a pita) (?:o )?inicio de jogo|"
     r"(?:o )?(?:juiz|arbitro) apitou e (?:esta|ta) valendo(?: (?:o jogo|a partida))?)\b"
 )
 _SECOND_KICKOFF = re.compile(
@@ -59,10 +60,11 @@ _SECOND_KICKOFF = re.compile(
     r"apita (?:o arbitro|o juiz) (?:para )?(?:o segundo tempo|a segunda etapa)|"
     r"(?:o arbitro|o juiz) apitou (?:para )?(?:o segundo tempo|a segunda etapa)|"
     r"bola rolando no segundo tempo|"
+    r"(?:segundo tempo|segunda etapa)\b.{0,100}\b(?:da|deu) a saida de bola|"
     r"deu (?:a )?saida (?:de bola )?para o segundo tempo)\b"
 )
 _HALF_STRONG = re.compile(
-    r"\b(?:fim do primeiro tempo|termina o primeiro tempo|"
+    r"\b(?:fim do primeiro tempo|termina(?: agora)? o primeiro tempo|acaba(?: agora)? o primeiro tempo|"
     r"terminou o primeiro tempo|acabou o primeiro tempo|"
     r"encerrou (?:o primeiro tempo|a primeira etapa)|"
     r"apitou (?:o fim|o final) (?:do primeiro tempo|da primeira etapa)|"
@@ -74,6 +76,12 @@ _HALF_WEAK = re.compile(
     r"\b(?:estamos no intervalo|agora no intervalo|"
     r"intervalo de jogo|intervalo da partida|"
     r"equipes no vestiario|primeiro tempo encerrado)\b"
+)
+_FULL_END = re.compile(
+    r"\b(?:fim (?:de jogo|do jogo|da partida)|terminou (?:o jogo|a partida)|"
+    r"termina (?:o jogo|a partida)|acabou (?:o jogo|a partida)|"
+    r"encerrou (?:o jogo|a partida)|jogo encerrado|partida encerrada|"
+    r"apitou (?:o fim|o final) (?:do jogo|da partida))\b"
 )
 _LIVE_CUES = (
     "recebe a bola", "com a bola", "bola com", "passa a bola",
@@ -98,6 +106,7 @@ _SPATIAL_PLAY = re.compile(
     r"campo de (?:ataque|defesa))\b"
 )
 _PLAY_OUT = re.compile(r"\b(?:ja )?saiu jogando\b")
+_BALL_CIRCULATION = re.compile(r"\b(?:tocando|trocando|rodando|circulando) (?:(?:a|o) )?bola\b")
 _UNCONFIRMED_ACTION = re.compile(r"\b(?:nao|nunca|jamais|poderia|teria|talvez|se tivesse)\b")
 
 
@@ -152,6 +161,8 @@ class MatchStartDetector:
             return "spatial_current_play"
         if _PLAY_OUT.search(folded):
             return "played_out_from_defense"
+        if _BALL_CIRCULATION.search(folded):
+            return "current_ball_circulation"
         return None
 
     def _record(self, kind: str, cue: str, start: float, end: float, utterance_key: str = "") -> None:
@@ -195,13 +206,15 @@ class MatchStartDetector:
         self._recent.clear()
         self._last_signature = None
 
-    def consume(self, observation: dict) -> dict:
+    def consume(self, observation: dict, *, named_current_play: bool = False) -> dict:
         """Advance on one sequential ASR transcript with audio-relative timestamps."""
         source = observation.get("source_id")
         seq = observation.get("sequence")
         start = observation.get("start_seconds")
         end = observation.get("end_seconds")
         text = observation.get("text")
+        if type(named_current_play) is not bool:
+            raise ValueError("named_current_play must be a boolean")
         if (not isinstance(source, str) or not source.strip()
                 or type(seq) is not int or seq < 0
                 or type(start) not in (float, int) or type(end) not in (float, int)
@@ -221,11 +234,27 @@ class MatchStartDetector:
             return self.snapshot()
         utterance_key = sha256(folded.encode("utf-8")).hexdigest()
 
+        if self.phase == "finished":
+            return self.snapshot()
+        if (self.phase in ("in_play", "second_half") and _FULL_END.search(folded)
+                and not _HALF_STRONG.search(folded) and '?' not in text):
+            self._record("full_end", "full_time", start, end, utterance_key)
+            endings = self._recent_kind("full_end", end)
+            referee = re.search(r"\bapitou (?:o fim|o final) (?:do jogo|da partida)\b", folded)
+            corroborated = len({item.utterance_key for item in endings}) >= 2 and (
+                max(item.end_seconds for item in endings) - min(item.start_seconds for item in endings) >= 12)
+            if self.phase == "second_half" or referee or corroborated:
+                self.phase, self.confidence = "finished", "high"
+                self.reason = "full_time_narrated"
+                self._recent.clear()
+                self._last_signature = None
+            return self.snapshot()
+
         # Half-time can only occur after established first-half play.
         if self.phase == "in_play":
             strong = _HALF_STRONG.search(folded)
             weak = _HALF_WEAK.search(folded)
-            if strong or weak:
+            if (strong or weak) and '?' not in text:
                 self._record("half", "strong" if strong else "weak", start, end)
                 if strong or len(self._recent_kind("half", end, 120)) >= 2:
                     self.phase, self.confidence = "half_time", "high" if strong else "medium"
@@ -241,7 +270,8 @@ class MatchStartDetector:
             second_cue = _SECOND_KICKOFF.search(folded)
             if second_cue:
                 self._record("second_start", second_cue.group(), start, end)
-            play = self._current_play_cue(text, folded)
+            play = self._current_play_cue(text, folded) or (
+                "resolved_named_current_action" if named_current_play else None)
             if play:
                 self._record("play", play, start, end, utterance_key)
             self._confirm_play(end, second=True)
@@ -250,7 +280,8 @@ class MatchStartDetector:
         first_cue = _FIRST_KICKOFF.search(folded)
         if first_cue:
             self._record("first_start", first_cue.group(), start, end)
-        play = self._current_play_cue(text, folded)
+        play = self._current_play_cue(text, folded) or (
+            "resolved_named_current_action" if named_current_play else None)
         if play:
             self._record("play", play, start, end, utterance_key)
         self._confirm_play(end, second=False)

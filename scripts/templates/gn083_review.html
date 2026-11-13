@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
+<title>Game Now — revisão independente</title>
+<style>
+body{font:16px system-ui;margin:24px auto;padding:0 16px;max-width:1040px;background:#101a22;color:#edf2f5}
+a{color:#a7d9ff}button,select,input,textarea{font:inherit;padding:8px;max-width:100%;box-sizing:border-box}
+section{border:1px solid #65727d;border-radius:8px;padding:16px;margin:16px 0}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+label{display:block}label>select,label>input,textarea{display:block;width:100%}label>input[type=checkbox]{display:inline;width:auto}
+button{margin:12px 8px 12px 0}textarea{width:100%;min-height:70px}small{display:block;color:#c0ccd5}
+</style>
+<h1>Revisão independente da narração</h1><p id="context"></p>
+<p>Esta página não mostra transcrições nem previsões automáticas. Abra a fonte autorizada em outra aba e anote somente o que conseguir confirmar. Não há áudio ou vídeo nesta página.</p>
+<ol><li>Em cada trecho, abra a gravação no ponto indicado e ouça os dez segundos correspondentes.</li><li>Escolha quantas equipes, atletas e regiões conseguir identificar nos lances daquele trecho. Cada escolha aparece numa lista; você pode escolher novamente para acrescentar outro nome. Não precisa cronometrar cada toque.</li><li>Depois dos30 trechos, confirme a revisão independente, informe um nome ou apelido e baixe os dois arquivos no fim da página. Evento, tipo de narração e transcrição são opcionais.</li></ol>
+<p>Uma troca de posse pode envolver as duas equipes e vários atletas no mesmo trecho: adicione todos os identificados. O mesmo nome aparece uma vez por trecho, mesmo se citado várias vezes. A avaliação mede conjuntos de identificações; não mede número de toques, ordem dos passes ou duração da posse. Destinatário citado não confirma recepção. Região exige informação espacial explícita na narração; não estime pelo desenho.</p>
+<p>Faixas no sentido do ataque da equipe: <b>1</b> área defensiva, <b>2</b> intermediária defensiva, <b>3</b> meio-campo, <b>4</b> intermediária ofensiva, <b>5</b> área adversária. Esquerda/direita são relativas a esse ataque. Uma indicação apenas de lado, sem faixa longitudinal inequívoca, não determina uma região completa5×3.</p>
+<p><b>Limpar / não anotado</b> omite o campo da avaliação. <b>Sem identificação inequívoca</b> registra que você ouviu, mas não identificou nenhum item daquele campo. Não use essa opção para um trecho que você não revisou. Se identificou alguns nomes com segurança, adicione esses nomes; não é necessário adivinhar os demais.</p>
+<div id="intervals"></div>
+<label><input id="independent" type="checkbox"> Revisei ouvindo a fonte, sem consultar previsões ou transcrições automáticas.</label>
+<label><input id="offset-verified" type="checkbox"> Conferi que o trecho começa no ponto indicado da gravação.</label>
+<label>Responsável pela revisão (identificador local)<input id="reviewer" maxlength="80"></label>
+<button id="export" type="button">Baixar gabarito JSON</button><button id="declaration" type="button">Baixar declaração da revisão</button>
+<p id="notice" role="status"></p>
+<script id="review-data" type="application/json">__REVIEW_DATA__</script>
+<script>
+'use strict';
+const data=JSON.parse(document.getElementById('review-data').textContent),rows=[];
+const teams=[data.match.home,data.match.away],players=data.match.players;
+document.getElementById('context').textContent=teams.map(t=>t.name).join(' × ')+' · '+data.source_name+
+  ' · início solicitado '+data.requested_media_start_seconds+' s · duração '+data.duration_seconds+' s';
+const eventNames={pass:'Passe',cross:'Cruzamento',shot:'Chute',save:'Defesa',goal:'Gol',corner:'Escanteio',
+  throw_in:'Lateral',offside:'Impedimento',foul:'Falta',penalty:'Pênalti',goal_kick:'Tiro de meta',possession:'Posse',unknown:'Desconhecido'};
+function select(label,values,parent){
+  const wrapper=document.createElement('label');wrapper.append(document.createTextNode(label));
+  const input=document.createElement('select');
+  for(const [value,text] of [['__add','Adicionar identificação…'],['__skip','Limpar / não anotado'],['__none','Sem identificação inequívoca'],...values]){
+    const option=document.createElement('option');option.value=value;option.textContent=text;input.append(option);
+  }
+  const list=document.createElement('ul'),names=new Map(values),field={values:[],annotated:false};
+  function paint(){
+    list.replaceChildren();
+    if(field.annotated&&!field.values.length){const item=document.createElement('li');item.textContent='Nenhuma identificação inequívoca';list.append(item);}
+    for(const value of field.values){
+      const item=document.createElement('li');item.append(document.createTextNode(names.get(value)+' '));
+      const remove=document.createElement('button');remove.type='button';remove.textContent='Remover';
+      remove.addEventListener('click',()=>{field.values=field.values.filter(v=>v!==value);if(!field.values.length)field.annotated=false;paint();});
+      item.append(remove);list.append(item);
+    }
+  }
+  input.addEventListener('change',()=>{
+    if(input.value==='__skip'){field.values=[];field.annotated=false;}
+    else if(input.value==='__none'){field.values=[];field.annotated=true;}
+    else if(input.value!=='__add'){field.annotated=true;if(!field.values.includes(input.value))field.values.push(input.value);}
+    input.value='__add';paint();
+  });
+  wrapper.append(input,list);parent.append(wrapper);return field;
+}
+function recordingTime(seconds){
+  const hours=Math.floor(seconds/3600),minutes=Math.floor(seconds%3600/60),rest=String(seconds%60).padStart(2,'0');
+  return hours?hours+':'+String(minutes).padStart(2,'0')+':'+rest:minutes+':'+rest;
+}
+for(let start=0;start<data.duration_seconds;start+=10){
+  const end=Math.min(start+10,data.duration_seconds),section=document.createElement('section');
+  const from=recordingTime(data.requested_media_start_seconds+start),to=recordingTime(data.requested_media_start_seconds+end);
+  const heading=document.createElement('h2');heading.textContent='Trecho '+start+'–'+end+' s · '+from+'–'+to+' na gravação';section.append(heading);
+  const link=document.createElement('a');
+  const url=new URL(data.source_url);url.searchParams.set('t',String(data.requested_media_start_seconds+start));
+  link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Abrir '+from+' na fonte autorizada';section.append(link);
+  const fields=document.createElement('div');fields.className='fields';section.append(fields);
+  const team=select('Equipes nos lances do trecho',teams.map(t=>[t.id,t.name]),fields);
+  const player=select('Atletas citados nos lances',players.map(p=>[p.id,teams.find(t=>t.id===p.team_id).short_name+' · '+p.name]),fields);
+  const zones=[];
+  for(let band=1;band<=5;band++)for(const [lane,label] of [['left','esquerda'],['center','centro'],['right','direita']])
+    zones.push([band+':'+lane,'Faixa '+band+' · '+label]);
+  const zone=select('Região 5×3 explícita',zones,fields);
+  const event=select('Evento afirmado',Object.entries(eventNames),fields);
+  const kind=select('Tipo de narração',[['live_play','Lance atual'],['ad','Comercial'],['replay','Replay'],['analysis','Análise'],['unknown','Desconhecido']],fields);
+  const textLabel=document.createElement('label');textLabel.textContent='Transcrição humana opcional (registro para revisão)';
+  const text=document.createElement('textarea');text.maxLength=2048;textLabel.append(text);section.append(textLabel);
+  rows.push({start,end,team,player,zone,event,kind,text});document.getElementById('intervals').append(section);
+}
+function annotations(){
+  const result=[];
+  for(const row of rows){
+    const item={source_id:data.source_id,start_seconds:row.start,end_seconds:row.end};
+    for(const [field,input] of [['team_ids',row.team],['player_ids',row.player],['zones',row.zone],['event_kinds',row.event],['narration_kinds',row.kind]]){
+      if(!input.annotated)continue;
+      item[field]=input.values.slice();
+      if(field==='zones')item[field]=input.values.map(value=>{const [band,lane]=value.split(':');return {band:Number(band),lane};});
+    }
+    if(row.text.value.trim())item.reference_text=row.text.value.trim();
+    if(Object.keys(item).length>3)result.push(item);
+  }
+  return result;
+}
+function save(value,name){
+  const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));
+  const link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function verified(){
+  const ok=document.getElementById('independent').checked&&document.getElementById('reviewer').value.trim();
+  if(!ok)document.getElementById('notice').textContent='Informe o responsável e confirme a revisão independente antes de exportar.';
+  return ok;
+}
+document.getElementById('export').addEventListener('click',()=>{
+  if(!verified())return;const result=annotations();
+  if(!result.length){document.getElementById('notice').textContent='Nenhum atributo anotado; não será gerado um gabarito vazio.';return;}
+  save(result,'gn083-human-reference.json');document.getElementById('notice').textContent=result.length+' trechos exportados. Baixe também a declaração.';
+});
+document.getElementById('declaration').addEventListener('click',()=>{
+  if(!verified())return;
+  save({schema_version:1,annotation_schema_version:2,review_unit:'unique_labels_per_interval',source_id:data.source_id,match_id:data.match.id,
+    requested_media_start_seconds:data.requested_media_start_seconds,duration_seconds:data.duration_seconds,
+    independent_human_annotation:true,media_start_verified_by_annotator:document.getElementById('offset-verified').checked,
+    reviewer:document.getElementById('reviewer').value.trim(),annotated_segments:annotations().length,
+    predictions_supplied:false,declared_not_independently_certified:true},'gn083-review-declaration.json');
+});
+</script></html>

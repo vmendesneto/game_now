@@ -6,7 +6,7 @@ Workers and models are volatile and never restart just because a server starts.
 from __future__ import annotations
 
 import asyncio
-from collections import deque
+from collections import Counter, deque
 from datetime import datetime, timezone
 from pathlib import Path
 import re
@@ -21,6 +21,7 @@ from pydantic import Field, StrictBool, field_validator, model_validator
 from app.asr import ASRError, ASRSettings, CPUTranscriber, BYTES_PER_SECOND, asr_diagnostics
 from app.asr_vocabulary import build_vocabulary_prompt
 from app.asr_windows import WindowSettings, WindowTranscript
+from app.capture_metrics import CaptureMetrics
 from app.audio_capture import CaptureError, pcm_chunks
 from app.contracts import AudioSource, Id, StrictModel
 from app.gn083_live import ASRCapacityError, LiveObservation, follow_youtube_narration, wait_for_cpu
@@ -38,6 +39,7 @@ class CaptureRequest(StrictModel):
     source_id: Id
     permission_confirmed: StrictBool
     model: Literal["tiny", "base", "small", "medium"] = "base"
+    recognition_profile: Literal["live", "standard"] = "live"
     start_seconds: float = Field(default=0, ge=0, le=86400, allow_inf_nan=False, strict=True)
     seconds: float | None = Field(default=60, ge=5, le=600, allow_inf_nan=False, strict=True)
     window_seconds: int = Field(default=12, ge=6, le=30, strict=True)
@@ -71,6 +73,26 @@ class CaptureConflict(ValueError):
     pass
 
 
+class RenderAcknowledgement(StrictModel):
+    source_id: Id
+    epoch: str = Field(pattern=r"^[a-f0-9]{32}$")
+    sequence: int = Field(ge=0, strict=True)
+
+
+class _MeasuredTranscriber:
+    """Attribute shared-model time to its source, including cancelled results."""
+
+    def __init__(self, model, metrics: CaptureMetrics):
+        self.model, self.metrics = model, metrics
+
+    def transcribe_pcm(self, pcm):
+        started = time.monotonic()
+        try:
+            return self.model.transcribe_pcm(pcm)
+        finally:
+            self.metrics.recognition_finished(max(0., time.monotonic()-started))
+
+
 def executable(name: str) -> str:
     found = shutil.which(name)
     if found:
@@ -87,6 +109,9 @@ class CaptureRuntime:
         self.sessions: dict[tuple[str, str], dict] = {}
         self.resources: dict[str, dict] = {}
         self.cpu_gate = asyncio.Semaphore(1)
+        self.completed_attempts: dict[str, deque] = {}
+        self.completed_counts: dict[str, int] = {}
+        self.failure_counts: dict[str, Counter] = {}
         self.closed = False
 
     def active(self, match_id: str) -> bool:
@@ -108,8 +133,11 @@ class CaptureRuntime:
         if not sessions:
             return {"state": "idle", "source_id": None, "captured_seconds": 0,
                     "observations": 0, "error_code": None, "audio_retransmitted": False}
-        rows = [{key: value for key, value in session.items()
-                 if key not in {"task", "captures", "clock", "captured_at"}} for session in sessions]
+        rows = [{"capture_epoch": session["metrics"].epoch,
+                 "last_detected_phase": session["metrics"].last_phase,
+                 **{key: value for key, value in session.items()
+                    if key not in {"task", "captures", "clock", "captured_at", "metrics", "metrics_finalized"}}}
+                for session in sessions]
         if len(rows) == 1:
             return rows[0]
         states = {row["state"] for row in rows}
@@ -120,6 +148,55 @@ class CaptureRuntime:
                 "captured_seconds": min(row["captured_seconds"] for row in usable_rows),
                 "observations": sum(row["observations"] for row in rows),
                 "error_code": None if state in ("running", "starting") else rows[0]["error_code"]}
+
+    def report(self, match_id: str) -> dict:
+        streams = [{"source_id": key[1], "state": session["state"],
+                    "model": session["model"], "captured_seconds": session["captured_seconds"],
+                    "recognition_profile": session["recognition_profile"],
+                    "observations": session["observations"], "error_code": session["error_code"],
+                    "unprocessed_audio_seconds": max(0., session["captured_seconds"] -
+                        session["metrics"].last_processed_audio_end_seconds),
+                    "metrics": session["metrics"].snapshot()}
+                   for key, session in self.sessions.items() if key[0] == match_id]
+        return {"match_id": match_id, "kind": "operational_capture_report", "streams": streams,
+                "completed_attempts_total": self.completed_counts.get(match_id, 0),
+                "failures_by_code": dict(self.failure_counts.get(match_id, {})),
+                "recent_completed_attempts": list(self.completed_attempts.get(match_id, [])),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "audio_retransmitted": False, "accuracy_metrics": None,
+                "broadcast_to_browser_latency_seconds": None,
+                "persisted_automatically": False}
+
+    def _record_terminal_metrics(self, match_id: str, session: dict) -> None:
+        if session.get("metrics_finalized"):
+            return
+        session["metrics_finalized"] = True
+        session["metrics"].finish()
+        self.completed_counts[match_id] = self.completed_counts.get(match_id, 0) + 1
+        if session["error_code"]:
+            self.failure_counts.setdefault(match_id, Counter())[session["error_code"]] += 1
+        self.completed_attempts.setdefault(match_id, deque(maxlen=64)).append({
+            "source_id": session["source_id"], "state": session["state"],
+            "model": session["model"], "recognition_profile": session["recognition_profile"],
+            "captured_seconds": session["captured_seconds"], "error_code": session["error_code"],
+            "metrics": session["metrics"].snapshot()})
+
+    def acknowledge_render(self, match_id: str, acknowledgement: RenderAcknowledgement) -> bool:
+        session = self.sessions.get((match_id, acknowledgement.source_id))
+        accepted = bool(session and session["metrics"].acknowledge_render(
+            acknowledgement.epoch, acknowledgement.sequence))
+        if accepted and session.get("metrics_finalized"):
+            for attempt in self.completed_attempts.get(match_id, []):
+                if attempt["metrics"]["epoch"] == acknowledgement.epoch:
+                    attempt["metrics"] = session["metrics"].snapshot()
+                    break
+        return accepted
+
+    def decorate_preview(self, match_id: str, preview: dict | None) -> dict | None:
+        if preview is None:
+            return None
+        session = self.sessions.get((match_id, preview["source_id"]))
+        return {**preview, "capture_epoch": session["metrics"].epoch} if session else preview
 
     async def start(self, match_id: str, request: CaptureRequest, *, adding: bool = False) -> dict:
         if self.closed:
@@ -132,8 +209,8 @@ class CaptureRuntime:
                 "kickoff_seconds": source.kickoff_seconds, "parallel_sources": []}) for source in request.parallel_sources]
         if active and adding:
             resource = self.resources[match_id]
-            if (request.model, request.cpu_threads, request.window_seconds) != resource["settings"]:
-                raise CaptureConflict("Use o modelo, threads e contexto da execução ativa ao adicionar fontes")
+            if (request.model, request.cpu_threads, request.window_seconds, request.recognition_profile) != resource["settings"]:
+                raise CaptureConflict("Use modelo, threads, contexto e perfil da execução ativa ao adicionar fontes")
             if request.kickoff_seconds is not None or resource["manual_alignment"]:
                 raise CaptureConflict("Teste com âncoras deve ser configurado antes do início; adição dinâmica usa modo automático")
             if any((match_id, item.source_id) in self.sessions and
@@ -148,16 +225,20 @@ class CaptureRuntime:
                 raise CaptureConflict("Âncoras de gravação exigem fontes YouTube")
             validate_source_urls([source])
         if not active:
+            self.completed_attempts[match_id] = deque(maxlen=64)
+            self.completed_counts[match_id] = 0
+            self.failure_counts[match_id] = Counter()
             for old_key in tuple(self.sessions):
                 if old_key[0] == match_id:
                     del self.sessions[old_key]
             self.feed.reset_match(match_id)
             self.previews.clear_match(match_id)
-            self.resources[match_id] = {"settings": (request.model, request.cpu_threads, request.window_seconds),
+            self.resources[match_id] = {"settings": (request.model, request.cpu_threads, request.window_seconds, request.recognition_profile),
                 "manual_alignment": request.kickoff_seconds is not None, "transcriber": None, "prepared": None}
             if self.check_tools:
                 self.resources[match_id]["transcriber"] = CPUTranscriber(ASRSettings(
                     model=request.model, max_seconds=60, cpu_threads=request.cpu_threads,
+                    live_mode=request.recognition_profile == "live",
                     initial_prompt=build_vocabulary_prompt(self.store.get_match(match_id))))
         if request.kickoff_seconds is not None:
             group_id = self.previews.set_alignment(match_id, {item.source_id: item.start_seconds-item.kickoff_seconds for item in requests})
@@ -203,11 +284,13 @@ class CaptureRuntime:
                     del self.sessions[old_id]
                     break
         session = {"state": "starting", "source_id": source.id, "model": request.model,
+                   "recognition_profile": request.recognition_profile,
                    "requested_start_seconds": request.start_seconds,
                    "requested_seconds": request.seconds, "window_seconds": request.window_seconds,
                    "kickoff_seconds": request.kickoff_seconds,
                    "cpu_threads": request.cpu_threads,
                    "captured_seconds": 0., "observations": 0, "error_code": None,
+                   "metrics": CaptureMetrics(),
                    "audio_retransmitted": False, "captures": deque(maxlen=256)}
         self.sessions[key] = session
         if group_id is not None:
@@ -229,14 +312,23 @@ class CaptureRuntime:
                             if item[0] + .001 >= row["end_seconds"]), None)
             age = max(0, time.monotonic() - capture[2]) if capture else 86400.
             if len(row["text"]) > 2048:
+                session["metrics"].text_windows_rejected_for_length += 1
                 return  # Do not truncate away negation or advertisement context.
             update = WindowTranscript(source_id=source.id, sequence=row["sequence"],
                                       start_seconds=row["start_seconds"], end_seconds=row["end_seconds"],
                                       language="pt", raw_text=row["text"], new_text=row["text"])
             self.feed.publish(match_id, source.id, update,
                               captured_at=capture[1] if capture else datetime.now(timezone.utc))
-            self.previews.receive(match, LiveObservation(**row, local_capture_age_seconds=age))
+            view = self.previews.receive(match, LiveObservation(**row, local_capture_age_seconds=age))
+            session["metrics"].observe(row["sequence"], captured_tick=capture[2] if capture else None,
+                phase=view["phase"], named_actions=bool(view["current_narration_actions"]),
+                partial_region=bool(view["spatial_mention"] or view["latest_narration_region_action"]),
+                full_ball=bool(view["ball"]))
             session["observations"] += 1
+
+        async def processed_window(row):
+            session["metrics"].processed(row["sequence"], row["end_seconds"],
+                                         has_new_text=row["has_new_text"])
 
         async def capture(item, **options):
             # Pacing keeps recordings comparable to live narration and bounds backlog.
@@ -268,11 +360,14 @@ class CaptureRuntime:
                     except asyncio.CancelledError:
                         await asyncio.gather(resource["prepared"], return_exceptions=True)
                         raise
-                    model_options.update(transcriber=resource["transcriber"], cpu_gate=self.cpu_gate)
+                    model_options.update(transcriber=_MeasuredTranscriber(resource["transcriber"], session["metrics"]),
+                                         cpu_gate=self.cpu_gate)
                 await self.runner(source.url, match, source_id=source.id, source_kind=source.kind,
                                   model=request.model, max_seconds=request.seconds,
                                   yt_dlp_binary=executable("yt-dlp"), ffmpeg_binary=executable("ffmpeg"),
                                   on_observation=observation, on_pcm=received, capture_factory=capture,
+                                  on_window=processed_window,
+                                  on_backlog=session["metrics"].observe_backlog,
                                   window_settings=WindowSettings(window_ms=request.window_seconds * 1000,
                                                                  overlap_ms=2000), **model_options)
                 session["state"] = "finished"
@@ -292,6 +387,7 @@ class CaptureRuntime:
                 self.feed.set_state(match_id, source.id, "error", error_code=(
                     "asr_error" if isinstance(exc, ASRError) else "capture_error"))
             finally:
+                self._record_terminal_metrics(match_id, session)
                 session["captures"].clear()
                 self.previews.clear_source(match_id, source.id)
                 if session["state"] != "error":
@@ -302,6 +398,7 @@ class CaptureRuntime:
             # A task cancelled before its first turn never enters work/finally.
             if task.cancelled() and self.sessions.get(key) is session:
                 session["state"] = "stopped"
+                self._record_terminal_metrics(match_id, session)
                 session["captures"].clear()
                 self.previews.clear_source(match_id, source.id)
                 self.feed.set_state(match_id, source.id, "stopped")

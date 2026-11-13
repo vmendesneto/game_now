@@ -86,7 +86,7 @@ def detect_event(match: Match, request: EventRequest) -> EventEvidence:
     if not classify_narration(request.text).is_current_play:
         return EventEvidence(status="unknown", reason="not_current_live_play")
     normalized = _normalize(request.text)
-    if _UNCERTAIN.search(normalized):
+    if _UNCERTAIN.search(normalized) or '?' in request.text:
         return EventEvidence(status="unknown", reason="negated_or_speculative")
     cues: list[tuple[EventKind, str]] = [
         (kind, match.group(0)) for kind, patterns in _RULES.items()

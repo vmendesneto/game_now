@@ -1,5 +1,11 @@
 # ROADMAP — Game Now
 
+### GN-083/GN-084 — instrumentação e revisão independente (2026-11-13)
+
+- Relatório volátil sem mídia/URLs/transcrição por padrão, épocas e confirmação do navegador, histogramas limitados, fila e chamadas ASR, tentativas/falhas preservadas no reinício individual. Observador somente GET. Não mede atraso original da emissora nem acurácia.
+- Perfil contínuo com VAD/temperatura única, fim textual/eventos conservadores, cleanup de WebSocket inicial e retenção da âncora cinza ao parar. Anúncio imediato de apito corroborado por circulação da bola e ações atuais resolvidas complementam a detecção de início. Distribuições nomeadas exigem contexto de futebol e não confirmam recepção/posse/zona.
+- Revisão cega/comparação aceitam várias equipes, atletas e regiões no mesmo intervalo; medem conjuntos, sem inventar ordem/toques/posse. Sem gabarito preenchido pelo agente. Windows **955 passed/4 skipped**, Chromium isolado desktop/mobile emulado aprovados. Ensaio real de131min/776 textos terminou sem falha de captura/JS, mas perdeu intervalo/segundo tempo/fim. Correção posterior passou por todas as fases em reanálise dos textos; não é aprovação retrospectiva do acompanhamento ao vivo. **GN-083/GN-084 continuam[ ]**: referência humana/qualidade e validação das fases corrigidas pendentes. Falhas/resultados no topo de STATUS e em [GN-084-OBSERVATION.md](docs/GN-084-OBSERVATION.md).
+
 ### GN-083 — início pela narração, previsão e fontes variáveis (2026-11-13)
 
 - Data/hora previstas com fuso são metadados persistidos; não iniciam o jogo pelo relógio. Início automático pela narração, sem apito manual, distingue jogo observado de apito narrado. Escuta contínua é o padrão da UI; operação do servidor/escuta permanece manual.

@@ -205,6 +205,28 @@ def test_follow_live_uses_safe_youtube_capture_and_overlapping_asr():
     assert detected["phase"] == "in_play"
 
 
+def test_empty_asr_results_still_report_processed_audio_windows():
+    windows = []
+    class EmptyASR:
+        def transcribe_pcm(self, pcm):
+            return ASRResult(model='tiny', language='pt', seconds=len(pcm)/BYTES_PER_SECOND,
+                             text='', segments=())
+    async def capture(*args, **kwargs):
+        for _ in range(24):
+            yield b'\x01\x02'*8000
+            await asyncio.sleep(0)
+    async def observed(row):
+        pytest.fail('Empty ASR cannot be published as transcript text')
+    async def processed(row):
+        windows.append(row)
+    result = asyncio.run(follow_youtube_narration('https://www.youtube.com/watch?v=test', game(),
+        max_seconds=12, transcriber=EmptyASR(), capture_factory=capture,
+        on_observation=observed, on_window=processed))
+    assert result.observations == 0 and result.captured_seconds == 12
+    assert windows and windows[-1]['end_seconds'] == 12
+    assert all(not row['has_new_text'] for row in windows)
+
+
 @pytest.mark.parametrize("limit", [0, 4.9, 601, True])
 def test_invalid_live_test_limit_rejected_without_capture(limit):
     async def capture(*_args, **_kwargs):
@@ -217,3 +239,27 @@ def test_invalid_live_test_limit_rejected_without_capture(limit):
             game(), max_seconds=limit, on_observation=lambda row: None,
             capture_factory=capture,
         ))
+
+
+def test_roster_resolved_current_actions_can_confirm_phase_without_fixed_ball_phrase():
+    from tests.test_narration_tracking import game as roster_game
+    registry = LivePreviewRegistry()
+    match = roster_game()
+    phrases = ['Caio devolve para Davi.', 'Davi serve Caio.', 'Beto domina e retorna.']
+    for seq, text in enumerate(phrases):
+        view = registry.receive(match, LiveObservation(source_id='named-play-source', sequence=seq,
+            start_seconds=seq*10, end_seconds=seq*10+12, text=text, local_capture_age_seconds=0))
+    assert view['phase'] == 'in_play' and view['start_basis'] == 'observed_play'
+    assert view['ball'] is None and view['spatial_mention'] is None
+    assert any(item['player_id'] for item in view['current_narration_actions'])
+
+
+@pytest.mark.parametrize('phrase', ['Caio, Davi e Beto.', 'Oferecimento: Caio devolve para Davi.',
+                                  'No replay, Davi serve Caio.', 'Beto não domina.', 'Caio recebe atendimento.'])
+def test_mentions_ads_replays_negation_or_receiving_care_do_not_confirm_named_play(phrase):
+    from tests.test_narration_tracking import game as roster_game
+    registry = LivePreviewRegistry()
+    for seq in range(4):
+        view = registry.receive(roster_game(), LiveObservation(source_id='named-play-source', sequence=seq,
+            start_seconds=seq*10, end_seconds=seq*10+12, text=phrase, local_capture_age_seconds=0))
+    assert view['phase'] == 'pre_game' and view['ball'] is None

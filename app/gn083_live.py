@@ -26,6 +26,7 @@ from app.source_validation import validate_source_urls
 from app.storage import StoreConflict
 from app.spatial_mentions import spatial_mention
 from app.narration_tracking import track_narration
+from app.event_detection import EventRequest, detect_event
 from app.source_selection import SourceSelectionRequest, SourceSelectionObservation, preview_active_source
 from app.youtube_capture import youtube_pcm_chunks
 
@@ -85,7 +86,7 @@ class LivePreviewRegistry:
 
     def _remember_phase(self, match_id: str, detected: dict) -> None:
         group = self._groups.get(match_id)
-        phases = ("pre_game", "probable_start", "in_play", "half_time", "second_half")
+        phases = ("pre_game", "probable_start", "in_play", "half_time", "second_half", "finished")
         if group and phases.index(detected["phase"]) > phases.index(group["phase"]):
             group["phase"], group["phase_confidence"] = detected["phase"], detected["confidence"]
 
@@ -103,10 +104,14 @@ class LivePreviewRegistry:
                 "latest_action": None,
                 "latest_region_action": None,
                 "current_actions": [], "observation_sequence": None,
+                "current_event": None, "narrated_events": [],
             }
         session = self._sessions[key]
         before = session["detector"].phase
-        detected = session["detector"].consume(observation.model_dump())
+        preliminary_actions = track_narration(match, observation.text)
+        named_play = any(action["kind"] in ("ball_action", "control", "recovery")
+                         for action in preliminary_actions)
+        detected = session["detector"].consume(observation.model_dump(), named_current_play=named_play)
         self._remember_phase(match.id, detected)
         now = self.clock()
         session["last_seen"] = now
@@ -123,13 +128,24 @@ class LivePreviewRegistry:
         mention = spatial_mention(current, observation.text)
         age = observation.local_capture_age_seconds
         session["current_play"] = current_play_cue(observation.text)
-        actions = track_narration(current, observation.text) if phase != "half_time" else []
+        actions = (preliminary_actions if current.period == match.period else track_narration(current, observation.text)
+                   ) if phase not in ("half_time", "finished") else []
         session["current_actions"] = [{**item,"id":f"{observation.source_id}:{observation.sequence}:{index}",
                                       "source_id": observation.source_id,
                                       "audio_start_seconds": observation.start_seconds,
                                       "audio_end_seconds": observation.end_seconds}
                                       for index,item in enumerate(actions)]
         session["observation_sequence"] = observation.sequence
+        event = detect_event(current, EventRequest(text=observation.text)) if detected['ball_updates_allowed'] else None
+        session["current_event"] = ({"id": f"{observation.source_id}:{observation.sequence}:event",
+            "source_id": observation.source_id, "sequence": observation.sequence,
+            "kind": event.kind.value, "cue": event.cue,
+            "audio_start_seconds": observation.start_seconds, "audio_end_seconds": observation.end_seconds,
+            "basis": "single_affirmative_event_type_in_narration", "score_update_confirmed": False,
+            "audio_time_verified": False} if event and event.status == 'explicit' else None)
+        if session["current_event"] is not None:
+            session["narrated_events"].append(session["current_event"])
+            session["narrated_events"] = session["narrated_events"][-96:]
         history = session["action_history"]
         for index, action in enumerate(actions):
             # Only identical text in overlapping windows is a duplicate. This
@@ -155,12 +171,12 @@ class LivePreviewRegistry:
             # not a current ball candidate governed by the stricter 5s guard.
             # _view includes initial processing age, so no extra lifetime is added.
             mention["status"] == "partial" and (age is None or age <= SPATIAL_MENTION_TTL_SECONDS)
-            and phase not in ("half_time",)
+            and phase not in ("half_time", "finished")
         ) else None
         session["spatial_time"] = now
         session["spatial_initial_age"] = age or 0.
         session["ball_diagnostic"] = "phase_not_confirmed" if not detected["ball_updates_allowed"] else "audio_too_old"
-        if before != phase and phase in ("half_time", "second_half"):
+        if before != phase and phase in ("half_time", "second_half", "finished"):
             session["ball"] = None
             session["ball_time"] = None
         fresh = (observation.local_capture_age_seconds is None
@@ -223,6 +239,8 @@ class LivePreviewRegistry:
             "latest_narration_region_action": session["latest_region_action"] if actions_fresh else None,
             "current_narration_actions": session["current_actions"].copy() if actions_fresh else [],
             "observation_sequence": session["observation_sequence"],
+            "current_narrated_event": session["current_event"] if actions_fresh else None,
+            "narrated_events": session["narrated_events"].copy(),
             "persisted": False,
         }
 
@@ -241,7 +259,7 @@ class LivePreviewRegistry:
                 age = session["actions_initial_age"] + self.clock()-session["last_seen"]
                 aligned = group["offsets"].get(view["source_id"], float("-inf")) + view["last_audio_seconds"]
                 view["aligned_audio_seconds"] = aligned
-                usable = bool(view["ball"] or view["latest_narration_action"] or view["spatial_mention"])
+                usable = bool(view["ball"] or view["latest_narration_action"] or view["spatial_mention"] or view["current_narrated_event"])
                 usable = usable and aligned >= group["watermark"]
                 observations.append(SourceSelectionObservation(source_id=view["source_id"],
                     connection_status="online" if view["active"] else "offline",
@@ -254,7 +272,8 @@ class LivePreviewRegistry:
             if selected is None:
                 selected = max(views, key=lambda view: self._sessions[(match_id,view["source_id"])]["last_seen"])
                 selected = {**selected, "ball": None, "spatial_mention": None, "latest_narration_action": None,
-                            "latest_narration_region_action": None, "current_narration_actions": []}
+                            "latest_narration_region_action": None, "current_narration_actions": [],
+                            "current_narrated_event": None}
             else:
                 group["watermark"] = max(group["watermark"], selected["aligned_audio_seconds"])
             group["selected"] = selection.active_source_id
@@ -267,14 +286,14 @@ class LivePreviewRegistry:
                 action = selected["latest_narration_action"]
                 selected = {**selected, "ball": None, "spatial_mention": None, "latest_narration_region_action": None,
                             "latest_narration_action": {**action,"region":None} if action else None,
-                            "current_narration_actions": []}
-            return {**selected, "visual_context": group["id"],
+                            "current_narration_actions": [], "current_narrated_event": None}
+            return self._shared_phase_guard({**selected, "visual_context": group["id"],
                     "group_phase": group["phase"], "group_phase_confidence": group["phase_confidence"],
                     "visual_timeline": group["watermark"] if group["watermark"] != float("-inf") else 0,
                     "fusion": {"active_source_id": selection.active_source_id, "reason": selection.reason,
                                "alignment_basis": "user_kickoff_anchors", "alignment_verified": False,
                                "source_count": len(group["offsets"]), "conflicting_ball_sources": [v["source_id"] for v in conflicting],
-                               "diagnostics": [d.model_dump(mode="json") for d in selection.diagnostics]}}
+                               "diagnostics": [d.model_dump(mode="json") for d in selection.diagnostics]}})
         # One active source only, never merge out-of-sync sources.
         return max(views, key=lambda v: (
             v["active"], self._sessions[(v["match_id"], v["source_id"])]["last_seen"]
@@ -287,7 +306,7 @@ class LivePreviewRegistry:
             session = self._sessions[(match_id, view["source_id"])]
             age = session["actions_initial_age"] + self.clock() - session["last_seen"]
             usable = view["active"] and bool(
-                view["ball"] or view["latest_narration_action"] or view["spatial_mention"])
+                view["ball"] or view["latest_narration_action"] or view["spatial_mention"] or view["current_narrated_event"])
             observations.append(SourceSelectionObservation(source_id=view["source_id"],
                 connection_status="online" if view["active"] else "offline",
                 narration_kind="live_play" if usable else "unknown",
@@ -300,17 +319,27 @@ class LivePreviewRegistry:
             selected = max(views, key=lambda view: self._sessions[(match_id, view["source_id"])]["last_seen"])
             selected = {**selected, "ball": None, "spatial_mention": None,
                 "latest_narration_action": None, "latest_narration_region_action": None,
-                "current_narration_actions": []}
+                "current_narration_actions": [], "current_narrated_event": None}
         group["selected"] = selection.active_source_id
         # A source switch starts a new visual context. No region, actor or
         # watermark from another unaligned source is transferred to it.
-        return {**selected, "visual_context": group["id"] + ":" + selected["source_id"],
+        return self._shared_phase_guard({**selected, "visual_context": group["id"] + ":" + selected["source_id"],
             "visual_timeline": selected["last_audio_seconds"],
             "group_phase": group["phase"], "group_phase_confidence": group["phase_confidence"],
             "fusion": {"active_source_id": selection.active_source_id, "reason": selection.reason,
                 "alignment_basis": "independent_sources", "alignment_verified": False,
                 "source_count": len(group["offsets"]), "cross_source_chronology_verified": False,
-                "diagnostics": [item.model_dump(mode="json") for item in selection.diagnostics]}}
+                "diagnostics": [item.model_dump(mode="json") for item in selection.diagnostics]}})
+
+    @staticmethod
+    def _shared_phase_guard(view: dict) -> dict:
+        phase = view["group_phase"]
+        if phase in ("half_time", "finished") or (phase == "second_half" and view["phase"] != "second_half"):
+            return {**view, "ball": None, "spatial_mention": None,
+                    "latest_narration_action": None, "latest_narration_region_action": None,
+                    "current_narration_actions": [], "current_narrated_event": None, "ball_updates_allowed": False,
+                    "ball_diagnostic": "group_period_not_current_play"}
+        return view
 
     def clear_match(self, match_id: str) -> None:
         self._groups.pop(match_id, None)
@@ -347,6 +376,8 @@ async def follow_youtube_narration(
     window_settings: WindowSettings | None = None,
     on_pcm: Callable[[int], None] | None = None,
     cpu_gate: asyncio.Semaphore | None = None,
+    on_window: Callable[[dict], Awaitable[None]] | None = None,
+    on_backlog: Callable[[int], None] | None = None,
 ) -> LiveMonitorResult:
     """Consume a stream until its end / Ctrl+C, no fixed pre-game offset.
 
@@ -379,10 +410,11 @@ async def follow_youtube_narration(
     queue: asyncio.Queue[bytes | None] = asyncio.Queue(maxsize=QUEUE_CHUNKS)
     byte_count = 0
     row_count = 0
+    queued_bytes = 0
     ended_at_limit = False
 
     async def produce() -> None:
-        nonlocal byte_count, ended_at_limit
+        nonlocal byte_count, ended_at_limit, queued_bytes
         maximum = None if max_seconds is None else int(max_seconds * BYTES_PER_SECOND) // 2 * 2
         async with aclosing(factory(
             source, yt_dlp_binary=yt_dlp_binary, ffmpeg_binary=ffmpeg_binary,
@@ -401,6 +433,9 @@ async def follow_youtube_narration(
                         if queue.full():
                             raise ASRCapacityError("Live ASR is too slow for bounded PCM buffer")
                         queue.put_nowait(piece)
+                        queued_bytes += len(piece)
+                        if on_backlog is not None:
+                            on_backlog(queued_bytes)
                         await asyncio.sleep(0)
                     byte_count += len(block)
                 if maximum is not None and byte_count >= maximum:
@@ -411,6 +446,10 @@ async def follow_youtube_narration(
     async def emit(updates) -> None:
         nonlocal row_count
         for update in updates:
+            if on_window is not None:
+                await on_window({"source_id": update.source_id, "sequence": update.sequence,
+                    "start_seconds": update.start_seconds, "end_seconds": update.end_seconds,
+                    "has_new_text": bool(update.new_text.strip())})
             if update.new_text.strip():
                 row = {
                     "source_id": update.source_id, "sequence": update.sequence,
@@ -421,6 +460,7 @@ async def follow_youtube_narration(
                 row_count += 1
 
     async def consume() -> None:
+        nonlocal queued_bytes
         async def process(function, *args):
             if cpu_gate is None:
                 return await wait_for_cpu(function, *args)
@@ -430,6 +470,7 @@ async def follow_youtube_narration(
             block = await queue.get()
             if block is None:
                 break
+            queued_bytes -= len(block)
             await emit(await process(processor.push, source_id, block))
         await emit(await process(processor.finish, source_id))
 

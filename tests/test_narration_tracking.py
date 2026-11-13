@@ -78,6 +78,29 @@ def test_player_team_pair_and_explicit_named_team_control():
     assert event["player_id"] == "beto" and event["team_id"] == "red"
 
 
+@pytest.mark.parametrize('text', ['Caio tocou a bola mais atrás.', 'Caio passa de primeira.',
+    'Caio, entregou mais à frente ali.', 'Caio toca para Davi.'])
+def test_named_distribution_requires_football_context_without_fabricating_receipt_or_zone(text):
+    events = track_narration(game(), text)
+    assert events[0]['player_id'] == 'caio' and events[0]['kind'] == 'ball_action'
+    assert events[0]['region'] is None and not events[0]['touch_confirmed']
+
+
+@pytest.mark.parametrize('text', ['Caio passou mal.', 'Caio tocou música.',
+    'Caio entregou o prêmio para Davi.', 'Caio passa para a entrevista.',
+    'Caio tocou música, Davi recebeu a bola?',
+    'Caio não tocou a bola.', 'Caio vai passar a bola.',
+    'No replay Caio entregou mais à frente.', 'Caio passa de primeira?'])
+def test_generic_distribution_verbs_are_not_sufficient_for_a_football_action(text):
+    assert track_narration(game(), text) == []
+
+
+def test_distribution_cannot_borrow_the_ball_from_another_named_players_action():
+    events = track_narration(game(), 'Caio tocou música, Davi recebe a bola.')
+    assert any(e['player_id'] == 'davi' and e['kind'] == 'ball_action' for e in events)
+    assert not any(e['player_id'] == 'caio' and e['kind'] == 'ball_action' for e in events)
+
+
 @pytest.mark.parametrize("prefix", ["Ontem", "No replay", "Oferecimento", "Na minha opinião", "Taticamente", "Talvez", "Eu acredito que"])
 def test_ads_replays_analysis_and_speculation_are_not_actions(prefix):
     assert track_narration(game(), prefix + ": Caio recebeu no meio-campo.") == []

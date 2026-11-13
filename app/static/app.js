@@ -51,6 +51,7 @@ let previousRenderedZoneKey=null;
 let lastDemoSnapshot=null;
 let demoPlayback=null;
 let activeLivePreview=null,livePollTimer=null,livePollEpoch=0;
+const acknowledgedPreviews=new Set();
 let livePreviewVisible=true;
 let auditReplayPreview=null;
 const liveSequence=window.GameNowNarrationSequence.create({onAdvance:()=>{
@@ -59,7 +60,7 @@ const liveSequence=window.GameNowNarrationSequence.create({onAdvance:()=>{
 }});
 const livePhaseNames={
   pre_game:"Início ainda não confirmado",probable_start:"Início provável (aguardando confirmação)",
-  in_play:"Jogo em andamento",half_time:"Intervalo",second_half:"Segundo tempo"
+  in_play:"Jogo em andamento",half_time:"Intervalo",second_half:"Segundo tempo",finished:"Partida encerrada"
 };
 const liveConfidenceNames={none:"sem evidência",low:"baixa",medium:"moderada",high:"alta"};
 function paintLivePreview(snapshot){
@@ -80,7 +81,8 @@ function paintLivePreview(snapshot){
       " · janela "+item.audio_start_seconds+"–"+item.audio_end_seconds+" s da captura";
     if(item)field.dataset.narrationStep=item.id;
   }else delete field.dataset.narrationStep;
-  const phase=live.active?(live.group_phase||live.phase):(live.phase==="capture_stopped"?"Acompanhamento encerrado":"sem atualizações recentes");
+  const phase=live.active?(live.group_phase||live.phase):(live.phase==="finished"?"finished":
+    live.phase==="capture_stopped"?"Acompanhamento encerrado":"sem atualizações recentes");
   $("live-monitor-state").hidden=false;
   $("live-monitor-state").textContent="Acompanhamento · "+(livePhaseNames[phase]||phase)+
     " · confiança heurística "+(liveConfidenceNames[live.group_phase_confidence||live.confidence]||"não medida")+
@@ -104,6 +106,22 @@ function paintLivePreview(snapshot){
     const lastTeam=[game.home,game.away].find(t=>t.id===lastNamedAction.team_id);
     $("last-confirmed-event").textContent="Última identificação no texto: "+
       (lastPlayer?.name||lastTeam?.name||"equipe")+". Isso não confirma a posse atual.";
+  }
+  const eventNames={pass:"Passe",cross:"Cruzamento",shot:"Finalização",save:"Defesa",goal:"Gol citado",
+    corner:"Escanteio",throw_in:"Lateral",offside:"Impedimento",foul:"Falta",penalty:"Pênalti",goal_kick:"Tiro de meta"};
+  const eventReady=!sequence||sequence.index===sequence.count-1;
+  const narrated=eventReady&&live.active?live.current_narrated_event:null;
+  $("narrated-event").hidden=false;
+  $("narrated-event").textContent=narrated?
+    "Evento citado neste trecho: "+(eventNames[narrated.kind]||narrated.kind)+". Hipótese textual; não altera o placar.":
+    "Nenhum tipo de evento inequívoco disponível neste passo.";
+  const eventList=$("narrated-event-history");eventList.replaceChildren();eventList.hidden=false;
+  for(const item of (live.narrated_events||[]).filter(item=>
+    item.sequence<live.observation_sequence||eventReady&&item.sequence===live.observation_sequence).slice(-8).reverse()){
+    const li=document.createElement("li");li.dataset.narratedEventId=item.id;
+    li.textContent="Histórico textual · "+(eventNames[item.kind]||item.kind)+" · janela "+
+      item.audio_start_seconds+"–"+item.audio_end_seconds+" s da captura; pode haver repetição entre janelas.";
+    eventList.append(li);
   }
   $("last-text").textContent=live.ball?
     "Região estimada exclusivamente por posse e zona explícitas na narração.":
@@ -247,17 +265,24 @@ async function refreshLivePreview(matchId,epoch){
       showCaptureStatus(capture);
       if(!next&&capture.source_id){
         const running=["starting","running","stopping"].includes(capture.state);
-        next={active:running,source_id:capture.source_id,phase:running?"Aguardando narração":"capture_stopped",confidence:"none",
+        const previous=(capture.streams||[capture]).find(stream=>stream.source_id===activeLivePreview?.source_id&&
+          stream.capture_epoch&&stream.capture_epoch===activeLivePreview?.capture_epoch);
+        const sameRun=Boolean(previous);
+        const ended=(capture.streams||[capture]).some(stream=>stream.last_detected_phase==="finished")||
+          sameRun&&activeLivePreview.phase==="finished";
+        next={active:running,source_id:sameRun?activeLivePreview.source_id:capture.source_id,
+          capture_epoch:previous?.capture_epoch||capture.capture_epoch,
+          phase:running?"Aguardando narração":ended?"finished":"capture_stopped",confidence:"none",
           ball:null,ball_updates_allowed:false,last_audio_seconds:capture.captured_seconds,
-          visual_context:capture.visual_context,
-          visual_timeline:capture.visual_context?(activeLivePreview?.visual_context===capture.visual_context?
-            activeLivePreview.visual_timeline:0):undefined};
+          visual_context:sameRun?activeLivePreview.visual_context:capture.visual_context,
+          visual_timeline:sameRun?activeLivePreview.visual_timeline:capture.visual_context?0:undefined};
       }
     }
     if(!livePreviewVisible)return;
     if(next){
       activeLivePreview=next;
       paintLivePreview(next);
+      acknowledgeRenderedPreview(next,matchId,epoch);
     }else if(activeLivePreview){
       activeLivePreview=null;
       $("live-monitor-state").hidden=true;
@@ -270,7 +295,26 @@ async function refreshLivePreview(matchId,epoch){
     }
   }
 }
+function acknowledgeRenderedPreview(preview,matchId,epoch){
+  if(!preview.capture_epoch||!Number.isInteger(preview.observation_sequence)||auditReplayPreview)return;
+  const key=preview.capture_epoch+":"+preview.source_id+":"+preview.observation_sequence;
+  if(acknowledgedPreviews.has(key))return;
+  acknowledgedPreviews.add(key);
+  if(acknowledgedPreviews.size>512)acknowledgedPreviews.delete(acknowledgedPreviews.values().next().value);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(epoch!==livePollEpoch||chosenMatch?.id!==matchId||auditReplayPreview||!livePreviewVisible||
+       activeLivePreview?.capture_epoch!==preview.capture_epoch||
+       activeLivePreview?.observation_sequence!==preview.observation_sequence){
+      acknowledgedPreviews.delete(key);return;
+    }
+    fetch("/api/matches/"+encodeURIComponent(matchId)+"/capture/render-ack",{
+      method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        source_id:preview.source_id,epoch:preview.capture_epoch,sequence:preview.observation_sequence})
+    }).catch(()=>acknowledgedPreviews.delete(key));
+  }));
+}
 function stopLivePolling(){
+  acknowledgedPreviews.clear();
   liveSequence.reset();auditReplayPreview=null;
   $("narration-sequence-status").hidden=true;$("stop-text-replay").hidden=true;
   livePreviewVisible=true;
@@ -291,6 +335,7 @@ function render(snapshot) {
   lastDemoSnapshot=snapshot;
   if((auditReplayPreview||activeLivePreview)&&chosenMatch){paintLivePreview(auditReplayPreview||activeLivePreview);return;}
   delete field.dataset.narrationStep;
+  $("narrated-event").hidden=true;$("narrated-event-history").hidden=true;
   $("narration-sequence-status").hidden=true;$("stop-text-replay").hidden=true;
   const data=snapshot.data,match=data.match,ball=data.ball;
   const summary=window.GameNowScoreboard.summary(snapshot);
@@ -514,6 +559,7 @@ async function configApi(path, method="GET", body) {
   return response.status===204?null:response.json();
 }
 function blankMatch() {
+  clearCaptureReport();
   actionAuditRows=[];actionAuditReport=null;actionAuditSaved=false;$("action-audit-filter").value="";$("action-audit-list").replaceChildren();$("action-audit-panel").hidden=true;
   stopLivePolling();
   if(lastDemoSnapshot)render(lastDemoSnapshot);
@@ -542,6 +588,7 @@ function blankMatch() {
   updateSetupProgress();
 }
 function showMatch(match) {
+  if(chosenMatch?.id!==match.id)clearCaptureReport();
   actionAuditRows=[];actionAuditReport=null;actionAuditSaved=false;$("action-audit-filter").value="";$("action-audit-list").replaceChildren();$("action-audit-panel").hidden=false;
   $("action-audit-status").textContent="Nenhuma análise solicitada para esta partida.";
   chosenMatch=match;
@@ -1042,7 +1089,9 @@ function showCaptureStatus(status){
   latestCaptureStatus=status;
   const running=["starting","running","stopping"].includes(status.state);
   $("capture-model-status").textContent=status.model?
-    "Modelo desta execução: "+status.model+". Alterar a seleção vale apenas no próximo início.":"";
+    "Modelo desta execução: "+status.model+(status.recognition_profile?" · perfil "+
+      (status.recognition_profile==="live"?"contínuo com filtro de fala":"padrão com tentativas adicionais"):"")+
+      ". Alterar a seleção vale apenas no próximo início.":"";
   const names={idle:"Nenhuma captura iniciada",starting:"Preparando captura/modelo",running:"Processando narração",
     stopping:"Encerrando captura e inferência",stopped:"Acompanhamento parado",finished:"Trecho concluído",error:"Acompanhamento interrompido por erro"};
   const errors={asr_failed:"Falha no reconhecimento local. Confira modelo, dependências e memória.",
@@ -1106,12 +1155,13 @@ $("capture-form").addEventListener("submit",async event=>{
       if(!selected.length)throw new Error("Selecione ao menos uma fonte que ainda não esteja em acompanhamento.");
     }
     const status=await configApi("/api/matches/"+encodeURIComponent(chosenMatch.id)+(adding?"/capture/add":"/capture/start"),"POST",{
-      ...selected[0],model:$("capture-model").value,
+      ...selected[0],model:$("capture-model").value,recognition_profile:$("capture-recognition-profile").value,
       seconds:$("capture-continuous").checked?null:Number($("capture-seconds").value),
       window_seconds:Number($("capture-window").value),permission_confirmed:$("capture-permission").checked,
       parallel_sources:selected.slice(1),
       ...(adding?{model:latestCaptureStatus.model,cpu_threads:latestCaptureStatus.cpu_threads,
-        window_seconds:latestCaptureStatus.window_seconds}:{})});
+        window_seconds:latestCaptureStatus.window_seconds,
+        recognition_profile:latestCaptureStatus.recognition_profile||"standard"}:{})});
     showCaptureStatus(status);formNotice("capture-message","Acompanhamento iniciado. O painel de transcrição receberá somente texto.");
     await loadTranscriptDiagnostics();
   }catch(error){$("capture-start-button").disabled=false;formNotice("capture-message",error.message,true);}
@@ -1120,6 +1170,42 @@ $("capture-stop").addEventListener("click",async()=>{
   if(!chosenMatch)return;
   try{showCaptureStatus(await configApi("/api/matches/"+encodeURIComponent(chosenMatch.id)+"/capture/stop","POST"));}
   catch(error){formNotice("capture-message",error.message,true);}
+});
+let loadedCaptureReport=null;
+function clearCaptureReport(){
+  loadedCaptureReport=null;
+  $("capture-report-download").disabled=true;
+  $("capture-report-summary").textContent="Consulte o relatório da partida selecionada. Não mede atraso da emissora nem precisão.";
+}
+$("capture-report-load").addEventListener("click",async()=>{
+  if(!chosenMatch)return;
+  const matchId=chosenMatch.id;
+  try{
+    const report=await configApi("/api/matches/"+encodeURIComponent(matchId)+"/capture/report");
+    if(chosenMatch?.id!==matchId)return;
+    loadedCaptureReport=report;
+    const descriptions=report.streams.map(stream=>{
+      const metrics=stream.metrics,delay=metrics.pcm_to_text,shown=metrics.pcm_to_first_render_ack;
+      const seconds=value=>value===null?"sem amostra":value.toFixed(2)+" s";
+      return (registeredSources.find(s=>s.id===stream.source_id)?.name||stream.source_id)+": "+
+        stream.captured_seconds.toFixed(1)+" s de áudio, "+metrics.text_windows+" trechos textuais; "+
+        metrics.windows_with_named_actions+" com ação identificada; atraso PCM→texto máximo "+
+        seconds(delay.maximum_seconds)+"; PCM→primeira confirmação do navegador máximo "+
+        seconds(shown.maximum_seconds)+" ("+shown.samples+" amostras)"+
+        (stream.error_code?"; falha "+stream.error_code:"");
+    });
+    $("capture-report-summary").textContent=descriptions.join(" · ")||"Nenhuma execução medida neste servidor.";
+    const failures=Object.values(report.failures_by_code||{}).reduce((sum,count)=>sum+count,0);
+    if(failures)$("capture-report-summary").textContent+=" · "+failures+" falhas registradas nesta execução, incluindo tentativas já reiniciadas.";
+    $("capture-report-download").disabled=!report.streams.length;
+  }catch(error){if(chosenMatch?.id===matchId)formNotice("capture-report-summary",error.message,true);}
+});
+$("capture-report-download").addEventListener("click",()=>{
+  if(!loadedCaptureReport||loadedCaptureReport.match_id!==chosenMatch?.id)return;
+  const url=URL.createObjectURL(new Blob([JSON.stringify(loadedCaptureReport,null,2)],{type:"application/json"}));
+  const link=document.createElement("a");link.href=url;
+  link.download="game-now-report-"+loadedCaptureReport.match_id+".json";link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
 });
 $("capture-demo").addEventListener("click",()=>{
   auditReplayPreview=null;liveSequence.reset();$("narration-sequence-status").hidden=true;$("stop-text-replay").hidden=true;
